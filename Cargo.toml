@@ -1,0 +1,11 @@
+[package]
+name = "rust_software_rasterizer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dev-dependencies]
+escargot = "0.5.7"
+libloading = "0.8.0"
