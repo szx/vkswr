@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 escargot = "0.5.7"
 libloading = "0.8.0"
 ctor = "0.2.2"
+assert_fs = "1.0.13"

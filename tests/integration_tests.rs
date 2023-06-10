@@ -1,12 +1,11 @@
+use std::fs;
+use std::process::Command;
+
 mod common;
 
 #[test]
-fn api_exists() -> common::TestResult {
+fn load_cdylib() -> common::TestResult {
     let cdylib_path = common::get_cdylib_path();
-
-    // TODO: Implement 'vkGetInstanceProcAddr' or 'vk_icdGetInstanceProcAddr'.
-    // TODO: Export VK_ICD_FILENAMES and run vulkaninfo & vkcube.
-    // TODO: Generate functions from VK.xml. Create stubs.rs.
 
     unsafe {
         let cdylib = libloading::Library::new(&cdylib_path)?;
@@ -14,5 +13,20 @@ fn api_exists() -> common::TestResult {
             cdylib.get(b"lib_test")?;
         assert_eq!(lib_test(), 1);
     }
+    Ok(())
+}
+
+#[test]
+fn run_vulkaninfo() -> common::TestResult {
+    let icd_json_path = common::get_icd_json_path();
+    let out = Command::new("vulkaninfo")
+        .env("VK_ICD_FILENAMES", icd_json_path)
+        .output()?;
+    assert!(
+        out.status.success(),
+        "stdout: {},\nstderr: {}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     Ok(())
 }
