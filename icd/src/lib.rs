@@ -17,6 +17,17 @@ enum VkResult {
     VK_NOT_READY = 1,
 } // TODO: Codegen enum.
 
+fn wait_for_debugger() {
+    static mut debug: bool = true;
+    unsafe {
+        if debug && std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
+            debug = false;
+        };
+        while debug {}
+        debug = false;
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn vk_icdGetInstanceProcAddr(
     instance: VkInstance,
@@ -24,7 +35,7 @@ pub extern "C" fn vk_icdGetInstanceProcAddr(
 ) -> PFN_vkVoidFunction {
     let Ok(pName) = unsafe { CStr::from_ptr(pName) }.to_str() else { return None; };
     println!("vk_icdGetInstanceProcAddr: {:?} {:?}", instance, pName);
-    // TODO: Debug attachment loop.
+    wait_for_debugger();
     match pName {
         "vkCreateInstance" => unsafe {
             println!("HIRO");
