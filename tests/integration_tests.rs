@@ -21,6 +21,7 @@ fn run_vulkaninfo() -> common::TestResult {
     let icd_json_path = common::get_icd_json_path();
     let out = Command::new("vulkaninfo")
         .env("VK_ICD_FILENAMES", icd_json_path)
+        .env("VK_LOADER_DEBUG", "error,warn,info,debug,layer,driver")
         .output()?;
     assert!(
         out.status.success(),

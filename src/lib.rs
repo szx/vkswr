@@ -1,5 +1,76 @@
+use crate::VkResult::{VK_NOT_READY, VK_SUCCESS};
+use std::ffi::{c_char, c_uint, c_void, CStr};
+use std::ptr::{null, null_mut};
+use std::str::Utf8Error;
+
+type PFN_vkVoidFunction = Option<unsafe extern "C" fn()>;
+type VkDispatchableHandle = *const c_void;
+type VkInstance = VkDispatchableHandle;
+
+type VkInstanceCreateInfo = VkDispatchableHandle; // TODO: Codegen struct.
+type VkAllocationCallbacks = VkDispatchableHandle; // TODO: Codegen struct.
+type VkExtensionProperties = VkDispatchableHandle; // TODO: Codegen struct.
+
+#[repr(C)]
+enum VkResult {
+    VK_SUCCESS = 0,
+    VK_NOT_READY = 1,
+} // TODO: Codegen enum.
+
 #[no_mangle]
-pub extern fn lib_test() -> u32 {
+pub extern "C" fn vk_icdGetInstanceProcAddr(
+    instance: VkInstance,
+    pName: *const c_char,
+) -> PFN_vkVoidFunction {
+    let Ok(pName) = unsafe { CStr::from_ptr(pName) }.to_str() else { return None; };
+    println!("vk_icdGetInstanceProcAddr: {:?} {:?}", instance, pName);
+    // TODO: Debug attachment loop.
+    match pName {
+        "vkCreateInstance" => unsafe {
+            println!("HIRO");
+            std::mem::transmute(vkCreateInstance as *const ())
+        },
+        "vkEnumerateInstanceExtensionProperties" => unsafe {
+            println!("HIRO");
+            std::mem::transmute(vkEnumerateInstanceExtensionProperties as *const ())
+        },
+        &_ => None,
+    }
+}
+
+#[no_mangle]
+extern "C" fn vkCreateInstance(
+    pCreateInfo: *const VkInstanceCreateInfo,
+    pAllocator: *const VkAllocationCallbacks,
+    pInstance: *mut VkInstance,
+) -> VkResult {
+    println!("Hello from vkCreateInstance()!");
+    // TODO: Create and register internal VkInstance.
+    VK_SUCCESS
+}
+
+#[no_mangle]
+unsafe extern "C"  fn vkEnumerateInstanceExtensionProperties(
+    pLayerName: *const c_char,
+    pPropertyCount: *mut c_uint,
+    pProperties: *mut VkExtensionProperties,
+) -> VkResult {
+    println!("Hello from vkEnumerateInstanceExtensionProperties()!");
+    assert_eq!(pLayerName, null());
+    println!("*pPropertyCount = {}", *pPropertyCount);
+    println!("*pProperties = {:?}", pProperties);
+    if pProperties == null_mut() {
+        *pPropertyCount = 0;
+    }
+    VK_SUCCESS
+}
+
+// TODO: Implement Core 1.0 functions required by loader_icd_init_entries().
+
+// TODO: Generate functions from VK.xml. Create stubs.rs.
+
+#[no_mangle]
+pub extern "C" fn lib_test() -> u32 {
     println!("Hello from the library!");
     1
 }
@@ -8,7 +79,5 @@ pub extern fn lib_test() -> u32 {
 mod tests {
     use crate::*;
     #[test]
-    fn works() {
-
-    }
+    fn works() {}
 }
