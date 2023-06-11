@@ -10,23 +10,22 @@ pub type TestResult = Result<(), Box<dyn std::error::Error>>;
 fn setup() {
     // Rebuild cdylib.
     escargot::CargoBuild::new()
-        .manifest_path("Cargo.toml")
+        .manifest_path("../Cargo.toml")
         .exec()
         .unwrap();
     // TODO: Logger.
 }
 
-
 pub fn get_cdylib_path() -> PathBuf {
-    let mut cdylib_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    cdylib_path.push("target/debug/librust_software_rasterizer.so");
-    cdylib_path
+    let mut cdylib_path = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
+    cdylib_path.push("target/debug/libicd.so");
+    fs::canonicalize(cdylib_path).unwrap()
 }
 
 static TEMP_DIR: OnceLock<TempDir> = OnceLock::new();
 
 fn get_temp_dir() -> &'static TempDir {
-    TEMP_DIR.get_or_init(|| { assert_fs::TempDir::new().unwrap() })
+    TEMP_DIR.get_or_init(|| assert_fs::TempDir::new().unwrap())
 }
 
 pub fn get_icd_json_path() -> PathBuf {

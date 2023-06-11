@@ -31,7 +31,7 @@ pub extern "C" fn vk_icdGetInstanceProcAddr(
             std::mem::transmute(vkCreateInstance as *const ())
         },
         "vkEnumerateInstanceExtensionProperties" => unsafe {
-            println!("HIRO");
+            println!("HIRO2");
             std::mem::transmute(vkEnumerateInstanceExtensionProperties as *const ())
         },
         &_ => None,
@@ -39,18 +39,19 @@ pub extern "C" fn vk_icdGetInstanceProcAddr(
 }
 
 #[no_mangle]
-extern "C" fn vkCreateInstance(
+unsafe extern "C" fn vkCreateInstance(
     pCreateInfo: *const VkInstanceCreateInfo,
     pAllocator: *const VkAllocationCallbacks,
     pInstance: *mut VkInstance,
 ) -> VkResult {
     println!("Hello from vkCreateInstance()!");
+    *pInstance = null_mut();
     // TODO: Create and register internal VkInstance.
     VK_SUCCESS
 }
 
 #[no_mangle]
-unsafe extern "C"  fn vkEnumerateInstanceExtensionProperties(
+unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     pLayerName: *const c_char,
     pPropertyCount: *mut c_uint,
     pProperties: *mut VkExtensionProperties,
