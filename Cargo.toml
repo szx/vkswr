@@ -3,5 +3,6 @@ resolver = "2"
 
 members = [
     "icd",
-    "test_suite"
+    "test_suite",
+    "codegen"
 ]

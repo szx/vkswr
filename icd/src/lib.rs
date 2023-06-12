@@ -91,5 +91,7 @@ pub extern "C" fn lib_test() -> u32 {
 mod tests {
     use crate::*;
     #[test]
-    fn works() {}
+    fn works_codegen() {
+        
+    }
 }
