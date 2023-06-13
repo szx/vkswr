@@ -5,6 +5,7 @@ mod common;
 
 #[test]
 fn load_cdylib() -> common::TestResult {
+
     let cdylib_path = common::get_cdylib_path();
 
     unsafe {
@@ -13,6 +14,7 @@ fn load_cdylib() -> common::TestResult {
             cdylib.get(b"lib_test")?;
         assert_eq!(lib_test(), 1);
     }
+
     Ok(())
 }
 

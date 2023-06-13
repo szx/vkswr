@@ -3,7 +3,6 @@ name = "codegen"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 quick-xml = { version = "0.28.2", features = ["serialize", "overlapped-lists"] }
 serde = { version = "1.0.163", features = ["derive"] }

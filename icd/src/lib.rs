@@ -1,4 +1,3 @@
-use crate::VkResult::{VK_NOT_READY, VK_SUCCESS};
 use std::ffi::{c_char, c_uint, c_void, CStr};
 use std::ptr::{null, null_mut};
 use std::str::Utf8Error;
@@ -11,11 +10,8 @@ type VkInstanceCreateInfo = VkDispatchableHandle; // TODO: Codegen struct.
 type VkAllocationCallbacks = VkDispatchableHandle; // TODO: Codegen struct.
 type VkExtensionProperties = VkDispatchableHandle; // TODO: Codegen struct.
 
-#[repr(C)]
-enum VkResult {
-    VK_SUCCESS = 0,
-    VK_NOT_READY = 1,
-} // TODO: Codegen enum.
+
+include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 fn wait_for_debugger() {
     static mut debug: bool = true;
@@ -58,7 +54,7 @@ unsafe extern "C" fn vkCreateInstance(
     println!("Hello from vkCreateInstance()!");
     *pInstance = null_mut();
     // TODO: Create and register internal VkInstance.
-    VK_SUCCESS
+    VkResult::VK_SUCCESS
 }
 
 #[no_mangle]
@@ -74,12 +70,10 @@ unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     if pProperties == null_mut() {
         *pPropertyCount = 0;
     }
-    VK_SUCCESS
+    VkResult::VK_SUCCESS
 }
 
 // TODO: Implement Core 1.0 functions required by loader_icd_init_entries().
-
-// TODO: Generate functions from VK.xml. Create stubs.rs.
 
 #[no_mangle]
 pub extern "C" fn lib_test() -> u32 {

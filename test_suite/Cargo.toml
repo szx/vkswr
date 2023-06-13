@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dev-dependencies]
-escargot = "0.5.7"
+icd = { path = "../icd" }
+codegen = { path = "../codegen" }
 libloading = "0.8.0"
 ctor = "0.2.2"
 assert_fs = "1.0.13"

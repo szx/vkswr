@@ -8,11 +8,6 @@ pub type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[ctor::ctor]
 fn setup() {
-    // Rebuild cdylib.
-    escargot::CargoBuild::new()
-        .manifest_path("../Cargo.toml")
-        .exec()
-        .unwrap();
     // TODO: Logger.
 }
 
