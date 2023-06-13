@@ -6,3 +6,6 @@ members = [
     "test_suite",
     "codegen"
 ]
+
+[workspace.dependencies]
+thiserror = "1.0.40"

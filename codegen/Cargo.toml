@@ -7,3 +7,7 @@ edition = "2021"
 [dependencies]
 quick-xml = { version = "0.28.2", features = ["serialize", "overlapped-lists"] }
 serde = { version = "1.0.163", features = ["derive"] }
+quote = "1.0.28"
+proc-macro2 = "1.0.59"
+parse_int = "0.6.0"
+thiserror = { workspace = true }
