@@ -14,9 +14,6 @@
   <component name="ChangeListManager">
     <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codegen/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -143,7 +140,7 @@
       <workItem from="1686495400644" duration="8612000" />
       <workItem from="1686556722630" duration="1329000" />
       <workItem from="1686575846159" duration="8546000" />
-      <workItem from="1686642927070" duration="4084000" />
+      <workItem from="1686642927070" duration="8315000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -166,7 +163,21 @@
       <option name="project" value="LOCAL" />
       <updated>1686579192938</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Add thiserror crate.">
+      <created>1686657673256</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1686657673256</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Add thiserror crate.">
+      <created>1686657691717</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1686657691717</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -176,7 +187,8 @@
     <MESSAGE value="Move to workspace." />
     <MESSAGE value="Add wait for debugger/" />
     <MESSAGE value="Add codegen crate." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add codegen crate." />
+    <MESSAGE value="Add thiserror crate." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add thiserror crate." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -195,6 +207,11 @@
           <url>file://$PROJECT_DIR$/test_suite/tests/integration_tests.rs</url>
           <line>20</line>
           <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/codegen/src/lib.rs</url>
+          <line>103</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

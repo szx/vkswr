@@ -79,11 +79,11 @@ impl ToTokens for VkEnumerator {
 
 #[derive(Error, Debug)]
 pub enum ParseVkXMLError {
-    #[error("XML read error: {0}", )]
+    #[error("XML read error: {0}")]
     XMLError(#[from] quick_xml::Error),
-    #[error("UTF-8 error: {0}", )]
+    #[error("UTF-8 error: {0}")]
     UTF8Error(#[from] Utf8Error),
-    #[error("Deserialization error: {0}", )]
+    #[error("Deserialization error: {0}")]
     DeserializationError(#[from] DeError),
 }
 
@@ -93,14 +93,13 @@ fn read_vk_xml(str: &str) -> Result<Vec<VkEnumeration>, ParseVkXMLError> {
     let mut reader = Reader::from_str(str);
     reader.trim_text(true);
     let mut buf = Vec::new();
-    let mut junk_buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
             Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
             Ok(Event::Eof) => break,
             Ok(Event::Start(e)) => match e.name().as_ref() {
                 b"enums" => {
-                    let bytes = read_to_end_into_buffer(&mut reader, &e, &mut junk_buf)?;
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
                     let e: VkEnumeration = quick_xml::de::from_str(str)?;
                     enums.push(e);
@@ -118,16 +117,18 @@ fn read_vk_xml(str: &str) -> Result<Vec<VkEnumeration>, ParseVkXMLError> {
 fn read_to_end_into_buffer<R: BufRead>(
     reader: &mut Reader<R>,
     start_tag: &BytesStart,
-    junk_buf: &mut Vec<u8>,
 ) -> Result<Vec<u8>, ParseVkXMLError> {
+    // NOTE: See also https://capnfabs.net/posts/parsing-huge-xml-quickxml-rust-serde/
     let mut depth = 0;
     let mut output_buf: Vec<u8> = Vec::new(); // TODO: Zero-allocation XML read.
     let mut w = Writer::new(&mut output_buf);
     let tag_name = start_tag.name();
     w.write_event(Event::Start(start_tag.clone()))?;
+
+    let mut temp_buf: Vec<u8> = Vec::new();
     loop {
-        junk_buf.clear();
-        let event = reader.read_event_into(junk_buf)?;
+        temp_buf.clear();
+        let event = reader.read_event_into(&mut temp_buf)?;
         w.write_event(&event)?;
 
         match event {
