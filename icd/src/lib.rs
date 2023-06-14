@@ -4,13 +4,8 @@ use std::str::Utf8Error;
 
 type PFN_vkVoidFunction = Option<unsafe extern "C" fn()>;
 type VkDispatchableHandle = *const c_void;
-type VkInstance = VkDispatchableHandle;
-
-type VkInstanceCreateInfo = VkDispatchableHandle; // TODO: Codegen struct.
-type VkAllocationCallbacks = VkDispatchableHandle; // TODO: Codegen struct.
-type VkExtensionProperties = VkDispatchableHandle; // TODO: Codegen struct.
-
-
+type VkNonDispatchableHandle = u64;
+// TODO: Use X-macro to embed wait_for_debugger() in functions?
 include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 fn wait_for_debugger() {

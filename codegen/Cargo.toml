@@ -10,3 +10,4 @@ quote = "1.0.28"
 proc-macro2 = "1.0.59"
 parse_int = "0.6.0"
 thiserror = { workspace = true }
+phf = { version = "0.11.1", features = ["macros"] }

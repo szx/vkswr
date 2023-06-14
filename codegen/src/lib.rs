@@ -1,12 +1,15 @@
-use proc_macro2::{Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+use phf::phf_map;
+use proc_macro2::{Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{DeError, Reader, Writer};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use std::collections::HashSet;
+use std::fmt::{Display, Formatter};
 use std::io::BufRead;
 use std::str::Utf8Error;
 use thiserror::Error;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
 pub struct VkEnumeration {
     #[serde(rename = "@name")]
     name: String,
@@ -43,8 +46,8 @@ impl ToTokens for VkEnumeration {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
- struct VkEnumerator {
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+struct VkEnumerator {
     #[serde(rename = "@name")]
     name: String,
 
@@ -99,6 +102,177 @@ impl ToTokens for VkEnumerator {
     }
 }
 
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+pub struct VkStruct {
+    #[serde(rename = "@category")]
+    category: String,
+
+    #[serde(rename = "@name")]
+    name: String,
+
+    #[serde(rename = "member")]
+    members: Option<Vec<VkStructMember>>,
+}
+
+impl VkStruct {
+    pub fn fix(&mut self) {
+        let Some(ref mut members) = self.members else { return };
+        for member in members.iter_mut() {
+            if member.name == "type" {
+                member.name = "type_".into();
+            };
+
+            let Some(ref mut type_) = member.type_ else { return };
+            if let Some(ref mut type2) = member.type2 {
+                type_.push_str(type2);
+                member.type2 = None;
+            }
+        }
+    }
+}
+
+impl ToTokens for VkStruct {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = format_ident!("{}", &self.name);
+        if let Some(ref members) = &self.members {
+            tokens.extend(quote! {
+                #[repr(C)]
+                struct #name {
+                    #(#members)*
+                }
+            });
+        }
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+pub struct VkStructMember {
+    #[serde(rename = "type")]
+    type_: Option<String>,
+
+    #[serde(rename = "$text")]
+    type2: Option<String>,
+
+    #[serde(rename = "name")]
+    name: String,
+}
+
+
+impl ToTokens for VkStructMember {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append(format_ident!("{}", self.name));
+        tokens.append(Punct::new(':', Spacing::Alone));
+        let Some( type_) = self.type_.as_deref() else { unreachable!() };
+        let Ok(ffi_type) : Result<TokenStream, _> = C_TYPE_TO_RUST.get(type_).unwrap_or(&type_).parse() else { unreachable!() };
+        tokens.extend(ffi_type);
+        tokens.append(Punct::new(',', Spacing::Alone));
+    }
+}
+
+static C_TYPE_TO_RUST: phf::Map<&'static str, &'static str> = phf_map! {
+    "uint8_t" => "u8",
+    "uint16_t" => "u16",
+    "uint32_t" => "u32",
+    "uint64_t" => "u64",
+    "size_t" => "isize",
+    "int32_t" => "i32",
+    "int64_t" => "i64",
+    "float" => "f32",
+    "char" => "std::ffi::c_char",
+    "void*" => "std::ffi::c_void",
+    "uint32_t[2]" => "[u32;2]",
+    "uint32_t[3]" => "[u32;3]",
+    "float[2]" => "[f32;2]",
+    "float[3][4]" => "[[f32;3];4]",
+    //
+    "VkOffset3D[2]" => "[VkOffset3D; 2]",
+    "VkDrmFormatModifierPropertiesEXT*" => "*mut VkDrmFormatModifierPropertiesEXT",
+    "VkDrmFormatModifierProperties2EXT*" => "*mut VkDrmFormatModifierProperties2EXT",
+    "VkPresentModeKHR*" => "*mut VkPresentModeKHR",
+    // TODO: How do repr(C) bitfields work?
+    "uint32_t:24" => "[u8;3]",
+    "uint32_t:8" => "[u8;1]",
+    "VkGeometryInstanceFlagsKHR:8" => "VkGeometryInstanceFlagsKHR"
+};
+
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+pub struct VkTypedef {
+    #[serde(rename = "@category")]
+    category: String,
+
+    #[serde(rename = "type")]
+    type_: String,
+
+    #[serde(rename = "name")]
+    name: String,
+}
+
+impl VkTypedef {
+    pub fn fix(&mut self) {
+        if self.category == "handle" {
+            match self.type_.as_str() {
+                "VK_DEFINE_NON_DISPATCHABLE_HANDLE" => {
+                    self.type_ = "VkNonDispatchableHandle".into()
+                }
+                "VK_DEFINE_HANDLE" => self.type_ = "VkDispatchableHandle".into(),
+                &_ => unreachable!("handle type {}", self.type_),
+            };
+        }
+    }
+}
+
+impl ToTokens for VkTypedef {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = format_ident!("{}", &self.name);
+        let Ok(ffi_type) : Result<TokenStream, _> = C_TYPE_TO_RUST.get(&self.type_).unwrap_or(&"std::ffi::c_void").parse() else { unreachable!() };
+        tokens.extend(quote! {
+            type #name = #ffi_type;
+        });
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct VkXML {
+    enums: HashSet<VkEnumeration>,
+    structs: HashSet<VkStruct>,
+    typedefs: HashSet<VkTypedef>,
+}
+
+impl Display for VkXML {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for enumeration in &self.enums {
+            let tokens = vk_enum_to_rust(enumeration);
+            writeln!(f, "{}", tokens).unwrap();
+        }
+        for s in &self.structs {
+            let tokens = vk_struct_to_rust(s);
+            writeln!(f, "{}", tokens).unwrap();
+        }
+        for b in &self.typedefs {
+            let tokens = vk_base_type_to_rust(b);
+            writeln!(f, "{}", tokens).unwrap();
+        }
+        Ok(())
+    }
+}
+
+pub fn vk_enum_to_rust(enumeration: &VkEnumeration) -> TokenStream {
+    let name = &enumeration.name;
+    if !name.starts_with("Vk") {
+        // TODO: Implement API constants.
+        return TokenStream::new();
+    }
+    enumeration.into_token_stream()
+}
+
+pub fn vk_struct_to_rust(s: &VkStruct) -> TokenStream {
+    s.into_token_stream()
+}
+
+pub fn vk_base_type_to_rust(b: &VkTypedef) -> TokenStream {
+    b.into_token_stream()
+}
+
 #[derive(Error, Debug)]
 pub enum ParseVkXMLError {
     #[error("XML read error: {0}")]
@@ -109,8 +283,8 @@ pub enum ParseVkXMLError {
     DeserializationError(#[from] DeError),
 }
 
-pub fn read_vk_xml(str: &str) -> Result<Vec<VkEnumeration>, ParseVkXMLError> {
-    let mut enums: Vec<VkEnumeration> = vec![];
+pub fn read_vk_xml(str: &str) -> Result<VkXML, ParseVkXMLError> {
+    let mut vk_xml: VkXML = Default::default();
 
     let mut reader = Reader::from_str(str);
     reader.trim_text(true);
@@ -124,16 +298,41 @@ pub fn read_vk_xml(str: &str) -> Result<Vec<VkEnumeration>, ParseVkXMLError> {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
                     let e: VkEnumeration = quick_xml::de::from_str(str)?;
-                    enums.push(e);
+                    vk_xml.enums.insert(e);
                 }
-                _ => (), // TODO: Parse structs, functions
+                b"type" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    if let Ok(mut s) = quick_xml::de::from_str::<VkStruct>(str) {
+                        if s.name == "VkPhysicalDeviceProperties" {
+                            // HIRO
+                            dbg!(&s);
+                        }
+                        if s.category == "struct" {
+                            s.fix();
+                            vk_xml.structs.insert(s);
+                        }
+                    }
+                    if let Ok(mut b) = quick_xml::de::from_str::<VkTypedef>(str) {
+                        if ["basetype", "bitmask", "handle"].contains(&b.category.as_str()) {
+                            b.fix();
+                            vk_xml.typedefs.insert(b);
+                        }
+                    }
+                }
+                b"command" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    // TODO: Parse functions
+                }
+                _ => (), // TODO: functions
             },
             _ => (),
         }
         buf.clear();
     }
 
-    Ok(enums)
+    Ok(vk_xml)
 }
 
 fn read_to_end_into_buffer<R: BufRead>(
@@ -169,31 +368,21 @@ fn read_to_end_into_buffer<R: BufRead>(
     }
 }
 
-pub fn vk_enum_to_rust(enumeration: &VkEnumeration) -> TokenStream {
-    let name = &enumeration.name;
-    if !name.starts_with("Vk") {
-        // TODO: Implement API constants.
-        return TokenStream::new();
-    }
-    enumeration.into_token_stream()
-}
-
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use crate::*;
+    use std::fs;
     use std::fs::File;
-    use std::path::PathBuf;
     use std::io::Write;
+    use std::path::PathBuf;
 
     #[test]
     fn works_codegen() {
         let vk_xml_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/vk.xml"));
         let vk_xml_str = fs::read_to_string(vk_xml_path).unwrap();
-        let enums = read_vk_xml(&vk_xml_str).unwrap();
+        let vk_xml = read_vk_xml(&vk_xml_str).unwrap();
 
-        for enumeration in &enums {
-            //dbg!(&enumeration);
+        for enumeration in &vk_xml.enums {
             if let Some(enumerators) = &enumeration.enumerators {
                 for enumeration in enumerators {
                     assert!(enumeration.name.starts_with("VK_"), "{:?}", enumeration);
@@ -210,8 +399,45 @@ mod tests {
                     }
                 }
             }
-
             let tokens = vk_enum_to_rust(enumeration);
+        }
+
+        for s in &vk_xml.structs {
+            if let Some(members) = &s.members {
+                for member in members {
+                    if let Some(ref type_) = member.type_ {
+                        assert!(
+                            type_.starts_with("Vk")
+                                || type_.starts_with("PFN_")
+                                || type_.starts_with("Std")
+                                || [
+                                    "uint8_t",
+                                    "uint16_t",
+                                    "uint32_t",
+                                    "uint64_t",
+                                    "size_t",
+                                    "int32_t",
+                                    "int64_t",
+                                    "float",
+                                    "char",
+                                    "void*",
+                                    "uint32_t[2]",
+                                    "uint32_t[3]",
+                                    "float[2]",
+                                    "float[3][4]",
+                                    "uint32_t:24",
+                                    "uint32_t:8",
+                                ]
+                                .contains(&type_.as_str()),
+                            "{:?}",
+                            member
+                        );
+                    }
+                }
+            }
+            dbg!(&s);
+            let tokens = vk_struct_to_rust(s);
+            println!("tokens: {}", tokens);
         }
     }
 }
