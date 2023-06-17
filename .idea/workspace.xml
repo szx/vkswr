@@ -12,11 +12,12 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Generate">
+    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Quick and dirty struct codegen.">
+      <change afterPath="$PROJECT_DIR$/codegen/src/vk_xml.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codegen/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/build.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -78,8 +79,8 @@
     <option name="tool" value="Clippy" />
   </component>
   <component name="RunManager" selected="Cargo.test">
-    <configuration name="Test load_cdylib" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package test_suite --test integration_tests load_cdylib -- --exact" />
+    <configuration name="Test tests::works_to_tokens" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib tests::works_to_tokens -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -95,8 +96,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test run_vulkaninfo" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package test_suite --test integration_tests run_vulkaninfo -- --exact" />
+    <configuration name="Test vk_xml::tests::works_vk_xml_type_attributes_parsing" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib vk_xml::tests::works_vk_xml_type_attributes_parsing -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -112,8 +113,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::works_codegen" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package codegen --lib tests::works_codegen -- --exact" />
+    <configuration name="Test vk_xml::tests::works_vk_xml_type_tag_parsing" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib vk_xml::tests::works_vk_xml_type_tag_parsing -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -129,8 +130,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::works_ffi_type" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package codegen --lib tests::works_ffi_type -- --exact" />
+    <configuration name="Test vk_xml::tests::works_vk_xml_typedef_parsing" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib vk_xml::tests::works_vk_xml_typedef_parsing -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -184,10 +185,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Cargo.test" />
-        <item itemvalue="Cargo.Test tests::works_codegen" />
-        <item itemvalue="Cargo.Test run_vulkaninfo" />
-        <item itemvalue="Cargo.Test tests::works_ffi_type" />
-        <item itemvalue="Cargo.Test load_cdylib" />
+        <item itemvalue="Cargo.Test tests::works_to_tokens" />
+        <item itemvalue="Cargo.Test vk_xml::tests::works_vk_xml_typedef_parsing" />
+        <item itemvalue="Cargo.Test vk_xml::tests::works_vk_xml_type_attributes_parsing" />
+        <item itemvalue="Cargo.Test vk_xml::tests::works_vk_xml_type_tag_parsing" />
       </list>
     </recent_temporary>
   </component>
@@ -225,7 +226,8 @@
       <workItem from="1686941506518" duration="91000" />
       <workItem from="1686944970750" duration="456000" />
       <workItem from="1686945763810" duration="8234000" />
-      <workItem from="1686994383344" duration="1659000" />
+      <workItem from="1686994383344" duration="15324000" />
+      <workItem from="1687020550380" duration="8346000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -297,7 +299,21 @@
       <option name="project" value="LOCAL" />
       <updated>1686758395125</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Quick and dirty struct codegen.">
+      <created>1687001001246</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1687001001246</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Quick and dirty struct codegen.">
+      <created>1687001085054</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1687001085054</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -312,7 +328,8 @@
     <MESSAGE value="Add autogenerated codegen.rs." />
     <MESSAGE value="Move codegen.rs to OUT_DIR." />
     <MESSAGE value="Start implementing VK structs." />
-    <option name="LAST_COMMIT_MESSAGE" value="Start implementing VK structs." />
+    <MESSAGE value="Quick and dirty struct codegen." />
+    <option name="LAST_COMMIT_MESSAGE" value="Quick and dirty struct codegen." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
