@@ -12,13 +12,11 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="">
+    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Generate">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codegen/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/build.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,8 +112,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::works_codegen (1)" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package icd --lib tests::works_codegen -- --exact" />
+    <configuration name="Test tests::works_codegen" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib tests::works_codegen -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -131,8 +129,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::works_codegen" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package codegen --lib tests::works_codegen -- --exact" />
+    <configuration name="Test tests::works_ffi_type" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package codegen --lib tests::works_ffi_type -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -187,9 +185,9 @@
       <list>
         <item itemvalue="Cargo.test" />
         <item itemvalue="Cargo.Test tests::works_codegen" />
-        <item itemvalue="Cargo.Test load_cdylib" />
         <item itemvalue="Cargo.Test run_vulkaninfo" />
-        <item itemvalue="Cargo.Test tests::works_codegen (1)" />
+        <item itemvalue="Cargo.Test tests::works_ffi_type" />
+        <item itemvalue="Cargo.Test load_cdylib" />
       </list>
     </recent_temporary>
   </component>
@@ -215,7 +213,19 @@
       <workItem from="1686556722630" duration="1329000" />
       <workItem from="1686575846159" duration="8546000" />
       <workItem from="1686642927070" duration="23942000" />
-      <workItem from="1686737403337" duration="9480000" />
+      <workItem from="1686737403337" duration="16826000" />
+      <workItem from="1686770445950" duration="2299000" />
+      <workItem from="1686772863594" duration="1334000" />
+      <workItem from="1686817173759" duration="669000" />
+      <workItem from="1686846678887" duration="3847000" />
+      <workItem from="1686856066257" duration="2947000" />
+      <workItem from="1686859260301" duration="678000" />
+      <workItem from="1686903886944" duration="813000" />
+      <workItem from="1686935996689" duration="2644000" />
+      <workItem from="1686941506518" duration="91000" />
+      <workItem from="1686944970750" duration="456000" />
+      <workItem from="1686945763810" duration="8234000" />
+      <workItem from="1686994383344" duration="1659000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -280,7 +290,14 @@
       <option name="project" value="LOCAL" />
       <updated>1686676288533</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Start implementing VK structs.">
+      <created>1686758395125</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1686758395125</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -294,7 +311,8 @@
     <MESSAGE value="Refactor XML reading." />
     <MESSAGE value="Add autogenerated codegen.rs." />
     <MESSAGE value="Move codegen.rs to OUT_DIR." />
-    <option name="LAST_COMMIT_MESSAGE" value="Move codegen.rs to OUT_DIR." />
+    <MESSAGE value="Start implementing VK structs." />
+    <option name="LAST_COMMIT_MESSAGE" value="Start implementing VK structs." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -313,11 +331,6 @@
           <url>file://$PROJECT_DIR$/test_suite/tests/integration_tests.rs</url>
           <line>22</line>
           <option name="timeStamp" value="9" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/codegen/src/lib.rs</url>
-          <line>308</line>
-          <option name="timeStamp" value="11" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

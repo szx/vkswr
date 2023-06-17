@@ -1,8 +1,12 @@
+use lazy_static::lazy_static;
 use phf::phf_map;
 use proc_macro2::{Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{DeError, Reader, Writer};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use regex::Replacer;
+use serde::Deserialize;
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::io::BufRead;
@@ -22,19 +26,35 @@ pub struct VkEnumeration {
     enumerators: Option<Vec<VkEnumerator>>,
 }
 
+impl VkEnumeration {
+    fn fix(&mut self) {
+        if let Some(ref mut enumerators) = self.enumerators {
+            for enumerator in enumerators {
+                enumerator.fix();
+            }
+        }
+    }
+}
+
 impl ToTokens for VkEnumeration {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = format_ident!("{}", &self.name);
         if let Some(ref enumerators) = &self.enumerators {
+            if !self.name.starts_with("Vk") {
+                for enumerator in enumerators {
+                    tokens.extend(enumerator.constant_to_token());
+                }
+                return;
+            }
+
+            let name = format_ident!("{}", &self.name);
             tokens.extend(quote! {
                 #[repr(C)]
                 enum #name {
                     #(#enumerators)*
                 }
             });
-
             for enumerator in enumerators {
-                if let Some(alias) = enumerator.aliases_to_tokens(&self.name) {
+                if let Some(alias) = enumerator.alias_to_tokens(&self.name) {
                     tokens.extend(quote! {
                         impl #name {
                             pub const #alias;
@@ -42,6 +62,11 @@ impl ToTokens for VkEnumeration {
                     });
                 }
             }
+        } else if self.type_ == Some("bitmask".into()) && self.enumerators == None {
+            let name = format_ident!("{}", &self.name);
+            tokens.extend(quote! {
+                type #name = VkFlags;
+            });
         }
     }
 }
@@ -62,7 +87,14 @@ struct VkEnumerator {
 }
 
 impl VkEnumerator {
-    fn aliases_to_tokens(&self, enumeration_name: &str) -> Option<TokenStream> {
+    fn fix(&mut self) {
+        let Some(type_) = &self.type_ else { return };
+        if let Some(type_) = C_TYPE_TO_FFI.get(type_) {
+            self.type_ = Some((*type_).into())
+        }
+    }
+
+    fn alias_to_tokens(&self, enumeration_name: &str) -> Option<TokenStream> {
         if let Some(ref alias) = self.alias {
             let enumeration_name = format_ident!("{}", enumeration_name);
             let name = format_ident!("{}", self.name);
@@ -72,12 +104,21 @@ impl VkEnumerator {
             None
         }
     }
+
+    fn constant_to_token(&self) -> Option<TokenStream> {
+        let Some(type_) = &self.type_ else { return None };
+        let Some(value) = &self.value else { return None };
+        let name = format_ident!("{}", self.name);
+        let type_ = format_ident!("{}", type_);
+        let value = Literal::u32_suffixed(value.parse().ok()?);
+        Some(quote!(const #name: #type_ = #value;).to_token_stream())
+    }
 }
 
 impl ToTokens for VkEnumerator {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref alias) = self.alias {
-            // Skip, we have to use associated constants (aliases_to_tokens).
+            // Skip, we have to use associated constants (alias_to_tokens).
         } else if let Some(ref value) = self.value {
             tokens.append(format_ident!("{}", self.name));
             tokens.append(Punct::new('=', Spacing::Alone));
@@ -110,34 +151,84 @@ pub struct VkStruct {
     #[serde(rename = "@name")]
     name: String,
 
-    #[serde(rename = "member")]
-    members: Option<Vec<VkStructMember>>,
+    // Too hard to deserialize using Serde, filled in in fix().
+    #[serde(skip)]
+    members: Vec<VkStructMember>,
 }
 
 impl VkStruct {
-    pub fn fix(&mut self) {
-        let Some(ref mut members) = self.members else { return };
-        for member in members.iter_mut() {
-            if member.name == "type" {
-                member.name = "type_".into();
-            };
+    pub fn fix(&mut self, raw: &str) {
+        lazy_static! {
+            static ref re_extract_member: regex::Regex =
+                regex::Regex::new(r"<member[^>]*>(.*?)</member[^>]*>").unwrap();
+            static ref re_extract_name: regex::Regex =
+                regex::Regex::new(r"<name[^>]*>(.*?)</name[^>]*>").unwrap();
+            static ref re_remove_comments: regex::Regex =
+                regex::Regex::new(r"<comment[^>]*>(.*?)</comment[^>]*>").unwrap();
+            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+        }
 
-            let Some(ref mut type_) = member.type_ else { return };
-            if let Some(ref mut type2) = member.type2 {
-                type_.push_str(type2);
-                member.type2 = None;
+        for cap in re_extract_member.captures_iter(raw) {
+            let str = &cap[0];
+            if str.contains("vulkansc") {
+                continue;
+            }
+
+            let mut name = re_extract_name
+                .captures(str)
+                .unwrap()
+                .get(1)
+                .unwrap()
+                .as_str()
+                .to_string();
+
+            let type_ = re_remove_comments.replace_all(str, " ");
+            let type_ = re_extract_name.replace_all(&type_, " ");
+            let type_ = re_remove_tags.replace_all(&type_, " ");
+            let type_ = re_replace_spaces.replace_all(&type_, " ");
+            let type_ = type_.trim().to_string();
+
+            if name == "type" {
+                name = "type_".into();
+            }
+
+            let mut member = VkStructMember { type_, name };
+            self.members.push(member);
+        }
+
+        let is_union = self.category == "union";
+        let mut iter = self.members.iter_mut();
+        while let Some(member) = iter.next() {
+            if member.is_bitfield_24() {
+                let next = iter.next();
+                member.fix(next, &is_union);
+            } else {
+                member.fix(None, &is_union);
             }
         }
+        self.members.retain(|x| !x.is_bitfield_8());
     }
 }
 
 impl ToTokens for VkStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = format_ident!("{}", &self.name);
-        if let Some(ref members) = &self.members {
+        let members = &self.members;
+        if members.is_empty() {
+            return;
+        }
+        if self.category == "struct" {
             tokens.extend(quote! {
                 #[repr(C)]
                 struct #name {
+                    #(#members)*
+                }
+            });
+        } else if self.category == "union" {
+            tokens.extend(quote! {
+                #[repr(C)]
+                union #name {
                     #(#members)*
                 }
             });
@@ -145,31 +236,87 @@ impl ToTokens for VkStruct {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+#[derive(Eq, Hash, PartialEq, Debug)]
 pub struct VkStructMember {
-    #[serde(rename = "type")]
-    type_: Option<String>,
-
-    #[serde(rename = "$text")]
-    type2: Option<String>,
-
-    #[serde(rename = "name")]
+    type_: String,
     name: String,
 }
 
+impl VkStructMember {
+    fn is_bitfield_24(&self) -> bool {
+        self.type_.contains(" :24")
+    }
+    fn is_bitfield_8(&self) -> bool {
+        self.type_.contains(" :8")
+    }
 
-impl ToTokens for VkStructMember {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.append(format_ident!("{}", self.name));
-        tokens.append(Punct::new(':', Spacing::Alone));
-        let Some( type_) = self.type_.as_deref() else { unreachable!() };
-        let Ok(ffi_type) : Result<TokenStream, _> = C_TYPE_TO_RUST.get(type_).unwrap_or(&type_).parse() else { unreachable!() };
-        tokens.extend(ffi_type);
-        tokens.append(Punct::new(',', Spacing::Alone));
+    fn fix(&mut self, next: Option<&mut VkStructMember>, is_union: &bool) {
+        lazy_static! {
+            static ref re_replace_struct: regex::Regex = regex::Regex::new(r"struct\s").unwrap();
+            static ref re_const_ptr: regex::Regex = regex::Regex::new(r"const\s(.*?)\s\*").unwrap();
+            static ref re_mut_ptr: regex::Regex = regex::Regex::new(r"(.*?)\s\*").unwrap();
+            static ref re_array: regex::Regex = regex::Regex::new(r"(.*?)\s\[(.*?)\]").unwrap();
+            static ref re_bitfield_24: regex::Regex = regex::Regex::new(r"(.*?)\s\:24").unwrap();
+            static ref re_bitfield_8: regex::Regex = regex::Regex::new(r"(.*?)\s\:8").unwrap();
+        }
+
+        let mut name: String = self.name.clone();
+        let mut type_: String = self.type_.clone();
+        type_ = re_replace_struct.replace_all(&type_, "").into();
+
+        let is_const_ptr = if let Some(cap) = re_const_ptr.captures(&type_) {
+            type_ = cap.get(1).unwrap().as_str().into();
+            true
+        } else {
+            false
+        };
+        let is_mut_ptr = if let Some(cap) = re_mut_ptr.captures(&type_) {
+            type_ = cap.get(1).unwrap().as_str().into();
+            true
+        } else {
+            false
+        };
+        let array_index = if let Some(cap) = re_array.captures(&type_) {
+            let i = cap.get(2).unwrap().as_str().to_string();
+            type_ = cap.get(1).unwrap().as_str().into();
+            Some(i)
+        } else {
+            None
+        };
+        let is_bitfield_24 = if let Some(cap) = re_bitfield_24.captures(&type_) {
+            type_ = cap.get(1).unwrap().as_str().into();
+            true
+        } else {
+            false
+        };
+        let ffi = C_TYPE_TO_FFI.get(&type_);
+
+        if let Some(ffi) = ffi {
+            type_.replace_range(.., ffi);
+        }
+        if is_bitfield_24 {
+            if let Some(next) = next {
+                name = format!("{}_{}", name, next.name);
+            }
+        }
+        if let Some(array_index) = array_index {
+            type_ = format!("[{}; {} as usize]", type_, array_index);
+        }
+        if is_const_ptr {
+            type_ = format!("*const {}", type_);
+        } else if is_mut_ptr {
+            type_ = format!("*mut {}", type_);
+        }
+        if *is_union {
+            type_ = format!("std::mem::ManuallyDrop<{}>", type_);
+        }
+
+        self.name = name;
+        self.type_ = type_;
     }
 }
 
-static C_TYPE_TO_RUST: phf::Map<&'static str, &'static str> = phf_map! {
+static C_TYPE_TO_FFI: phf::Map<&'static str, &'static str> = phf_map! {
     "uint8_t" => "u8",
     "uint16_t" => "u16",
     "uint32_t" => "u32",
@@ -179,21 +326,17 @@ static C_TYPE_TO_RUST: phf::Map<&'static str, &'static str> = phf_map! {
     "int64_t" => "i64",
     "float" => "f32",
     "char" => "std::ffi::c_char",
-    "void*" => "std::ffi::c_void",
-    "uint32_t[2]" => "[u32;2]",
-    "uint32_t[3]" => "[u32;3]",
-    "float[2]" => "[f32;2]",
-    "float[3][4]" => "[[f32;3];4]",
-    //
-    "VkOffset3D[2]" => "[VkOffset3D; 2]",
-    "VkDrmFormatModifierPropertiesEXT*" => "*mut VkDrmFormatModifierPropertiesEXT",
-    "VkDrmFormatModifierProperties2EXT*" => "*mut VkDrmFormatModifierProperties2EXT",
-    "VkPresentModeKHR*" => "*mut VkPresentModeKHR",
-    // TODO: How do repr(C) bitfields work?
-    "uint32_t:24" => "[u8;3]",
-    "uint32_t:8" => "[u8;1]",
-    "VkGeometryInstanceFlagsKHR:8" => "VkGeometryInstanceFlagsKHR"
+    "void" => "std::ffi::c_void",
 };
+
+impl ToTokens for VkStructMember {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append(format_ident!("{}", self.name));
+        tokens.append(Punct::new(':', Spacing::Alone));
+        tokens.extend(self.type_.parse::<TokenStream>());
+        tokens.append(Punct::new(',', Spacing::Alone));
+    }
+}
 
 #[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
 pub struct VkTypedef {
@@ -224,10 +367,34 @@ impl VkTypedef {
 impl ToTokens for VkTypedef {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = format_ident!("{}", &self.name);
-        let Ok(ffi_type) : Result<TokenStream, _> = C_TYPE_TO_RUST.get(&self.type_).unwrap_or(&"std::ffi::c_void").parse() else { unreachable!() };
+        let Ok(ffi_type) : Result<TokenStream, _> = C_TYPE_TO_FFI.get(&self.type_).unwrap_or(&"std::ffi::c_void").parse() else { unreachable!() };
         tokens.extend(quote! {
             type #name = #ffi_type;
         });
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, serde::Deserialize)]
+pub struct VkTypeDefinition {
+    #[serde(rename = "@category")]
+    category: Option<String>,
+
+    #[serde(rename = "@name")]
+    name: String,
+
+    #[serde(rename = "@alias")]
+    alias: String,
+}
+
+impl ToTokens for VkTypeDefinition {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(category) = &self.category {
+            let name = format_ident!("{}", self.name);
+            let alias = format_ident!("{}", self.alias);
+            tokens.extend(quote! {
+                type #name = #alias;
+            });
+        }
     }
 }
 
@@ -236,41 +403,29 @@ pub struct VkXML {
     enums: HashSet<VkEnumeration>,
     structs: HashSet<VkStruct>,
     typedefs: HashSet<VkTypedef>,
+    type_definitions: HashSet<VkTypeDefinition>,
 }
 
 impl Display for VkXML {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for enumeration in &self.enums {
-            let tokens = vk_enum_to_rust(enumeration);
+        for x in &self.enums {
+            let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
-        for s in &self.structs {
-            let tokens = vk_struct_to_rust(s);
+        for x in &self.structs {
+            let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
-        for b in &self.typedefs {
-            let tokens = vk_base_type_to_rust(b);
+        for x in &self.typedefs {
+            let tokens = x.into_token_stream();
+            writeln!(f, "{}", tokens).unwrap();
+        }
+        for x in &self.type_definitions {
+            let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
         Ok(())
     }
-}
-
-pub fn vk_enum_to_rust(enumeration: &VkEnumeration) -> TokenStream {
-    let name = &enumeration.name;
-    if !name.starts_with("Vk") {
-        // TODO: Implement API constants.
-        return TokenStream::new();
-    }
-    enumeration.into_token_stream()
-}
-
-pub fn vk_struct_to_rust(s: &VkStruct) -> TokenStream {
-    s.into_token_stream()
-}
-
-pub fn vk_base_type_to_rust(b: &VkTypedef) -> TokenStream {
-    b.into_token_stream()
 }
 
 #[derive(Error, Debug)]
@@ -288,45 +443,50 @@ pub fn read_vk_xml(str: &str) -> Result<VkXML, ParseVkXMLError> {
 
     let mut reader = Reader::from_str(str);
     reader.trim_text(true);
+    reader.expand_empty_elements(true);
     let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
             Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
             Ok(Event::Eof) => break,
-            Ok(Event::Start(e)) => match e.name().as_ref() {
-                b"enums" => {
-                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                    let str = std::str::from_utf8(&bytes)?;
-                    let e: VkEnumeration = quick_xml::de::from_str(str)?;
-                    vk_xml.enums.insert(e);
-                }
-                b"type" => {
-                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                    let str = std::str::from_utf8(&bytes)?;
-                    if let Ok(mut s) = quick_xml::de::from_str::<VkStruct>(str) {
-                        if s.name == "VkPhysicalDeviceProperties" {
-                            // HIRO
-                            dbg!(&s);
-                        }
-                        if s.category == "struct" {
-                            s.fix();
-                            vk_xml.structs.insert(s);
+            Ok(Event::Start(e)) => {
+                //dbg!(&e);
+                match e.name().as_ref() {
+                    b"enums" => {
+                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                        let str = std::str::from_utf8(&bytes)?;
+                        if let Ok(mut e) = quick_xml::de::from_str::<VkEnumeration>(str) {
+                            e.fix();
+                            vk_xml.enums.insert(e);
                         }
                     }
-                    if let Ok(mut b) = quick_xml::de::from_str::<VkTypedef>(str) {
-                        if ["basetype", "bitmask", "handle"].contains(&b.category.as_str()) {
-                            b.fix();
-                            vk_xml.typedefs.insert(b);
+                    b"type" => {
+                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                        let str = std::str::from_utf8(&bytes)?;
+                        if let Ok(mut s) = quick_xml::de::from_str::<VkStruct>(str) {
+                            if s.category == "struct" || s.category == "union" {
+                                s.fix(str);
+                                vk_xml.structs.insert(s);
+                            }
+                        }
+                        if let Ok(mut b) = quick_xml::de::from_str::<VkTypedef>(str) {
+                            if ["basetype", "bitmask", "handle"].contains(&b.category.as_str()) {
+                                b.fix();
+                                vk_xml.typedefs.insert(b);
+                            }
+                        }
+                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeDefinition>(str) {
+                            vk_xml.type_definitions.insert(x);
                         }
                     }
+                    b"command" => {
+                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                        let str = std::str::from_utf8(&bytes)?;
+                        // TODO: Parse functions
+                    }
+                    _ => (), // TODO: functions
                 }
-                b"command" => {
-                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                    let str = std::str::from_utf8(&bytes)?;
-                    // TODO: Parse functions
-                }
-                _ => (), // TODO: functions
-            },
+            }
             _ => (),
         }
         buf.clear();
@@ -371,10 +531,54 @@ fn read_to_end_into_buffer<R: BufRead>(
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use std::fs;
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
+    use std::{fs, io};
+
+    #[test]
+    fn works_ffi_type() {
+        fn test_case(
+            input: (&str, &str),
+            next_input: Option<(&str, &str)>,
+            expected: (&str, &str),
+        ) {
+            let mut s = VkStructMember {
+                type_: input.0.into(),
+                name: input.1.into(),
+            };
+            if let Some(next_input) = next_input {
+                let mut next = VkStructMember {
+                    type_: next_input.0.into(),
+                    name: next_input.1.into(),
+                };
+                s.fix(Some(&mut next), &false);
+            } else {
+                s.fix(None, &false);
+            }
+            assert_eq!((s.type_.as_str(), s.name.as_str()), expected, "{:?}", s);
+        }
+        test_case(("uint32_t", "foo"), None, ("u32", "foo"));
+        test_case(("int32_t *", "foo"), None, ("*mut i32", "foo"));
+        test_case(
+            ("const VkBaseOutStructure *", "foo"),
+            None,
+            ("*const VkBaseOutStructure", "foo"),
+        );
+        test_case(("LPCWSTR", "foo"), None, ("LPCWSTR", "foo"));
+        test_case(
+            ("uint8_t [VK_UUID_SIZE]", "foo"),
+            None,
+            ("[u8; VK_UUID_SIZE]", "foo"),
+        );
+        test_case(
+            ("uint32_t :24", "foo"),
+            Some(("VkGeometryInstanceFlagsKHR :8", "bar")),
+            ("u32", "foo_bar"),
+        );
+        // HIRO function pointer
+        // HIRO unknown
+    }
 
     #[test]
     fn works_codegen() {
@@ -392,52 +596,25 @@ mod tests {
                     }
                     if let Some(ref type_) = enumeration.type_ {
                         assert!(
-                            ["uint32_t", "float", "uint64_t"].contains(&type_.as_str()),
+                            ["u32", "f32", "u64"].contains(&type_.as_str()),
                             "{:?}",
                             enumeration
                         );
                     }
                 }
             }
-            let tokens = vk_enum_to_rust(enumeration);
+            let tokens = enumeration.into_token_stream();
         }
 
         for s in &vk_xml.structs {
-            if let Some(members) = &s.members {
-                for member in members {
-                    if let Some(ref type_) = member.type_ {
-                        assert!(
-                            type_.starts_with("Vk")
-                                || type_.starts_with("PFN_")
-                                || type_.starts_with("Std")
-                                || [
-                                    "uint8_t",
-                                    "uint16_t",
-                                    "uint32_t",
-                                    "uint64_t",
-                                    "size_t",
-                                    "int32_t",
-                                    "int64_t",
-                                    "float",
-                                    "char",
-                                    "void*",
-                                    "uint32_t[2]",
-                                    "uint32_t[3]",
-                                    "float[2]",
-                                    "float[3][4]",
-                                    "uint32_t:24",
-                                    "uint32_t:8",
-                                ]
-                                .contains(&type_.as_str()),
-                            "{:?}",
-                            member
-                        );
-                    }
-                }
+            for member in &s.members {
+                let ffi_type = &member.type_;
+                assert_eq!(ffi_type, ffi_type.trim());
+                assert_ne!(ffi_type.chars().last().unwrap(), '*');
             }
-            dbg!(&s);
-            let tokens = vk_struct_to_rust(s);
-            println!("tokens: {}", tokens);
+            let tokens = s.into_token_stream();
         }
+
+        writeln!(io::sink(), "vk_xml: {}", vk_xml).unwrap();
     }
 }
