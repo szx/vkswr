@@ -24,7 +24,10 @@ impl Display for VkXml {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
-
+        for x in &self.type_externs {
+            let tokens = x.into_token_stream();
+            writeln!(f, "{}", tokens).unwrap();
+        }
         Ok(())
     }
 }
@@ -33,7 +36,6 @@ impl ToTokens for VkXmlEnums {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             VkXmlEnums::ApiConstants { members } => {
-                dbg!(&members);
                 let aliases = members.iter();
                 tokens.extend(quote!(#(#aliases)*).to_token_stream());
             }
@@ -69,7 +71,6 @@ impl ToTokens for VkXmlEnumsMember {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             VkXmlEnumsMember::ApiConstantMember { name, type_, value } => {
-                dbg!(&self);
                 let name = format_ident!("{}", name.as_ref());
                 let type_ = type_.0.parse::<TokenStream>().unwrap();
                 let value = value.parse::<TokenStream>().unwrap();
@@ -177,6 +178,47 @@ impl ToTokens for VkTypeAttributes {
                 let name = format_ident!("{}", name.as_ref());
                 let alias = format_ident!("{}", alias.as_ref());
                 tokens.extend(quote! {type #name = #alias ;});
+            }
+        }
+    }
+}
+
+impl ToTokens for VkTypeExtern {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            VkTypeExtern::Extern { name } => {
+                let name = format_ident!("{}", name.as_ref());
+                // TODO: Smarter unsized types.
+                tokens.extend(quote! {type #name = Box<[u8]>;});
+            }
+            VkTypeExtern::FuncPointer {
+                type_,
+                name,
+                members,
+            } => {
+                let name = format_ident!("{}", name.as_ref());
+                if let Some(type_) = type_ {
+                    let type_ = type_.0.parse::<TokenStream>().unwrap();
+                    tokens.extend(
+                        quote! {type #name = Option<unsafe extern "C" fn(#(#members)*) -> #type_>;},
+                    );
+                } else {
+                    tokens.extend(
+                        quote! {type #name = Option<unsafe extern "C" fn(#(#members)*)>;},
+                    );
+                }
+            }
+        }
+    }
+}
+
+impl ToTokens for VkFuncDeclMember {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            VkFuncDeclMember::Member { name, type_ } => {
+                let name = format_ident!("{}", name);
+                let type_ = type_.0.parse::<TokenStream>().unwrap();
+                tokens.extend(quote!(#name: #type_,).to_token_stream());
             }
         }
     }

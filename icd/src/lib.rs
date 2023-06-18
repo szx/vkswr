@@ -2,7 +2,7 @@ use std::ffi::{c_char, c_uint, c_void, CStr};
 use std::ptr::{null, null_mut};
 use std::str::Utf8Error;
 
-type PFN_vkVoidFunction = Option<unsafe extern "C" fn()>;
+type int = i32;
 type VkDispatchableHandle = *const c_void;
 type VkNonDispatchableHandle = u64;
 // TODO: Use X-macro to embed wait_for_debugger() in functions?

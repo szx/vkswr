@@ -1,4 +1,3 @@
-use crate::VkTypedef::Alias;
 use lazy_static::lazy_static;
 use phf::phf_map;
 use quick_xml::events::{BytesStart, Event};
@@ -17,6 +16,7 @@ pub struct VkXml {
     pub structs: HashSet<VkStruct>,
     pub typedefs: HashSet<VkTypedef>,
     pub type_attributes: HashSet<VkTypeAttributes>,
+    pub type_externs: HashSet<VkTypeExtern>,
 }
 
 impl VkXml {
@@ -67,8 +67,8 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                         if let Ok(mut x) = quick_xml::de::from_str::<VkStructSerde>(str) {
                             if let Some(x) = x.fix(str) {
                                 vk_xml.structs.insert(x);
+                                continue;
                             }
-                            continue;
                         }
                         if let Ok(mut x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
                             if let Some(x) = x.fix() {
@@ -80,13 +80,27 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                             vk_xml.type_attributes.insert(x.fix());
                             continue;
                         }
+                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
+                            vk_xml.type_externs.insert(x.fix());
+                            continue;
+                        }
+                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
+                            if let Some(x) = x.fix(str) {
+                                vk_xml.type_externs.insert(x);
+                            }
+                            continue;
+                        }
+                        if str.contains(r#"category="define""#) || str.contains(r#"name=""#) {
+                            continue;
+                        }
+                        unreachable!("{:?}", str);
                     }
                     b"command" => {
                         let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                         let str = std::str::from_utf8(&bytes)?;
                         // TODO: Parse functions
                     }
-                    _ => (), // TODO: functions
+                    _ => (),
                 }
             }
             _ => (),
@@ -273,14 +287,29 @@ struct VkStructSerde {
 
     #[serde(rename = "@alias")]
     alias: Option<Arc<str>>,
-
-    // Too hard to deserialize using Serde, filled in in fix().
-    #[serde(skip)]
-    members: Vec<VkStructMemberSerde>,
+    // Too hard to deserialize members using Serde, filled in in fix().
 }
 
 impl VkStructSerde {
     fn fix(&mut self, str: &str) -> Option<VkStruct> {
+        let members = Self::parse_members(str, self.category.as_ref() == "union");
+        let name = self.name.clone();
+        match self.category.as_ref() {
+            "include" => None,
+            "define" => None,
+            "enum" if self.alias.is_none() => None,
+            "bitmask" | "handle" | "enum" => {
+                let alias = self.alias.as_ref().unwrap().clone();
+                Some(VkStruct::Alias { name, alias })
+            }
+            "struct" if members.is_empty() => None,
+            "struct" => Some(VkStruct::Struct { name, members }),
+            "union" => Some(VkStruct::Union { name, members }),
+            _ => unreachable!("{:?} {}", self, str),
+        }
+    }
+
+    fn parse_members(str: &str, is_union: bool) -> Vec<VkStructMember> {
         lazy_static! {
             static ref re_extract_member: regex::Regex =
                 regex::Regex::new(r"<member[^>]*>(.*?)</member[^>]*>").unwrap();
@@ -291,6 +320,7 @@ impl VkStructSerde {
             static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
             static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
         }
+        let mut members = vec![];
         for cap in re_extract_member.captures_iter(str) {
             let str = &cap[0];
             if str.contains("vulkansc") {
@@ -312,12 +342,11 @@ impl VkStructSerde {
                 name = "type_".into();
             }
             let mut member = VkStructMemberSerde { type_, name };
-            self.members.push(member);
+            members.push(member);
         }
 
-        let mut members = vec![];
-        let is_union = &*self.category == "union";
-        let mut iter = self.members.iter_mut();
+        let mut iter = members.iter_mut();
+        let mut members: Vec<VkStructMember> = vec![];
         while let Some(member) = iter.next() {
             if member.is_bitfield_24() {
                 let next = iter.next();
@@ -327,20 +356,7 @@ impl VkStructSerde {
             }
         }
 
-        let name = self.name.clone();
-        match self.category.as_ref() {
-            "include" => None,
-            "define" => None,
-            "enum" if self.alias.is_none() => None,
-            "bitmask" | "handle" | "enum" => {
-                let alias = self.alias.as_ref().unwrap().clone();
-                Some(VkStruct::Alias { name, alias })
-            }
-            "struct" if members.is_empty() => None,
-            "struct" => Some(VkStruct::Struct { name, members }),
-            "union" => Some(VkStruct::Union { name, members }),
-            _ => unreachable!("{:?} {}", self, str),
-        }
+        members
     }
 }
 
@@ -438,6 +454,117 @@ pub enum VkTypeAttributes {
 
 // ---
 
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkTypeExternSerde {
+    #[serde(rename = "@requires")]
+    requires: Arc<str>,
+
+    #[serde(rename = "@name")]
+    name: Arc<str>,
+}
+
+impl VkTypeExternSerde {
+    pub fn fix(&self) -> VkTypeExtern {
+        VkTypeExtern::Extern {
+            name: self.name.clone(),
+        }
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkTypeExternSerde2 {
+    #[serde(rename = "@category")]
+    category: Arc<str>,
+
+    #[serde(rename = "name")]
+    name: Arc<str>,
+
+    // Too hard to deserialize using Serde, filled in in fix().
+    #[serde(skip)]
+    members: Vec<VkStructMemberSerde>,
+}
+
+impl VkTypeExternSerde2 {
+    pub fn fix(&self, str: &str) -> Option<VkTypeExtern> {
+        match self.category.as_ref() {
+            "basetype" => Some(VkTypeExtern::Extern {
+                name: self.name.clone(),
+            }),
+            "define" => None,
+            "funcpointer" => VkFuncDeclMember::parse_members(str),
+            &_ => {
+                unreachable!("{:?}", self)
+            }
+        }
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub enum VkTypeExtern {
+    Extern {
+        name: Arc<str>,
+    },
+    FuncPointer {
+        type_: Option<VkFFIType>,
+        name: Arc<str>,
+        members: Vec<VkFuncDeclMember>,
+    },
+}
+
+// ---
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub enum VkFuncDeclMember {
+    Member { name: String, type_: VkFFIType },
+}
+
+impl VkFuncDeclMember {
+    fn parse_members(str: &str) -> Option<VkTypeExtern> {
+        lazy_static! {
+            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+            static ref re_type_name_members: regex::Regex = regex::Regex::new(
+                r"typedef\s(.*?)\s\(VKAPI_PTR\s\*\s(.*?)\s\)\((?:\s|void)(.*?)\);"
+            )
+            .unwrap();
+            static ref re_member: regex::Regex =
+                regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").unwrap();
+        }
+
+        let str = re_remove_tags.replace_all(&str, " ");
+        let str = re_replace_spaces.replace_all(&str, " ");
+        if str.contains("PFN_vkVoidFunction") {
+            dbg!(&str);
+        }
+        let Some(cap) = re_type_name_members.captures(str.as_ref()) else { return None };
+
+        let type_ = cap.get(1).unwrap().as_str();
+        let type_ = if type_ == "void" {
+            None
+        } else {
+            Some(VkFFIType::new(type_))
+        };
+
+        let name = cap.get(2).unwrap().as_str().into();
+
+        let raw_members = cap.get(3).unwrap().as_str();
+        let mut members: Vec<VkFuncDeclMember> = vec![];
+        for cap in re_member.captures_iter(raw_members) {
+            let type_ = VkFFIType::new(cap[1].into());
+            let name = cap[2].into();
+            members.push(VkFuncDeclMember::Member { name, type_ });
+        }
+
+        Some(VkTypeExtern::FuncPointer {
+            type_,
+            name,
+            members,
+        })
+    }
+}
+
+// ---
+
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub struct VkFFIType(pub String);
 
@@ -446,7 +573,7 @@ impl VkFFIType {
         lazy_static! {
             static ref re_replace_struct: regex::Regex = regex::Regex::new(r"struct\s").unwrap();
             static ref re_const_ptr: regex::Regex = regex::Regex::new(r"const\s(.*?)\s\*").unwrap();
-            static ref re_mut_ptr: regex::Regex = regex::Regex::new(r"(.*?)\s\*").unwrap();
+            static ref re_mut_ptr: regex::Regex = regex::Regex::new(r"(.*?)\s?\*").unwrap();
             static ref re_array: regex::Regex = regex::Regex::new(r"(.*?)\s\[(.*?)\]").unwrap();
         }
 
@@ -491,7 +618,6 @@ impl VkFFIType {
     }
 
     fn parse_value(value: Arc<str>) -> String {
-        dbg!(&value);
         if let Ok(value) = parse_int::parse::<usize>(value.as_ref()) {
             format!("{}", value)
         } else if value.ends_with('F') {
@@ -652,9 +778,11 @@ mod tests {
     }
 
     #[test]
-    fn works_vk_xml_typedef_parsing() {
+    fn works_vk_xml_typedef_extern_parsing() {
         let vk_xml_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/vk.xml"));
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         assert!(!vk_xml.typedefs.is_empty());
+        assert!(!vk_xml.type_externs.is_empty());
+        dbg!(&vk_xml.type_externs);
     }
 }
