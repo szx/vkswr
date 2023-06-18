@@ -1,6 +1,6 @@
 mod vk_xml;
 
-use proc_macro2::{Literal, Punct, Spacing, TokenStream};
+use proc_macro2::{Ident, Literal, Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -12,19 +12,29 @@ impl Display for VkXml {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
+
         for x in &self.structs {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
+
         for x in &self.typedefs {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
+
         for x in &self.type_attributes {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
+
         for x in &self.type_externs {
+            let tokens = x.into_token_stream();
+            writeln!(f, "{}", tokens).unwrap();
+        }
+        writeln!(f, "{}", quote! {pub(crate) type int = i32;}).unwrap();
+
+        for x in &self.commands {
             let tokens = x.into_token_stream();
             writeln!(f, "{}", tokens).unwrap();
         }
@@ -46,7 +56,7 @@ impl ToTokens for VkXmlEnums {
                     .filter(|x| matches!(x, VkXmlEnumsMember::Member { .. }));
                 tokens.extend(quote! {
                     #[repr(C)]
-                    enum #name {
+                    pub(crate) enum #name {
                         #(#enumerators)*
                     }
                 });
@@ -55,13 +65,13 @@ impl ToTokens for VkXmlEnums {
                     .filter(|x| matches!(x, VkXmlEnumsMember::Alias { .. }));
                 tokens.extend(quote! {
                     impl #name {
-                        #(pub const #aliases;)*
+                        #(pub(crate) const #aliases;)*
                     }
                 });
             }
             VkXmlEnums::Bitmask { name } => {
                 let name = format_ident!("{}", name.as_ref());
-                tokens.extend(quote! {type #name = VkFlags ;});
+                tokens.extend(quote! {pub(crate) type #name = VkFlags ;});
             }
         }
     }
@@ -74,15 +84,17 @@ impl ToTokens for VkXmlEnumsMember {
                 let name = format_ident!("{}", name.as_ref());
                 let type_ = type_.0.parse::<TokenStream>().unwrap();
                 let value = value.parse::<TokenStream>().unwrap();
-                tokens.extend(quote!(const #name : #type_ = #value;).to_token_stream());
+                tokens.extend(quote!(pub(crate) const #name : #type_ = #value;).to_token_stream());
                 let type_name = format_ident!("_{}_type", name);
-                tokens.extend(quote!(type #type_name = #type_;).to_token_stream());
+                tokens.extend(quote!(pub(crate) type #type_name = #type_;).to_token_stream());
             }
             VkXmlEnumsMember::ApiConstantAlias { name, alias } => {
                 let name = format_ident!("{}", name.as_ref());
                 let type_name = format_ident!("_{}_type", alias.as_ref());
                 let alias = format_ident!("{}", alias.as_ref());
-                tokens.extend(quote!(const #name : #type_name = #alias;).to_token_stream());
+                tokens.extend(
+                    quote!(pub(crate) const #name : #type_name = #alias;).to_token_stream(),
+                );
             }
             VkXmlEnumsMember::Member { name, value } => {
                 let name = format_ident!("{}", name.as_ref());
@@ -113,13 +125,13 @@ impl ToTokens for VkStruct {
             VkStruct::Alias { name, alias } => {
                 let name = format_ident!("{}", name.as_ref());
                 let alias = format_ident!("{}", alias.as_ref());
-                tokens.extend(quote!(type #name = #alias;).to_token_stream());
+                tokens.extend(quote!(pub(crate) type #name = #alias;).to_token_stream());
             }
             VkStruct::Struct { name, members } => {
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {
                     #[repr(C)]
-                    struct #name {
+                    pub(crate) struct #name {
                         #(#members)*
                     }
                 });
@@ -128,7 +140,7 @@ impl ToTokens for VkStruct {
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {
                     #[repr(C)]
-                    union #name {
+                    pub(crate) union #name {
                         #(#members)*
                     }
                 });
@@ -145,15 +157,14 @@ impl ToTokens for VkStructMember {
                 type_,
                 in_union,
             } => {
-                tokens.append(format_ident!("{}", name.as_ref()));
-                tokens.append(Punct::new(':', Spacing::Alone));
+                let name = format_ident!("{}", name.as_ref());
                 let type_ = if *in_union {
                     format!("std::mem::ManuallyDrop<{}>", type_.0)
                 } else {
                     type_.0.clone()
                 };
-                tokens.extend(type_.parse::<TokenStream>());
-                tokens.append(Punct::new(',', Spacing::Alone));
+                let type_ = type_.parse::<TokenStream>().unwrap();
+                tokens.extend(quote!(pub(crate) #name : #type_,).to_token_stream());
             }
         }
     }
@@ -165,7 +176,7 @@ impl ToTokens for VkTypedef {
             VkTypedef::Alias { name, type_ } => {
                 let name = format_ident!("{}", name.as_ref());
                 let type_ = type_.0.parse::<TokenStream>().unwrap();
-                tokens.extend(quote!(type #name = #type_;).to_token_stream());
+                tokens.extend(quote!(pub(crate)type #name = #type_;).to_token_stream());
             }
         }
     }
@@ -177,7 +188,7 @@ impl ToTokens for VkTypeAttributes {
             VkTypeAttributes::Alias { name, alias } => {
                 let name = format_ident!("{}", name.as_ref());
                 let alias = format_ident!("{}", alias.as_ref());
-                tokens.extend(quote! {type #name = #alias ;});
+                tokens.extend(quote! {pub(crate)type #name = #alias ;});
             }
         }
     }
@@ -188,8 +199,8 @@ impl ToTokens for VkTypeExtern {
         match self {
             VkTypeExtern::Extern { name } => {
                 let name = format_ident!("{}", name.as_ref());
-                // TODO: Smarter unsized types.
-                tokens.extend(quote! {type #name = Box<[u8]>;});
+                // TODO: Smarter unusable types.
+                tokens.extend(quote! {pub(crate) type #name = Box<[u8]>;});
             }
             VkTypeExtern::FuncPointer {
                 type_,
@@ -200,12 +211,11 @@ impl ToTokens for VkTypeExtern {
                 if let Some(type_) = type_ {
                     let type_ = type_.0.parse::<TokenStream>().unwrap();
                     tokens.extend(
-                        quote! {type #name = Option<unsafe extern "C" fn(#(#members)*) -> #type_>;},
+                        quote! {pub(crate) type #name = Option<unsafe extern "C" fn(#(#members)*) -> #type_>;},
                     );
                 } else {
-                    tokens.extend(
-                        quote! {type #name = Option<unsafe extern "C" fn(#(#members)*)>;},
-                    );
+                    tokens
+                        .extend(quote! {pub(crate) type #name = Option<unsafe extern "C" fn(#(#members)*)>;});
                 }
             }
         }
@@ -219,6 +229,40 @@ impl ToTokens for VkFuncDeclMember {
                 let name = format_ident!("{}", name);
                 let type_ = type_.0.parse::<TokenStream>().unwrap();
                 tokens.extend(quote!(#name: #type_,).to_token_stream());
+            }
+        }
+    }
+}
+
+impl VkFuncDeclMember {
+    fn to_arg(&self) -> Ident {
+        match self {
+            VkFuncDeclMember::Member { name, type_ } => {
+                format_ident!("{}", name)
+            }
+        }
+    }
+}
+
+impl ToTokens for VkCommand {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            VkCommand::Command {
+                type_,
+                name,
+                members,
+            } => {
+                let command = format_ident!("impl_{}", name.as_ref());
+                let args = members.iter().map(|x| x.to_arg()).collect::<Vec<_>>();
+                let name = format_ident!("{}", name.as_ref());
+                if let Some(type_) = type_ {
+                    let type_ = type_.0.parse::<TokenStream>().unwrap();
+                    tokens.extend(quote! {#[no_mangle] pub(crate) extern "C" fn #name(#(#members)*) -> #type_ {#command(#(#args,)*)}});
+                } else {
+                    tokens.extend(
+                        quote! {#[no_mangle] pub(crate) extern "C" fn #name(#(#members)*) {#command(#(#args,)*)}},
+                    );
+                }
             }
         }
     }

@@ -1,12 +1,11 @@
+#![allow(non_snake_case)]
+
+mod codegen;
+mod impls;
+
+use crate::codegen::*;
 use std::ffi::{c_char, c_uint, c_void, CStr};
 use std::ptr::{null, null_mut};
-use std::str::Utf8Error;
-
-type int = i32;
-type VkDispatchableHandle = *const c_void;
-type VkNonDispatchableHandle = u64;
-// TODO: Use X-macro to embed wait_for_debugger() in functions?
-include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 fn wait_for_debugger() {
     static mut debug: bool = true;
@@ -40,34 +39,6 @@ pub extern "C" fn vk_icdGetInstanceProcAddr(
     }
 }
 
-#[no_mangle]
-unsafe extern "C" fn vkCreateInstance(
-    pCreateInfo: *const VkInstanceCreateInfo,
-    pAllocator: *const VkAllocationCallbacks,
-    pInstance: *mut VkInstance,
-) -> VkResult {
-    println!("Hello from vkCreateInstance()!");
-    *pInstance = null_mut();
-    // TODO: Create and register internal VkInstance.
-    VkResult::VK_SUCCESS
-}
-
-#[no_mangle]
-unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
-    pLayerName: *const c_char,
-    pPropertyCount: *mut c_uint,
-    pProperties: *mut VkExtensionProperties,
-) -> VkResult {
-    println!("Hello from vkEnumerateInstanceExtensionProperties()!");
-    assert_eq!(pLayerName, null());
-    println!("*pPropertyCount = {}", *pPropertyCount);
-    println!("*pProperties = {:?}", pProperties);
-    if pProperties == null_mut() {
-        *pPropertyCount = 0;
-    }
-    VkResult::VK_SUCCESS
-}
-
 // TODO: Implement Core 1.0 functions required by loader_icd_init_entries().
 
 #[no_mangle]
@@ -80,7 +51,5 @@ pub extern "C" fn lib_test() -> u32 {
 mod tests {
     use crate::*;
     #[test]
-    fn works_codegen() {
-        
-    }
+    fn works_codegen() {}
 }

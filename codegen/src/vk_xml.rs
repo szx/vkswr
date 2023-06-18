@@ -17,6 +17,7 @@ pub struct VkXml {
     pub typedefs: HashSet<VkTypedef>,
     pub type_attributes: HashSet<VkTypeAttributes>,
     pub type_externs: HashSet<VkTypeExtern>,
+    pub commands: HashSet<VkCommand>,
 }
 
 impl VkXml {
@@ -98,7 +99,12 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                     b"command" => {
                         let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                         let str = std::str::from_utf8(&bytes)?;
-                        // TODO: Parse functions
+                        if let Ok(mut x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
+                            if let Some(x) = x.fix(str) {
+                                vk_xml.commands.insert(x);
+                            }
+                            continue;
+                        }
                     }
                     _ => (),
                 }
@@ -355,7 +361,6 @@ impl VkStructSerde {
                 members.push(member.fix(None, &is_union));
             }
         }
-
         members
     }
 }
@@ -513,6 +518,95 @@ pub enum VkTypeExtern {
 
 // ---
 
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkCommandSerde {
+    #[serde(rename = "@queues")]
+    queues: Option<Arc<str>>,
+
+    #[serde(rename = "@renderpass")]
+    renderpass: Option<Arc<str>>,
+
+    #[serde(rename = "@cmdbufferlevel")]
+    cmdbufferlevel: Option<Arc<str>>,
+
+    #[serde(rename = "@tasks")]
+    tasks: Option<Arc<str>>,
+
+    #[serde(rename = "@successcodes")]
+    successcodes: Option<Arc<str>>,
+
+    #[serde(rename = "@errorcodes")]
+    errorcodes: Option<Arc<str>>,
+}
+
+impl VkCommandSerde {
+    pub fn fix(&self, str: &str) -> Option<VkCommand> {
+        VkCommand::parse(str)
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub enum VkCommand {
+    Command { type_: Option<VkFFIType>, name: Arc<str>, members: Vec<VkFuncDeclMember>, },
+}
+
+impl VkCommand {
+    fn parse(str: &str) -> Option<VkCommand> {
+        lazy_static! {
+            static ref re_proto: regex::Regex =
+                regex::Regex::new(r"<proto[^>]*>(.*?)<\/proto[^>]*>").unwrap();
+            static ref re_name: regex::Regex =
+                regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").unwrap();
+            static ref re_param: regex::Regex =
+                regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").unwrap();
+            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+            static ref re_member: regex::Regex =
+                regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").unwrap();
+        }
+
+        let Some(cap) = re_proto.captures(str.as_ref()) else { return None };
+        let proto = cap.get(1).unwrap().as_str();
+
+        let Some(cap) = re_name.captures(proto) else { return None };
+        let name = cap.get(1).unwrap().as_str().into();
+
+        let proto = re_name.replace_all(proto, " ");
+        let proto = re_remove_tags.replace_all(proto.as_ref(), " ");
+        let proto = re_replace_spaces.replace_all(proto.as_ref(), " ");
+        let type_ = proto.trim();
+        let type_ = if type_ == "void" {
+            None
+        } else {
+            Some(VkFFIType::new(type_))
+        };
+
+        let mut members: Vec<VkFuncDeclMember> = vec![];
+        for cap in re_param.captures_iter(str.as_ref()) {
+            if cap[0].contains("vulkansc") {
+                continue;
+            }
+
+            let Some(cap_name) = re_name.captures(&cap[0]) else { return None };
+            let mut name = cap_name.get(1).unwrap().as_str().into();
+            if name == "type" {
+                name = "type_".into();
+            }
+
+            let type_ = re_name.replace_all(&cap[0], " ");
+            let type_ = re_remove_tags.replace_all(type_.as_ref(), " ");
+            let type_ = re_replace_spaces.replace_all(type_.as_ref(), " ");
+            let type_ = VkFFIType::new(type_.as_ref());
+
+            members.push(VkFuncDeclMember::Member { name, type_ });
+        }
+
+        Some(VkCommand::Command { type_, name, members })
+    }
+}
+
+// ---
+
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum VkFuncDeclMember {
     Member { name: String, type_: VkFFIType },
@@ -533,9 +627,6 @@ impl VkFuncDeclMember {
 
         let str = re_remove_tags.replace_all(&str, " ");
         let str = re_replace_spaces.replace_all(&str, " ");
-        if str.contains("PFN_vkVoidFunction") {
-            dbg!(&str);
-        }
         let Some(cap) = re_type_name_members.captures(str.as_ref()) else { return None };
 
         let type_ = cap.get(1).unwrap().as_str();
@@ -575,12 +666,11 @@ impl VkFFIType {
             static ref re_const_ptr: regex::Regex = regex::Regex::new(r"const\s(.*?)\s\*").unwrap();
             static ref re_mut_ptr: regex::Regex = regex::Regex::new(r"(.*?)\s?\*").unwrap();
             static ref re_array: regex::Regex = regex::Regex::new(r"(.*?)\s\[(.*?)\]").unwrap();
+            static ref re_replace_const: regex::Regex = regex::Regex::new(r"const\s").unwrap();
         }
 
         let mut type_: String = str.to_string();
         type_ = re_replace_struct.replace_all(&type_, "").into();
-        assert!(!type_.contains(':'), "{:?}", str);
-
         let is_const_ptr = if let Some(cap) = re_const_ptr.captures(&type_) {
             type_ = cap.get(1).unwrap().as_str().into();
             true
@@ -600,6 +690,7 @@ impl VkFFIType {
         } else {
             None
         };
+        type_ = re_replace_const.replace_all(&type_, "").trim().into();
         let ffi = C_TYPE_TO_FFI.get(&type_);
 
         if let Some(ffi) = ffi {
