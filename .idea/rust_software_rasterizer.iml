@@ -5,6 +5,8 @@
       <sourceFolder url="file://$MODULE_DIR$/icd/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/test_suite/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/codegen/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/headers/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/runtime/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

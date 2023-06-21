@@ -12,9 +12,15 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Codegen seems to work.">
+    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Fix parsing &lt;implicitexternsyncparams&gt; tag.">
+      <change beforePath="$PROJECT_DIR$/.idea/rust_software_rasterizer.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/rust_software_rasterizer.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codegen/src/vk_xml.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/vk_xml.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/icd/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/build.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/src/codegen.rs" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/icd/src/impls.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/impls.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/icd/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/lib.rs" afterDir="false" />
     </list>
@@ -47,27 +53,32 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;cf.advertisement.text.has.clang-format&quot;: &quot;true&quot;,
-    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
-    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;language.rust.cargo.check&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "cf.advertisement.text.has.clang-format": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/home/sszczyrb/Repos/rust_software_rasterizer/headers/src",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "settings.editor.selected.configurable": "language.rust.cargo.check",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/headers/src" />
+      <recent name="$PROJECT_DIR$" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/icd" />
       <recent name="$PROJECT_DIR$/codegen" />
@@ -239,7 +250,7 @@
       <workItem from="1687272652153" duration="87000" />
       <workItem from="1687292063469" duration="138000" />
       <workItem from="1687293015200" duration="944000" />
-      <workItem from="1687340337163" duration="2049000" />
+      <workItem from="1687340337163" duration="5843000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -339,7 +350,14 @@
       <option name="project" value="LOCAL" />
       <updated>1687123511147</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Fix parsing &lt;implicitexternsyncparams&gt; tag.">
+      <created>1687366787143</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1687366787143</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -357,7 +375,8 @@
     <MESSAGE value="Quick and dirty struct codegen." />
     <MESSAGE value="Big refactor." />
     <MESSAGE value="Codegen seems to work." />
-    <option name="LAST_COMMIT_MESSAGE" value="Codegen seems to work." />
+    <MESSAGE value="Fix parsing &lt;implicitexternsyncparams&gt; tag." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix parsing &lt;implicitexternsyncparams&gt; tag." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

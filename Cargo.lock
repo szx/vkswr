@@ -179,6 +179,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "headers"
+version = "0.1.0"
+dependencies = [
+ "codegen",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -189,9 +196,10 @@ name = "icd"
 version = "0.1.0"
 dependencies = [
  "assert_fs",
- "codegen",
  "ctor",
+ "headers",
  "libloading",
+ "runtime",
 ]
 
 [[package]]
@@ -442,6 +450,13 @@ name = "regex-syntax"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
+
+[[package]]
+name = "runtime"
+version = "0.1.0"
+dependencies = [
+ "headers",
+]
 
 [[package]]
 name = "rustix"

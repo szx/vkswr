@@ -4,7 +4,8 @@ resolver = "2"
 members = [
     "icd",
     "test_suite",
-    "codegen"
+    "codegen",
+    "runtime",
 ]
 
 [workspace.dependencies]

@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
 
-mod codegen;
 mod impls;
 
-use crate::codegen::*;
+use impls::*;
+use headers::vk::*;
+
 use std::ffi::{c_char, c_uint, c_void, CStr};
 use std::ptr::{null, null_mut};
 
