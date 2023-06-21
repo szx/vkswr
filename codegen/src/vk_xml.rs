@@ -547,7 +547,11 @@ impl VkCommandSerde {
 
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum VkCommand {
-    Command { type_: Option<VkFFIType>, name: Arc<str>, members: Vec<VkFuncDeclMember>, },
+    Command {
+        type_: Option<VkFFIType>,
+        name: Arc<str>,
+        members: Vec<VkFuncDeclMember>,
+    },
 }
 
 impl VkCommand {
@@ -559,6 +563,10 @@ impl VkCommand {
                 regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").unwrap();
             static ref re_param: regex::Regex =
                 regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").unwrap();
+            static ref re_implicitexternsyncparams: regex::Regex = regex::Regex::new(
+                r"(?s)<implicitexternsyncparams[^>]*>(.*?)<\/implicitexternsyncparams[^>]*>"
+            )
+            .unwrap();
             static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
             static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
             static ref re_member: regex::Regex =
@@ -582,12 +590,13 @@ impl VkCommand {
         };
 
         let mut members: Vec<VkFuncDeclMember> = vec![];
+        let str = re_implicitexternsyncparams.replace_all(str.as_ref(), " ");
         for cap in re_param.captures_iter(str.as_ref()) {
             if cap[0].contains("vulkansc") {
                 continue;
             }
 
-            let Some(cap_name) = re_name.captures(&cap[0]) else { return None };
+            let Some(cap_name) = re_name.captures(&cap[0]) else { unreachable!("{:?}", &cap[0]) };
             let mut name = cap_name.get(1).unwrap().as_str().into();
             if name == "type" {
                 name = "type_".into();
@@ -601,7 +610,11 @@ impl VkCommand {
             members.push(VkFuncDeclMember::Member { name, type_ });
         }
 
-        Some(VkCommand::Command { type_, name, members })
+        Some(VkCommand::Command {
+            type_,
+            name,
+            members,
+        })
     }
 }
 

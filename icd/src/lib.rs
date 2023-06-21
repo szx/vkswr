@@ -18,6 +18,8 @@ fn wait_for_debugger() {
     }
 }
 
+/* Exported functions */
+
 #[no_mangle]
 pub extern "C" fn vk_icdGetInstanceProcAddr(
     instance: VkInstance,
@@ -28,28 +30,56 @@ pub extern "C" fn vk_icdGetInstanceProcAddr(
     wait_for_debugger();
     match pName {
         "vkCreateInstance" => unsafe {
-            println!("HIRO");
             std::mem::transmute(vkCreateInstance as *const ())
         },
         "vkEnumerateInstanceExtensionProperties" => unsafe {
-            println!("HIRO2");
             std::mem::transmute(vkEnumerateInstanceExtensionProperties as *const ())
+        },
+        /* Vulkan Core 1.0 functions required by loader_icd_init_entries(). */
+        "vkDestroyInstance" => unsafe {
+            std::mem::transmute(vkDestroyInstance as *const ())
+        },
+        "vkEnumeratePhysicalDevices" => unsafe {
+            std::mem::transmute(vkEnumeratePhysicalDevices as *const ())
+        },
+        "vkGetPhysicalDeviceFeatures" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceFeatures as *const ())
+        },
+        "vkGetPhysicalDeviceFormatProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceFormatProperties as *const ())
+        },
+        "vkGetPhysicalDeviceImageFormatProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceImageFormatProperties as *const ())
+        },
+        "vkGetPhysicalDeviceProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceProperties as *const ())
+        },
+        "vkGetPhysicalDeviceQueueFamilyProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceQueueFamilyProperties as *const ())
+        },
+        "vkGetPhysicalDeviceMemoryProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceMemoryProperties as *const ())
+        },
+        "vkGetDeviceProcAddr" => unsafe {
+            std::mem::transmute(vkGetDeviceProcAddr as *const ())
+        },
+        "vkCreateDevice" => unsafe {
+            std::mem::transmute(vkCreateDevice as *const ())
+        },
+        "vkEnumerateDeviceExtensionProperties" => unsafe {
+            std::mem::transmute(vkEnumerateDeviceExtensionProperties as *const ())
+        },
+        "vkGetPhysicalDeviceSparseImageFormatProperties" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceSparseImageFormatProperties as *const ())
         },
         &_ => None,
     }
 }
 
-// TODO: Implement Core 1.0 functions required by loader_icd_init_entries().
+
 
 #[no_mangle]
 pub extern "C" fn lib_test() -> u32 {
     println!("Hello from the library!");
     1
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::*;
-    #[test]
-    fn works_codegen() {}
 }
