@@ -201,7 +201,7 @@ impl ToTokens for VkTypeExtern {
             VkTypeExtern::Extern { name } => {
                 let name = format_ident!("{}", name.as_ref());
                 // TODO: Smarter unusable types.
-                tokens.extend(quote! {pub type #name = Box<[u8]>;});
+                tokens.extend(quote! {pub(self) type #name = Box<[u8]>;});
             }
             VkTypeExtern::FuncPointer {
                 type_,

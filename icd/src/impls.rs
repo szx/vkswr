@@ -4,8 +4,6 @@
 
 use headers::vk::*;
 
-// TODO: Replace arrays with https://doc.rust-lang.org/std/slice/fn.from_raw_parts.htmlk
-
 #[no_mangle]
 pub(crate) extern "C" fn vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
     physicalDevice: VkPhysicalDevice,
@@ -168,15 +166,6 @@ pub(crate) extern "C" fn vkCmdPushDescriptorSetKHR(
     unimplemented!("vkCmdPushDescriptorSetKHR (commandBuffer , pipelineBindPoint , layout , set , descriptorWriteCount , pDescriptorWrites ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryZirconHandlePropertiesFUCHSIA(
-    device: VkDevice,
-    handleType: VkExternalMemoryHandleTypeFlagBits,
-    zirconHandle: zx_handle_t,
-    pMemoryZirconHandleProperties: *mut VkMemoryZirconHandlePropertiesFUCHSIA,
-) -> VkResult {
-    unimplemented!("vkGetMemoryZirconHandlePropertiesFUCHSIA (device , handleType , zirconHandle , pMemoryZirconHandleProperties ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
@@ -197,10 +186,7 @@ pub(crate) extern "C" fn vkCmdDrawIndexedIndirectCount(
     unimplemented!("vkCmdDrawIndexedIndirectCount (commandBuffer , buffer , offset , countBuffer , countBufferOffset , maxDrawCount , stride ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkCmdSetLogicOpEXT(
-    commandBuffer: VkCommandBuffer,
-    logicOp: VkLogicOp,
-) {
+pub(crate) extern "C" fn vkCmdSetLogicOpEXT(commandBuffer: VkCommandBuffer, logicOp: VkLogicOp) {
     unimplemented!("vkCmdSetLogicOpEXT (commandBuffer , logicOp ,)")
 }
 #[no_mangle]
@@ -488,14 +474,6 @@ pub(crate) extern "C" fn vkCmdBeginRenderPass(
     unimplemented!("vkCmdBeginRenderPass (commandBuffer , pRenderPassBegin , contents ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkAcquireXlibDisplayEXT(
-    physicalDevice: VkPhysicalDevice,
-    dpy: *mut Display,
-    display: VkDisplayKHR,
-) -> VkResult {
-    unimplemented!("vkAcquireXlibDisplayEXT (physicalDevice , dpy , display ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkCmdSetPerformanceMarkerINTEL(
     commandBuffer: VkCommandBuffer,
     pMarkerInfo: *const VkPerformanceMarkerInfoINTEL,
@@ -599,16 +577,6 @@ pub(crate) extern "C" fn vkGetQueueCheckpointDataNV(
     pCheckpointData: *mut VkCheckpointDataNV,
 ) {
     unimplemented!("vkGetQueueCheckpointDataNV (queue , pCheckpointDataCount , pCheckpointData ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryZirconHandleFUCHSIA(
-    device: VkDevice,
-    pGetZirconHandleInfo: *const VkMemoryGetZirconHandleInfoFUCHSIA,
-    pZirconHandle: *mut zx_handle_t,
-) -> VkResult {
-    unimplemented!(
-        "vkGetMemoryZirconHandleFUCHSIA (device , pGetZirconHandleInfo , pZirconHandle ,)"
-    )
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetDeviceGroupPresentCapabilitiesKHR(
@@ -752,14 +720,6 @@ pub(crate) extern "C" fn vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
     unimplemented!("vkGetPhysicalDeviceDisplayPlanePropertiesKHR (physicalDevice , pPropertyCount , pProperties ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetMemorySciBufNV(
-    device: VkDevice,
-    pGetSciBufInfo: *const VkMemoryGetSciBufInfoNV,
-    pHandle: *mut NvSciBufObj,
-) -> VkResult {
-    unimplemented!("vkGetMemorySciBufNV (device , pGetSciBufInfo , pHandle ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkEnumeratePhysicalDeviceGroups(
     instance: VkInstance,
     pPhysicalDeviceGroupCount: *mut u32,
@@ -867,14 +827,6 @@ pub(crate) extern "C" fn vkCmdSetDiscardRectangleEnableEXT(
     unimplemented!("vkCmdSetDiscardRectangleEnableEXT (commandBuffer , discardRectangleEnable ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceScreenPresentationSupportQNX(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    window: *mut _screen_window,
-) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceScreenPresentationSupportQNX (physicalDevice , queueFamilyIndex , window ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkCmdBeginVideoCodingKHR(
     commandBuffer: VkCommandBuffer,
     pBeginInfo: *const VkVideoBeginCodingInfoKHR,
@@ -885,8 +837,9 @@ pub(crate) extern "C" fn vkCmdBeginVideoCodingKHR(
 pub(crate) extern "C" fn vkCmdSetFragmentShadingRateKHR(
     commandBuffer: VkCommandBuffer,
     pFragmentSize: *const VkExtent2D,
-    combinerOps: [VkFragmentShadingRateCombinerOpKHR; 2 as usize],
+    combinerOps: *const VkFragmentShadingRateCombinerOpKHR,
 ) {
+    let _ = unsafe { std::slice::from_raw_parts(combinerOps, 2) };
     unimplemented!("vkCmdSetFragmentShadingRateKHR (commandBuffer , pFragmentSize , combinerOps ,)")
 }
 #[no_mangle]
@@ -925,14 +878,6 @@ pub(crate) extern "C" fn vkGetImageSparseMemoryRequirements(
     pSparseMemoryRequirements: *mut VkSparseImageMemoryRequirements,
 ) {
     unimplemented!("vkGetImageSparseMemoryRequirements (device , image , pSparseMemoryRequirementCount , pSparseMemoryRequirements ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetFenceWin32HandleKHR(
-    device: VkDevice,
-    pGetWin32HandleInfo: *const VkFenceGetWin32HandleInfoKHR,
-    pHandle: *mut HANDLE,
-) -> VkResult {
-    unimplemented!("vkGetFenceWin32HandleKHR (device , pGetWin32HandleInfo , pHandle ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkCmdNextSubpass2(
@@ -1230,14 +1175,6 @@ pub(crate) extern "C" fn vkCmdBindDescriptorSets(
     pDynamicOffsets: *const u32,
 ) {
     unimplemented!("vkCmdBindDescriptorSets (commandBuffer , pipelineBindPoint , layout , firstSet , descriptorSetCount , pDescriptorSets , dynamicOffsetCount , pDynamicOffsets ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryAndroidHardwareBufferANDROID(
-    device: VkDevice,
-    pInfo: *const VkMemoryGetAndroidHardwareBufferInfoANDROID,
-    pBuffer: *mut AHardwareBuffer,
-) -> VkResult {
-    unimplemented!("vkGetMemoryAndroidHardwareBufferANDROID (device , pInfo , pBuffer ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkCreateIndirectCommandsLayoutNV(
@@ -1819,14 +1756,6 @@ pub(crate) extern "C" fn vkCmdDecompressMemoryNV(
     unimplemented!("vkCmdDecompressMemoryNV (commandBuffer , decompressRegionCount , pDecompressMemoryRegions ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceDirectFBPresentationSupportEXT(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    dfb: *mut IDirectFB,
-) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceDirectFBPresentationSupportEXT (physicalDevice , queueFamilyIndex , dfb ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkGetFenceSciSyncFenceNV(
     device: VkDevice,
     pGetSciSyncHandleInfo: *const VkFenceGetSciSyncInfoNV,
@@ -1888,14 +1817,6 @@ pub(crate) extern "C" fn vkCreateShaderModule(
     pShaderModule: *mut VkShaderModule,
 ) -> VkResult {
     unimplemented!("vkCreateShaderModule (device , pCreateInfo , pAllocator , pShaderModule ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryWin32HandleKHR(
-    device: VkDevice,
-    pGetWin32HandleInfo: *const VkMemoryGetWin32HandleInfoKHR,
-    pHandle: *mut HANDLE,
-) -> VkResult {
-    unimplemented!("vkGetMemoryWin32HandleKHR (device , pGetWin32HandleInfo , pHandle ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetDeviceMicromapCompatibilityEXT(
@@ -2047,8 +1968,9 @@ pub(crate) extern "C" fn vkCmdTraceRaysNV(
 pub(crate) extern "C" fn vkCmdSetFragmentShadingRateEnumNV(
     commandBuffer: VkCommandBuffer,
     shadingRate: VkFragmentShadingRateNV,
-    combinerOps: [VkFragmentShadingRateCombinerOpKHR; 2 as usize],
+    combinerOps: *const VkFragmentShadingRateCombinerOpKHR,
 ) {
+    let _ = unsafe { std::slice::from_raw_parts(combinerOps, 2) };
     unimplemented!(
         "vkCmdSetFragmentShadingRateEnumNV (commandBuffer , shadingRate , combinerOps ,)"
     )
@@ -2191,15 +2113,6 @@ pub(crate) extern "C" fn vkCmdExecuteGeneratedCommandsNV(
     pGeneratedCommandsInfo: *const VkGeneratedCommandsInfoNV,
 ) {
     unimplemented!("vkCmdExecuteGeneratedCommandsNV (commandBuffer , isPreprocessed , pGeneratedCommandsInfo ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryWin32HandlePropertiesKHR(
-    device: VkDevice,
-    handleType: VkExternalMemoryHandleTypeFlagBits,
-    handle: HANDLE,
-    pMemoryWin32HandleProperties: *mut VkMemoryWin32HandlePropertiesKHR,
-) -> VkResult {
-    unimplemented!("vkGetMemoryWin32HandlePropertiesKHR (device , handleType , handle , pMemoryWin32HandleProperties ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetBufferMemoryRequirements(
@@ -2479,22 +2392,6 @@ pub(crate) extern "C" fn vkCreateWin32SurfaceKHR(
     unimplemented!("vkCreateWin32SurfaceKHR (instance , pCreateInfo , pAllocator , pSurface ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetSemaphoreWin32HandleKHR(
-    device: VkDevice,
-    pGetWin32HandleInfo: *const VkSemaphoreGetWin32HandleInfoKHR,
-    pHandle: *mut HANDLE,
-) -> VkResult {
-    unimplemented!("vkGetSemaphoreWin32HandleKHR (device , pGetWin32HandleInfo , pHandle ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceSciSyncAttributesNV(
-    physicalDevice: VkPhysicalDevice,
-    pSciSyncAttributesInfo: *const VkSciSyncAttributesInfoNV,
-    pAttributes: NvSciSyncAttrList,
-) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceSciSyncAttributesNV (physicalDevice , pSciSyncAttributesInfo , pAttributes ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkGetImageSubresourceLayout(
     device: VkDevice,
     image: VkImage,
@@ -2684,10 +2581,7 @@ pub(crate) extern "C" fn vkGetRefreshCycleDurationGOOGLE(
     )
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkCmdSetFrontFace(
-    commandBuffer: VkCommandBuffer,
-    frontFace: VkFrontFace,
-) {
+pub(crate) extern "C" fn vkCmdSetFrontFace(commandBuffer: VkCommandBuffer, frontFace: VkFrontFace) {
     unimplemented!("vkCmdSetFrontFace (commandBuffer , frontFace ,)")
 }
 #[no_mangle]
@@ -2892,15 +2786,6 @@ pub(crate) extern "C" fn vkCmdCopyAccelerationStructureToMemoryKHR(
     pInfo: *const VkCopyAccelerationStructureToMemoryInfoKHR,
 ) {
     unimplemented!("vkCmdCopyAccelerationStructureToMemoryKHR (commandBuffer , pInfo ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceExternalMemorySciBufPropertiesNV(
-    physicalDevice: VkPhysicalDevice,
-    handleType: VkExternalMemoryHandleTypeFlagBits,
-    handle: NvSciBufObj,
-    pMemorySciBufProperties: *mut VkMemorySciBufPropertiesNV,
-) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceExternalMemorySciBufPropertiesNV (physicalDevice , handleType , handle , pMemorySciBufProperties ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetPhysicalDeviceRefreshableObjectTypesKHR(
@@ -3267,15 +3152,6 @@ pub(crate) extern "C" fn vkCmdResetEvent(
     stageMask: VkPipelineStageFlags,
 ) {
     unimplemented!("vkCmdResetEvent (commandBuffer , event , stageMask ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetMemoryWin32HandleNV(
-    device: VkDevice,
-    memory: VkDeviceMemory,
-    handleType: VkExternalMemoryHandleTypeFlagsNV,
-    pHandle: *mut HANDLE,
-) -> VkResult {
-    unimplemented!("vkGetMemoryWin32HandleNV (device , memory , handleType , pHandle ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkSetBufferCollectionImageConstraintsFUCHSIA(
@@ -3766,15 +3642,6 @@ pub(crate) extern "C" fn vkGetPhysicalDeviceVideoFormatPropertiesKHR(
     unimplemented!("vkGetPhysicalDeviceVideoFormatPropertiesKHR (physicalDevice , pVideoFormatInfo , pVideoFormatPropertyCount , pVideoFormatProperties ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetRandROutputDisplayEXT(
-    physicalDevice: VkPhysicalDevice,
-    dpy: *mut Display,
-    rrOutput: RROutput,
-    pDisplay: *mut VkDisplayKHR,
-) -> VkResult {
-    unimplemented!("vkGetRandROutputDisplayEXT (physicalDevice , dpy , rrOutput , pDisplay ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkGetSemaphoreFdKHR(
     device: VkDevice,
     pGetFdInfo: *const VkSemaphoreGetFdInfoKHR,
@@ -3903,15 +3770,6 @@ pub(crate) extern "C" fn vkCopyMicromapEXT(
     unimplemented!("vkCopyMicromapEXT (device , deferredOperation , pInfo ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceXlibPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    dpy: *mut Display,
-    visualID: VisualID,
-) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceXlibPresentationSupportKHR (physicalDevice , queueFamilyIndex , dpy , visualID ,)")
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkCmdSetCoarseSampleOrderNV(
     commandBuffer: VkCommandBuffer,
     sampleOrderType: VkCoarseSampleOrderTypeNV,
@@ -4025,14 +3883,6 @@ pub(crate) extern "C" fn vkCmdDispatchBase(
     groupCountZ: u32,
 ) {
     unimplemented!("vkCmdDispatchBase (commandBuffer , baseGroupX , baseGroupY , baseGroupZ , groupCountX , groupCountY , groupCountZ ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetAndroidHardwareBufferPropertiesANDROID(
-    device: VkDevice,
-    buffer: *const AHardwareBuffer,
-    pProperties: *mut VkAndroidHardwareBufferPropertiesANDROID,
-) -> VkResult {
-    unimplemented!("vkGetAndroidHardwareBufferPropertiesANDROID (device , buffer , pProperties ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkCreateDescriptorSetLayout(
@@ -4316,8 +4166,9 @@ pub(crate) extern "C" fn vkCmdSetPrimitiveRestartEnable(
 #[no_mangle]
 pub(crate) extern "C" fn vkCmdSetBlendConstants(
     commandBuffer: VkCommandBuffer,
-    blendConstants: [f32; 4 as usize],
+    blendConstants: *const f32,
 ) {
+    let _ = unsafe { std::slice::from_raw_parts(blendConstants, 4) };
     unimplemented!("vkCmdSetBlendConstants (commandBuffer , blendConstants ,)")
 }
 #[no_mangle]
@@ -4393,14 +4244,6 @@ pub(crate) extern "C" fn vkGetAccelerationStructureOpaqueCaptureDescriptorDataEX
     unimplemented!(
         "vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT (device , pInfo , pData ,)"
     )
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceWaylandPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    display: *mut wl_display,
-) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceWaylandPresentationSupportKHR (physicalDevice , queueFamilyIndex , display ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkCreateMicromapEXT(
@@ -4560,15 +4403,6 @@ pub(crate) extern "C" fn vkCmdCopyImageToBuffer(
     pRegions: *const VkBufferImageCopy,
 ) {
     unimplemented!("vkCmdCopyImageToBuffer (commandBuffer , srcImage , srcImageLayout , dstBuffer , regionCount , pRegions ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    connection: *mut xcb_connection_t,
-    visual_id: xcb_visualid_t,
-) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceXcbPresentationSupportKHR (physicalDevice , queueFamilyIndex , connection , visual_id ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetPhysicalDeviceFeatures2(
@@ -4731,16 +4565,6 @@ pub(crate) extern "C" fn vkCmdWaitEvents2(
     unimplemented!("vkCmdWaitEvents2 (commandBuffer , eventCount , pEvents , pDependencyInfos ,)")
 }
 #[no_mangle]
-pub(crate) extern "C" fn vkGetSemaphoreZirconHandleFUCHSIA(
-    device: VkDevice,
-    pGetZirconHandleInfo: *const VkSemaphoreGetZirconHandleInfoFUCHSIA,
-    pZirconHandle: *mut zx_handle_t,
-) -> VkResult {
-    unimplemented!(
-        "vkGetSemaphoreZirconHandleFUCHSIA (device , pGetZirconHandleInfo , pZirconHandle ,)"
-    )
-}
-#[no_mangle]
 pub(crate) extern "C" fn vkEnumeratePhysicalDevices(
     instance: VkInstance,
     pPhysicalDeviceCount: *mut u32,
@@ -4859,13 +4683,6 @@ pub(crate) extern "C" fn vkCreateViSurfaceNN(
     pSurface: *mut VkSurfaceKHR,
 ) -> VkResult {
     unimplemented!("vkCreateViSurfaceNN (instance , pCreateInfo , pAllocator , pSurface ,)")
-}
-#[no_mangle]
-pub(crate) extern "C" fn vkGetPhysicalDeviceSciBufAttributesNV(
-    physicalDevice: VkPhysicalDevice,
-    pAttributes: NvSciBufAttrList,
-) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceSciBufAttributesNV (physicalDevice , pAttributes ,)")
 }
 #[no_mangle]
 pub(crate) extern "C" fn vkGetRayTracingShaderGroupHandlesKHR(

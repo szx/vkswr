@@ -13,8 +13,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Fix compiler warnings.">
-      <change beforePath="$PROJECT_DIR$/codegen/src/vk_xml.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/vk_xml.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/src/impls.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/impls.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,7 +82,7 @@
   <component name="RsExternalLinterProjectSettings">
     <option name="tool" value="Clippy" />
   </component>
-  <component name="RunManager" selected="Cargo.build">
+  <component name="RunManager" selected="Cargo.test">
     <configuration name="Test tests::works_to_tokens" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package codegen --lib tests::works_to_tokens -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -247,7 +247,7 @@
       <workItem from="1687293015200" duration="944000" />
       <workItem from="1687340337163" duration="6308000" />
       <workItem from="1687376961882" duration="745000" />
-      <workItem from="1687455693788" duration="781000" />
+      <workItem from="1687455693788" duration="2031000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -389,7 +389,21 @@
       <option name="project" value="LOCAL" />
       <updated>1687456142536</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="Fix compiler warnings.">
+      <created>1687456599151</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1687456599151</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Fix compiler warnings.">
+      <created>1687457011061</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1687457011061</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
