@@ -1,8 +1,8 @@
 # vulkan_software_rasterizer
 
-Vulkan ICD that implements Vulkan Core 1.0 API in software.
+Vulkan ICD written solely for learning purposes.
 
-Written solely for learning purpose.
+The current goal is implementation of Vulkan Core 1.0 API in software.
 
 ## TODO
 - [ ] vulkaninfo
