@@ -12,16 +12,8 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Fix parsing &lt;implicitexternsyncparams&gt; tag.">
-      <change beforePath="$PROJECT_DIR$/.idea/rust_software_rasterizer.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/rust_software_rasterizer.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/icd/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/build.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/src/codegen.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/icd/src/impls.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/impls.rs" afterDir="false" />
+    <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Fix compiler warnings.">
+      <change beforePath="$PROJECT_DIR$/codegen/src/vk_xml.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/vk_xml.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/icd/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -48,6 +40,9 @@
   <component name="MacroExpansionManager">
     <option name="directoryName" value="7csk4g75" />
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectId" id="2R3XWFp2BMQDv3p8wtIQ72BcoCS" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -63,7 +58,7 @@
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "/home/sszczyrb/Repos/rust_software_rasterizer/headers/src",
+    "last_opened_file_path": "/home/sszczyrb/Repos/vulkan_software_rasterizer/Cargo.toml",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -87,7 +82,7 @@
   <component name="RsExternalLinterProjectSettings">
     <option name="tool" value="Clippy" />
   </component>
-  <component name="RunManager" selected="Cargo.test">
+  <component name="RunManager" selected="Cargo.build">
     <configuration name="Test tests::works_to_tokens" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package codegen --lib tests::works_to_tokens -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -250,7 +245,9 @@
       <workItem from="1687272652153" duration="87000" />
       <workItem from="1687292063469" duration="138000" />
       <workItem from="1687293015200" duration="944000" />
-      <workItem from="1687340337163" duration="5843000" />
+      <workItem from="1687340337163" duration="6308000" />
+      <workItem from="1687376961882" duration="745000" />
+      <workItem from="1687455693788" duration="781000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -357,7 +354,42 @@
       <option name="project" value="LOCAL" />
       <updated>1687366787143</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Add runtime and headers crates.">
+      <created>1687376438115</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1687376438115</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Fix compiler warnings.">
+      <created>1687455876508</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1687455876508</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Fix compiler warnings.">
+      <created>1687455931690</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1687455931690</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Fix compiler warnings.">
+      <created>1687456139265</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1687456139265</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Fix compiler warnings.">
+      <created>1687456142536</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1687456142536</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -376,7 +408,9 @@
     <MESSAGE value="Big refactor." />
     <MESSAGE value="Codegen seems to work." />
     <MESSAGE value="Fix parsing &lt;implicitexternsyncparams&gt; tag." />
-    <option name="LAST_COMMIT_MESSAGE" value="Fix parsing &lt;implicitexternsyncparams&gt; tag." />
+    <MESSAGE value="Add runtime and headers crates." />
+    <MESSAGE value="Fix compiler warnings." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix compiler warnings." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -393,7 +427,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/codegen/src/vk_xml.rs</url>
-          <line>592</line>
+          <line>588</line>
           <option name="timeStamp" value="15" />
         </line-breakpoint>
       </breakpoints>

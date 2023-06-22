@@ -1,9 +1,7 @@
 mod vk_xml;
 
-use proc_macro2::{Ident, Literal, Punct, Spacing, TokenStream};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{format_ident, quote, ToTokens};
 pub use vk_xml::*;
 
 impl VkXml {
@@ -241,7 +239,7 @@ impl ToTokens for VkFuncDeclMember {
 impl VkFuncDeclMember {
     fn to_arg(&self) -> Ident {
         match self {
-            VkFuncDeclMember::Member { name, type_ } => {
+            VkFuncDeclMember::Member { name, .. } => {
                 format_ident!("{}", name)
             }
         }
@@ -276,7 +274,7 @@ impl ToTokens for VkCommand {
 mod tests {
     use super::*;
     use std::io;
-    use std::io::Write;
+    
     use std::path::PathBuf;
 
     #[test]

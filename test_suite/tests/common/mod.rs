@@ -1,7 +1,7 @@
 use assert_fs::TempDir;
 use std::fs;
-use std::fs::File;
-use std::path::{Path, PathBuf};
+
+use std::path::{PathBuf};
 use std::sync::OnceLock;
 
 pub type TestResult = Result<(), Box<dyn std::error::Error>>;

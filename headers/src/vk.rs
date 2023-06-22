@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
 
 pub(crate) type VkDispatchableHandle = *const std::ffi::c_void;
 pub(crate) type VkNonDispatchableHandle = u64;

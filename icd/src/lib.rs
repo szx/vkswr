@@ -5,17 +5,17 @@ mod impls;
 use impls::*;
 use headers::vk::*;
 
-use std::ffi::{c_char, c_uint, c_void, CStr};
-use std::ptr::{null, null_mut};
+use std::ffi::{c_char, CStr};
+
 
 fn wait_for_debugger() {
-    static mut debug: bool = true;
+    static mut DEBUG: bool = true;
     unsafe {
-        if debug && std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
-            debug = false;
+        if DEBUG && std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
+            DEBUG = false;
         };
-        while debug {}
-        debug = false;
+        while DEBUG {}
+        DEBUG = false;
     }
 }
 

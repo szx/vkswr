@@ -1,7 +1,10 @@
 /* Runtime crate function wrappers. */
 #![allow(non_snake_case)]
+#![allow(unused)]
 
 use headers::vk::*;
+
+// TODO: Replace arrays with https://doc.rust-lang.org/std/slice/fn.from_raw_parts.htmlk
 
 #[no_mangle]
 pub(crate) extern "C" fn vkGetPhysicalDeviceExternalImageFormatPropertiesNV(

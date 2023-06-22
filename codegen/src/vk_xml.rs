@@ -58,7 +58,7 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                     b"enums" => {
                         let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                         let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(mut e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
+                        if let Ok(e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
                             vk_xml.enums.insert(e.fix());
                         }
                     }
@@ -71,21 +71,21 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                                 continue;
                             }
                         }
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
+                        if let Ok(x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
                             if let Some(x) = x.fix() {
                                 vk_xml.typedefs.insert(x);
                             }
                             continue;
                         }
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeAttributesSerde>(str) {
+                        if let Ok(x) = quick_xml::de::from_str::<VkTypeAttributesSerde>(str) {
                             vk_xml.type_attributes.insert(x.fix());
                             continue;
                         }
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
+                        if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
                             vk_xml.type_externs.insert(x.fix());
                             continue;
                         }
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
+                        if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
                             if let Some(x) = x.fix(str) {
                                 vk_xml.type_externs.insert(x);
                             }
@@ -99,7 +99,7 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                     b"command" => {
                         let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                         let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
+                        if let Ok(x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
                             if let Some(x) = x.fix(str) {
                                 vk_xml.commands.insert(x);
                             }
@@ -317,37 +317,37 @@ impl VkStructSerde {
 
     fn parse_members(str: &str, is_union: bool) -> Vec<VkStructMember> {
         lazy_static! {
-            static ref re_extract_member: regex::Regex =
+            static ref RE_MEMBER: regex::Regex =
                 regex::Regex::new(r"<member[^>]*>(.*?)</member[^>]*>").unwrap();
-            static ref re_extract_name: regex::Regex =
+            static ref RE_NAME: regex::Regex =
                 regex::Regex::new(r"<name[^>]*>(.*?)</name[^>]*>").unwrap();
-            static ref re_remove_comments: regex::Regex =
+            static ref RE_COMMENT: regex::Regex =
                 regex::Regex::new(r"<comment[^>]*>(.*?)</comment[^>]*>").unwrap();
-            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
-            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
         }
         let mut members = vec![];
-        for cap in re_extract_member.captures_iter(str) {
+        for cap in RE_MEMBER.captures_iter(str) {
             let str = &cap[0];
             if str.contains("vulkansc") {
                 continue;
             }
-            let mut name = re_extract_name
+            let mut name = RE_NAME
                 .captures(str)
                 .unwrap()
                 .get(1)
                 .unwrap()
                 .as_str()
                 .to_string();
-            let type_ = re_remove_comments.replace_all(str, " ");
-            let type_ = re_extract_name.replace_all(&type_, " ");
-            let type_ = re_remove_tags.replace_all(&type_, " ");
-            let type_ = re_replace_spaces.replace_all(&type_, " ");
+            let type_ = RE_COMMENT.replace_all(str, " ");
+            let type_ = RE_NAME.replace_all(&type_, " ");
+            let type_ = RE_ALL_TAGS.replace_all(&type_, " ");
+            let type_ = RE_ALL_SPACES.replace_all(&type_, " ");
             let type_ = type_.trim().to_string();
             if name == "type" {
                 name = "type_".into();
             }
-            let mut member = VkStructMemberSerde { type_, name };
+            let member = VkStructMemberSerde { type_, name };
             members.push(member);
         }
 
@@ -376,16 +376,12 @@ impl VkStructMemberSerde {
         self.type_.contains(" :24")
     }
 
-    fn is_bitfield_8(&self) -> bool {
-        self.type_.contains(" :8")
-    }
-
     fn fix(&mut self, next: Option<&mut VkStructMemberSerde>, in_union: &bool) -> VkStructMember {
         lazy_static! {
-            static ref re_bitfield_24: regex::Regex = regex::Regex::new(r"(.*?)\s\:24").unwrap();
+            static ref RE_BITFIELD_24: regex::Regex = regex::Regex::new(r"(.*?)\s\:24").unwrap();
         }
 
-        if let Some(cap) = re_bitfield_24.captures(&self.type_) {
+        if let Some(cap) = RE_BITFIELD_24.captures(&self.type_) {
             self.type_ = cap.get(1).unwrap().as_str().into();
             if let Some(next) = next {
                 self.name = format!("{}_{}", self.name, next.name);
@@ -557,31 +553,31 @@ pub enum VkCommand {
 impl VkCommand {
     fn parse(str: &str) -> Option<VkCommand> {
         lazy_static! {
-            static ref re_proto: regex::Regex =
+            static ref RE_PROTO: regex::Regex =
                 regex::Regex::new(r"<proto[^>]*>(.*?)<\/proto[^>]*>").unwrap();
-            static ref re_name: regex::Regex =
+            static ref RE_NAME: regex::Regex =
                 regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").unwrap();
-            static ref re_param: regex::Regex =
+            static ref RE_PARAM: regex::Regex =
                 regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").unwrap();
-            static ref re_implicitexternsyncparams: regex::Regex = regex::Regex::new(
+            static ref RE_IMPLICITEXTERNSYNCPARAMS: regex::Regex = regex::Regex::new(
                 r"(?s)<implicitexternsyncparams[^>]*>(.*?)<\/implicitexternsyncparams[^>]*>"
             )
             .unwrap();
-            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
-            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
-            static ref re_member: regex::Regex =
+            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+            static ref RE_MEMBER: regex::Regex =
                 regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").unwrap();
         }
 
-        let Some(cap) = re_proto.captures(str.as_ref()) else { return None };
+        let Some(cap) = RE_PROTO.captures(str.as_ref()) else { return None };
         let proto = cap.get(1).unwrap().as_str();
 
-        let Some(cap) = re_name.captures(proto) else { return None };
+        let Some(cap) = RE_NAME.captures(proto) else { return None };
         let name = cap.get(1).unwrap().as_str().into();
 
-        let proto = re_name.replace_all(proto, " ");
-        let proto = re_remove_tags.replace_all(proto.as_ref(), " ");
-        let proto = re_replace_spaces.replace_all(proto.as_ref(), " ");
+        let proto = RE_NAME.replace_all(proto, " ");
+        let proto = RE_ALL_TAGS.replace_all(proto.as_ref(), " ");
+        let proto = RE_ALL_SPACES.replace_all(proto.as_ref(), " ");
         let type_ = proto.trim();
         let type_ = if type_ == "void" {
             None
@@ -590,21 +586,21 @@ impl VkCommand {
         };
 
         let mut members: Vec<VkFuncDeclMember> = vec![];
-        let str = re_implicitexternsyncparams.replace_all(str.as_ref(), " ");
-        for cap in re_param.captures_iter(str.as_ref()) {
+        let str = RE_IMPLICITEXTERNSYNCPARAMS.replace_all(str.as_ref(), " ");
+        for cap in RE_PARAM.captures_iter(str.as_ref()) {
             if cap[0].contains("vulkansc") {
                 continue;
             }
 
-            let Some(cap_name) = re_name.captures(&cap[0]) else { unreachable!("{:?}", &cap[0]) };
+            let Some(cap_name) = RE_NAME.captures(&cap[0]) else { unreachable!("{:?}", &cap[0]) };
             let mut name = cap_name.get(1).unwrap().as_str().into();
             if name == "type" {
                 name = "type_".into();
             }
 
-            let type_ = re_name.replace_all(&cap[0], " ");
-            let type_ = re_remove_tags.replace_all(type_.as_ref(), " ");
-            let type_ = re_replace_spaces.replace_all(type_.as_ref(), " ");
+            let type_ = RE_NAME.replace_all(&cap[0], " ");
+            let type_ = RE_ALL_TAGS.replace_all(type_.as_ref(), " ");
+            let type_ = RE_ALL_SPACES.replace_all(type_.as_ref(), " ");
             let type_ = VkFFIType::new(type_.as_ref());
 
             members.push(VkFuncDeclMember::Member { name, type_ });
@@ -628,19 +624,19 @@ pub enum VkFuncDeclMember {
 impl VkFuncDeclMember {
     fn parse_members(str: &str) -> Option<VkTypeExtern> {
         lazy_static! {
-            static ref re_remove_tags: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
-            static ref re_replace_spaces: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
-            static ref re_type_name_members: regex::Regex = regex::Regex::new(
+            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").unwrap();
+            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").unwrap();
+            static ref RE_TYPE_NAME_MEMBERS: regex::Regex = regex::Regex::new(
                 r"typedef\s(.*?)\s\(VKAPI_PTR\s\*\s(.*?)\s\)\((?:\s|void)(.*?)\);"
             )
             .unwrap();
-            static ref re_member: regex::Regex =
+            static ref RE_MEMBER: regex::Regex =
                 regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").unwrap();
         }
 
-        let str = re_remove_tags.replace_all(&str, " ");
-        let str = re_replace_spaces.replace_all(&str, " ");
-        let Some(cap) = re_type_name_members.captures(str.as_ref()) else { return None };
+        let str = RE_ALL_TAGS.replace_all(&str, " ");
+        let str = RE_ALL_SPACES.replace_all(&str, " ");
+        let Some(cap) = RE_TYPE_NAME_MEMBERS.captures(str.as_ref()) else { return None };
 
         let type_ = cap.get(1).unwrap().as_str();
         let type_ = if type_ == "void" {
@@ -653,7 +649,7 @@ impl VkFuncDeclMember {
 
         let raw_members = cap.get(3).unwrap().as_str();
         let mut members: Vec<VkFuncDeclMember> = vec![];
-        for cap in re_member.captures_iter(raw_members) {
+        for cap in RE_MEMBER.captures_iter(raw_members) {
             let type_ = VkFFIType::new(cap[1].into());
             let name = cap[2].into();
             members.push(VkFuncDeclMember::Member { name, type_ });
@@ -675,35 +671,35 @@ pub struct VkFFIType(pub String);
 impl VkFFIType {
     fn new(str: &str) -> Self {
         lazy_static! {
-            static ref re_replace_struct: regex::Regex = regex::Regex::new(r"struct\s").unwrap();
-            static ref re_const_ptr: regex::Regex = regex::Regex::new(r"const\s(.*?)\s\*").unwrap();
-            static ref re_mut_ptr: regex::Regex = regex::Regex::new(r"(.*?)\s?\*").unwrap();
-            static ref re_array: regex::Regex = regex::Regex::new(r"(.*?)\s\[(.*?)\]").unwrap();
-            static ref re_replace_const: regex::Regex = regex::Regex::new(r"const\s").unwrap();
+            static ref RE_STRUCT: regex::Regex = regex::Regex::new(r"struct\s").unwrap();
+            static ref RE_CONST_PTR: regex::Regex = regex::Regex::new(r"const\s(.*?)\s\*").unwrap();
+            static ref RE_MUT_PTR: regex::Regex = regex::Regex::new(r"(.*?)\s?\*").unwrap();
+            static ref RE_FIXED_ARRAY: regex::Regex = regex::Regex::new(r"(.*?)\s\[(.*?)\]").unwrap();
+            static ref RE_CONST: regex::Regex = regex::Regex::new(r"const\s").unwrap();
         }
 
         let mut type_: String = str.to_string();
-        type_ = re_replace_struct.replace_all(&type_, "").into();
-        let is_const_ptr = if let Some(cap) = re_const_ptr.captures(&type_) {
+        type_ = RE_STRUCT.replace_all(&type_, "").into();
+        let is_const_ptr = if let Some(cap) = RE_CONST_PTR.captures(&type_) {
             type_ = cap.get(1).unwrap().as_str().into();
             true
         } else {
             false
         };
-        let is_mut_ptr = if let Some(cap) = re_mut_ptr.captures(&type_) {
+        let is_mut_ptr = if let Some(cap) = RE_MUT_PTR.captures(&type_) {
             type_ = cap.get(1).unwrap().as_str().into();
             true
         } else {
             false
         };
-        let array_index = if let Some(cap) = re_array.captures(&type_) {
+        let array_index = if let Some(cap) = RE_FIXED_ARRAY.captures(&type_) {
             let i = cap.get(2).unwrap().as_str().to_string();
             type_ = cap.get(1).unwrap().as_str().into();
             Some(i)
         } else {
             None
         };
-        type_ = re_replace_const.replace_all(&type_, "").trim().into();
+        type_ = RE_CONST.replace_all(&type_, "").trim().into();
         let ffi = C_TYPE_TO_FFI.get(&type_);
 
         if let Some(ffi) = ffi {
@@ -811,7 +807,7 @@ mod tests {
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         assert!(!vk_xml.enums.is_empty());
 
-        let mut expected_api_constants = vec![
+        let _expected_api_constants = vec![
             "VK_QUEUE_FAMILY_IGNORED",
             "VK_SHADER_UNUSED_KHR",
             "VK_SHADER_UNUSED_NV",
@@ -828,8 +824,8 @@ mod tests {
         ];
         for enums in &vk_xml.enums {
             match enums {
-                VkXmlEnums::ApiConstants { members } => {}
-                VkXmlEnums::Enum { name, members } => {
+                VkXmlEnums::ApiConstants { members: _ } => {}
+                VkXmlEnums::Enum { name, members: _ } => {
                     expected_enums.retain(|x| x != &name.as_ref())
                 }
                 VkXmlEnums::Bitmask { name } => expected_bitmasks.retain(|x| x != &name.as_ref()),
@@ -839,21 +835,21 @@ mod tests {
         assert!(expected_bitmasks.is_empty());
 
         for enums in &vk_xml.enums {
-            if let VkXmlEnums::Enum { name, members } = enums {
+            if let VkXmlEnums::Enum { name: _, members } = enums {
                 assert!(!members.is_empty());
                 for member in members {
                     match member {
-                        VkXmlEnumsMember::ApiConstantMember { name, type_, value } => {}
-                        VkXmlEnumsMember::ApiConstantAlias { name, alias } => {}
-                        VkXmlEnumsMember::Member { name, value } => {
+                        VkXmlEnumsMember::ApiConstantMember { name: _, type_: _, value: _ } => {}
+                        VkXmlEnumsMember::ApiConstantAlias { name: _, alias: _ } => {}
+                        VkXmlEnumsMember::Member { name: _, value } => {
                             if let Some(value) = value {
                                 assert!(parse_int::parse::<isize>(value).is_ok());
                             }
                         }
                         VkXmlEnumsMember::Alias {
-                            name,
-                            alias,
-                            enum_name,
+                            name: _,
+                            alias: _,
+                            enum_name: _,
                         } => {}
                     }
                 }
