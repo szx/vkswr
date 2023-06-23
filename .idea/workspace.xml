@@ -14,7 +14,14 @@
   <component name="ChangeListManager">
     <list default="true" id="9ae53c8f-e49a-48c9-ba26-507d4a9db9a5" name="Changes" comment="Add README and LICENSE.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codegen/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codegen/src/vk_xml.rs" beforeDir="false" afterPath="$PROJECT_DIR$/codegen/src/vk_xml.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/headers/build.rs" beforeDir="false" afterPath="$PROJECT_DIR$/headers/build.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/headers/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/headers/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/headers/src/vk.rs" beforeDir="false" afterPath="$PROJECT_DIR$/headers/src/vk_decls.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/src/impls.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/impls.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/icd/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/icd/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/runtime/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,6 +40,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$USER_HOME$/.cargo/registry/src/index.crates.io-6f17d22bba15001f/quick-xml-0.28.2/src/writer.rs" root0="SKIP_INSPECTION" />
@@ -83,6 +91,8 @@
     </key>
   </component>
   <component name="RsExternalLinterProjectSettings">
+    <option name="additionalArguments" value="-- -W clippy::nursery -W clippy::unwrap_used" />
+    <option name="runOnTheFly" value="true" />
     <option name="tool" value="Clippy" />
   </component>
   <component name="RunManager" selected="Cargo.test">
@@ -250,7 +260,13 @@
       <workItem from="1687293015200" duration="944000" />
       <workItem from="1687340337163" duration="6308000" />
       <workItem from="1687376961882" duration="745000" />
-      <workItem from="1687455693788" duration="3294000" />
+      <workItem from="1687455693788" duration="4101000" />
+      <workItem from="1687509917882" duration="504000" />
+      <workItem from="1687510442277" duration="20000" />
+      <workItem from="1687541787369" duration="3488000" />
+      <workItem from="1687545285951" duration="821000" />
+      <workItem from="1687546118313" duration="40000" />
+      <workItem from="1687546167202" duration="207000" />
     </task>
     <task id="LOCAL-00001" summary="Move to workspace.">
       <created>1686481019658</created>
@@ -420,11 +436,43 @@
       <option name="project" value="LOCAL" />
       <updated>1687459874507</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="Add README and LICENSE.">
+      <created>1687460361783</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1687460361783</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Add README and LICENSE.">
+      <created>1687460372034</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1687460372034</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Add README and LICENSE.">
+      <created>1687460559431</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1687460559431</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Move to workspace." />
@@ -459,7 +507,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/codegen/src/vk_xml.rs</url>
-          <line>588</line>
+          <line>594</line>
           <option name="timeStamp" value="15" />
         </line-breakpoint>
       </breakpoints>

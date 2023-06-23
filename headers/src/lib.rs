@@ -1,1 +1,1 @@
-pub mod vk;
+pub mod vk_decls;
