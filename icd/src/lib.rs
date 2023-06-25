@@ -5,8 +5,6 @@ mod impls;
 use headers::vk_decls::*;
 use impls::*;
 
-use std::ffi::{c_char, CStr};
-
 fn wait_for_debugger() {
     static mut DEBUG: bool = true;
     unsafe {
@@ -26,9 +24,9 @@ fn wait_for_debugger() {
 #[no_mangle]
 pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     instance: VkInstance,
-    pName: *const c_char,
+    pName: *const std::ffi::c_char,
 ) -> PFN_vkVoidFunction {
-    let Ok(pName) = CStr::from_ptr(pName).to_str() else { return None; };
+    let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else { return None; };
     println!("vk_icdGetInstanceProcAddr: {:?} {:?}", instance, pName);
     wait_for_debugger();
     match pName {

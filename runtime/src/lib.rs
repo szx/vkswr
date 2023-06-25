@@ -1,15 +1,26 @@
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 
+/* Instance */
+
+/// Contains system-level information and functionality
 #[derive(Debug)]
-struct Instance {
+pub struct Instance {
     driver_name: &'static str,
+    physical_device: PhysicalDevice,
+}
+
+impl Instance {
+    pub const fn physical_device(&self) -> &PhysicalDevice {
+        &self.physical_device
+    }
 }
 
 impl Instance {
     const fn new() -> Self {
         Self {
             driver_name: "vulkan_software_rasterizer",
+            physical_device: PhysicalDevice::new(),
         }
     }
 }
@@ -29,18 +40,41 @@ pub fn create_instance(
     VkResult::VK_SUCCESS
 }
 
-pub fn enumerate_physical_devices(
-    instance: VkInstance,
-) -> VkResult {
-    println!("Hello from runtime::enumerate_physical_devices()!");
-    unsafe {
-        let instance : &Instance = get_dispatchable_handle_ref(instance);
+/* PhysicalDevice */
 
-        println!("instance: {:?}", instance);
-        println!("driver_name: {:?}", instance.driver_name);
-        assert_eq!(instance.driver_name, (*INSTANCE).driver_name);
-    }
-
-    VkResult::VK_SUCCESS
+/// Performs rendering operations.
+#[derive(Debug)]
+pub struct PhysicalDevice {
+    name: &'static str,
 }
 
+impl PhysicalDevice {
+    /// Instance currently supports 1 `PhysicalDevice`.
+    pub const fn count(_: &Instance) -> u32 {
+        1
+    }
+}
+
+impl PhysicalDevice {
+    const fn new() -> Self {
+        Self {
+            name: "PhysicalDevice",
+        }
+    }
+}
+
+/* LogicalDevice */
+
+/// Identifier used to associate functions with a `PhysicalDevice`.
+#[derive(Debug)]
+pub struct LogicalDevice {
+    driver_name: &'static str,
+}
+
+impl LogicalDevice {
+    const fn new() -> Self {
+        Self {
+            driver_name: "vulkan_software_rasterizer",
+        }
+    }
+}

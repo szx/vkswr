@@ -6,7 +6,7 @@
 
 use std::ops::Deref;
 
-pub(crate) type VkDispatchableHandle = std::ptr::NonNull<std::ffi::c_void>;
+pub(crate) type VkDispatchableHandle = Option<std::ptr::NonNull<std::ffi::c_void>>;
 
 pub unsafe fn set_dispatchable_handle<T>(
     handle: std::ptr::NonNull<VkDispatchableHandle>,
@@ -19,7 +19,7 @@ pub unsafe fn get_dispatchable_handle_ref<'a, T>(
     handle: VkDispatchableHandle,
 ) -> &'a T
 {
-    std::mem::transmute::<_, std::ptr::NonNull<T>>(handle.as_ptr()).as_ref()
+    std::mem::transmute::<_, std::ptr::NonNull<T>>(handle.unwrap().as_ptr()).as_ref()
 }
 
 pub(crate) type VkNonDispatchableHandle = u64;
