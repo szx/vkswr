@@ -10,7 +10,7 @@ use runtime::*;
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBuildAccelerationStructureNV(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkAccelerationStructureInfoNV>>,
+    pInfo: Option<NonNull<VkAccelerationStructureInfoNV>>,
     instanceData: VkBuffer,
     instanceOffset: VkDeviceSize,
     update: VkBool32,
@@ -39,8 +39,8 @@ pub unsafe extern "C" fn vkCmdEndTransformFeedbackEXT(
     commandBuffer: VkCommandBuffer,
     firstCounterBuffer: u32,
     counterBufferCount: u32,
-    pCounterBuffers: Option<std::ptr::NonNull<VkBuffer>>,
-    pCounterBufferOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pCounterBuffers: Option<NonNull<VkBuffer>>,
+    pCounterBufferOffsets: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdEndTransformFeedbackEXT(
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn vkCmdEndTransformFeedbackEXT(
 pub unsafe extern "C" fn vkGetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(
     device: VkDevice,
     renderpass: VkRenderPass,
-    pMaxWorkgroupSize: Option<std::ptr::NonNull<VkExtent2D>>,
+    pMaxWorkgroupSize: Option<NonNull<VkExtent2D>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(device, renderpass, pMaxWorkgroupSize"
@@ -67,9 +67,9 @@ pub unsafe extern "C" fn vkGetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDescriptorPool(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkDescriptorPoolCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pDescriptorPool: Option<std::ptr::NonNull<VkDescriptorPool>>,
+    pCreateInfo: Option<NonNull<VkDescriptorPoolCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pDescriptorPool: Option<NonNull<VkDescriptorPool>>,
 ) -> VkResult {
     unimplemented!("vkCreateDescriptorPool(device, pCreateInfo, pAllocator, pDescriptorPool")
 }
@@ -78,9 +78,9 @@ pub unsafe extern "C" fn vkCreateDescriptorPool(
 pub unsafe extern "C" fn vkQueueSignalReleaseImageANDROID(
     queue: VkQueue,
     waitSemaphoreCount: u32,
-    pWaitSemaphores: Option<std::ptr::NonNull<VkSemaphore>>,
+    pWaitSemaphores: Option<NonNull<VkSemaphore>>,
     image: VkImage,
-    pNativeFenceFd: Option<std::ptr::NonNull<int>>,
+    pNativeFenceFd: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!(
         "vkQueueSignalReleaseImageANDROID(
@@ -96,10 +96,10 @@ pub unsafe extern "C" fn vkQueueSignalReleaseImageANDROID(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPipelineExecutableInternalRepresentationsKHR(
     device: VkDevice,
-    pExecutableInfo: Option<std::ptr::NonNull<VkPipelineExecutableInfoKHR>>,
-    pInternalRepresentationCount: Option<std::ptr::NonNull<u32>>,
+    pExecutableInfo: Option<NonNull<VkPipelineExecutableInfoKHR>>,
+    pInternalRepresentationCount: Option<NonNull<u32>>,
     pInternalRepresentations: Option<
-        std::ptr::NonNull<VkPipelineExecutableInternalRepresentationKHR>,
+        NonNull<VkPipelineExecutableInternalRepresentationKHR>,
     >,
 ) -> VkResult {
     unimplemented!(
@@ -117,7 +117,7 @@ pub unsafe extern "C" fn vkBindVideoSessionMemoryKHR(
     device: VkDevice,
     videoSession: VkVideoSessionKHR,
     bindSessionMemoryInfoCount: u32,
-    pBindSessionMemoryInfos: Option<std::ptr::NonNull<VkBindVideoSessionMemoryInfoKHR>>,
+    pBindSessionMemoryInfos: Option<NonNull<VkBindVideoSessionMemoryInfoKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkBindVideoSessionMemoryKHR(
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn vkCmdResolveImage(
     dstImage: VkImage,
     dstImageLayout: VkImageLayout,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkImageResolve>>,
+    pRegions: Option<NonNull<VkImageResolve>>,
 ) {
     unimplemented!(
         "vkCmdResolveImage(
@@ -163,9 +163,9 @@ pub unsafe extern "C" fn vkCmdSetProvokingVertexModeEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreatePrivateDataSlot(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkPrivateDataSlotCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPrivateDataSlot: Option<std::ptr::NonNull<VkPrivateDataSlot>>,
+    pCreateInfo: Option<NonNull<VkPrivateDataSlotCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPrivateDataSlot: Option<NonNull<VkPrivateDataSlot>>,
 ) -> VkResult {
     unimplemented!("vkCreatePrivateDataSlot(device, pCreateInfo, pAllocator, pPrivateDataSlot")
 }
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn vkCreatePrivateDataSlot(
 pub unsafe extern "C" fn vkCopyMicromapEXT(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyMicromapInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMicromapInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkCopyMicromapEXT(device, deferredOperation, pInfo")
 }
@@ -182,9 +182,9 @@ pub unsafe extern "C" fn vkCopyMicromapEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateScreenSurfaceQNX(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkScreenSurfaceCreateInfoQNX>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkScreenSurfaceCreateInfoQNX>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateScreenSurfaceQNX(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -193,7 +193,7 @@ pub unsafe extern "C" fn vkCreateScreenSurfaceQNX(
 pub unsafe extern "C" fn vkDestroyIndirectCommandsLayoutNV(
     device: VkDevice,
     indirectCommandsLayout: VkIndirectCommandsLayoutNV,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyIndirectCommandsLayoutNV(device, indirectCommandsLayout, pAllocator")
 }
@@ -213,9 +213,9 @@ pub unsafe extern "C" fn vkCreateComputePipelines(
     device: VkDevice,
     pipelineCache: VkPipelineCache,
     createInfoCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkComputePipelineCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelines: Option<std::ptr::NonNull<VkPipeline>>,
+    pCreateInfos: Option<NonNull<VkComputePipelineCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelines: Option<NonNull<VkPipeline>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateComputePipelines(
@@ -232,7 +232,7 @@ pub unsafe extern "C" fn vkCreateComputePipelines(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdRefreshObjectsKHR(
     commandBuffer: VkCommandBuffer,
-    pRefreshObjects: Option<std::ptr::NonNull<VkRefreshObjectListKHR>>,
+    pRefreshObjects: Option<NonNull<VkRefreshObjectListKHR>>,
 ) {
     unimplemented!("vkCmdRefreshObjectsKHR(commandBuffer, pRefreshObjects")
 }
@@ -240,7 +240,7 @@ pub unsafe extern "C" fn vkCmdRefreshObjectsKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdPipelineBarrier2(
     commandBuffer: VkCommandBuffer,
-    pDependencyInfo: Option<std::ptr::NonNull<VkDependencyInfo>>,
+    pDependencyInfo: Option<NonNull<VkDependencyInfo>>,
 ) {
     unimplemented!("vkCmdPipelineBarrier2(commandBuffer, pDependencyInfo")
 }
@@ -259,9 +259,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceWin32PresentationSupportKHR(
 pub unsafe extern "C" fn vkGetAccelerationStructureBuildSizesKHR(
     device: VkDevice,
     buildType: VkAccelerationStructureBuildTypeKHR,
-    pBuildInfo: Option<std::ptr::NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
-    pMaxPrimitiveCounts: Option<std::ptr::NonNull<u32>>,
-    pSizeInfo: Option<std::ptr::NonNull<VkAccelerationStructureBuildSizesInfoKHR>>,
+    pBuildInfo: Option<NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
+    pMaxPrimitiveCounts: Option<NonNull<u32>>,
+    pSizeInfo: Option<NonNull<VkAccelerationStructureBuildSizesInfoKHR>>,
 ) {
     unimplemented!(
         "vkGetAccelerationStructureBuildSizesKHR(
@@ -277,9 +277,9 @@ pub unsafe extern "C" fn vkGetAccelerationStructureBuildSizesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateFence(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkFenceCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pFence: Option<std::ptr::NonNull<VkFence>>,
+    pCreateInfo: Option<NonNull<VkFenceCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFence: Option<NonNull<VkFence>>,
 ) -> VkResult {
     unimplemented!("vkCreateFence(device, pCreateInfo, pAllocator, pFence")
 }
@@ -295,7 +295,7 @@ pub unsafe extern "C" fn vkCmdSetDepthClampEnableEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetBufferDeviceAddress(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkBufferDeviceAddressInfo>>,
+    pInfo: Option<NonNull<VkBufferDeviceAddressInfo>>,
 ) -> VkDeviceAddress {
     unimplemented!("vkGetBufferDeviceAddress(device, pInfo")
 }
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn vkGetBufferDeviceAddress(
 pub unsafe extern "C" fn vkBindAccelerationStructureMemoryNV(
     device: VkDevice,
     bindInfoCount: u32,
-    pBindInfos: Option<std::ptr::NonNull<VkBindAccelerationStructureMemoryInfoNV>>,
+    pBindInfos: Option<NonNull<VkBindAccelerationStructureMemoryInfoNV>>,
 ) -> VkResult {
     unimplemented!("vkBindAccelerationStructureMemoryNV(device, bindInfoCount, pBindInfos")
 }
@@ -312,9 +312,9 @@ pub unsafe extern "C" fn vkBindAccelerationStructureMemoryNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateShaderModule(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkShaderModuleCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pShaderModule: Option<std::ptr::NonNull<VkShaderModule>>,
+    pCreateInfo: Option<NonNull<VkShaderModuleCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pShaderModule: Option<NonNull<VkShaderModule>>,
 ) -> VkResult {
     unimplemented!("vkCreateShaderModule(device, pCreateInfo, pAllocator, pShaderModule")
 }
@@ -322,7 +322,7 @@ pub unsafe extern "C" fn vkCreateShaderModule(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyBuffer2(
     commandBuffer: VkCommandBuffer,
-    pCopyBufferInfo: Option<std::ptr::NonNull<VkCopyBufferInfo2>>,
+    pCopyBufferInfo: Option<NonNull<VkCopyBufferInfo2>>,
 ) {
     unimplemented!("vkCmdCopyBuffer2(commandBuffer, pCopyBufferInfo")
 }
@@ -330,7 +330,7 @@ pub unsafe extern "C" fn vkCmdCopyBuffer2(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetBufferOpaqueCaptureAddress(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkBufferDeviceAddressInfo>>,
+    pInfo: Option<NonNull<VkBufferDeviceAddressInfo>>,
 ) -> u64 {
     unimplemented!("vkGetBufferOpaqueCaptureAddress(device, pInfo")
 }
@@ -350,7 +350,7 @@ pub unsafe extern "C" fn vkGetRayTracingShaderGroupHandlesKHR(
     firstGroup: u32,
     groupCount: u32,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetRayTracingShaderGroupHandlesKHR(
@@ -362,8 +362,8 @@ pub unsafe extern "C" fn vkGetRayTracingShaderGroupHandlesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetImageOpaqueCaptureDescriptorDataEXT(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkImageCaptureDescriptorDataInfoEXT>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfo: Option<NonNull<VkImageCaptureDescriptorDataInfoEXT>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetImageOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
 }
@@ -372,16 +372,16 @@ pub unsafe extern "C" fn vkGetImageOpaqueCaptureDescriptorDataEXT(
 pub unsafe extern "C" fn vkDestroySampler(
     device: VkDevice,
     sampler: VkSampler,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySampler(device, sampler, pAllocator")
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
-    pLayerName: Option<std::ptr::NonNull<std::ffi::c_char>>,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkExtensionProperties>>,
+    pLayerName: Option<NonNull<std::ffi::c_char>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
     println!("Hello from vkEnumerateInstanceExtensionProperties()!");
     assert_eq!(pLayerName, None);
@@ -400,8 +400,8 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetQueueCheckpointDataNV(
     queue: VkQueue,
-    pCheckpointDataCount: Option<std::ptr::NonNull<u32>>,
-    pCheckpointData: Option<std::ptr::NonNull<VkCheckpointDataNV>>,
+    pCheckpointDataCount: Option<NonNull<u32>>,
+    pCheckpointData: Option<NonNull<VkCheckpointDataNV>>,
 ) {
     unimplemented!("vkGetQueueCheckpointDataNV(queue, pCheckpointDataCount, pCheckpointData")
 }
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceExternalMemorySciBufPropertiesNV(
     physicalDevice: VkPhysicalDevice,
     handleType: VkExternalMemoryHandleTypeFlagBits,
     handle: NvSciBufObj,
-    pMemorySciBufProperties: Option<std::ptr::NonNull<VkMemorySciBufPropertiesNV>>,
+    pMemorySciBufProperties: Option<NonNull<VkMemorySciBufPropertiesNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceExternalMemorySciBufPropertiesNV(
@@ -435,9 +435,9 @@ pub unsafe extern "C" fn vkResetCommandPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceVideoFormatPropertiesKHR(
     physicalDevice: VkPhysicalDevice,
-    pVideoFormatInfo: Option<std::ptr::NonNull<VkPhysicalDeviceVideoFormatInfoKHR>>,
-    pVideoFormatPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pVideoFormatProperties: Option<std::ptr::NonNull<VkVideoFormatPropertiesKHR>>,
+    pVideoFormatInfo: Option<NonNull<VkPhysicalDeviceVideoFormatInfoKHR>>,
+    pVideoFormatPropertyCount: Option<NonNull<u32>>,
+    pVideoFormatProperties: Option<NonNull<VkVideoFormatPropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceVideoFormatPropertiesKHR(
@@ -454,9 +454,9 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
     device: VkDevice,
     pipelineCache: VkPipelineCache,
     createInfoCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkGraphicsPipelineCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelines: Option<std::ptr::NonNull<VkPipeline>>,
+    pCreateInfos: Option<NonNull<VkGraphicsPipelineCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelines: Option<NonNull<VkPipeline>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateGraphicsPipelines(
@@ -473,8 +473,8 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayPlanePropertiesKHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayPlanePropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceDisplayPlanePropertiesKHR(physicalDevice, pPropertyCount, pProperties"
@@ -485,11 +485,11 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
 pub unsafe extern "C" fn vkGetEncodedVideoSessionParametersKHR(
     device: VkDevice,
     pVideoSessionParametersInfo: Option<
-        std::ptr::NonNull<VkVideoEncodeSessionParametersGetInfoKHR>,
+        NonNull<VkVideoEncodeSessionParametersGetInfoKHR>,
     >,
-    pFeedbackInfo: Option<std::ptr::NonNull<VkVideoEncodeSessionParametersFeedbackInfoKHR>>,
-    pDataSize: Option<std::ptr::NonNull<isize>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pFeedbackInfo: Option<NonNull<VkVideoEncodeSessionParametersFeedbackInfoKHR>>,
+    pDataSize: Option<NonNull<isize>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetEncodedVideoSessionParametersKHR(
@@ -515,7 +515,7 @@ pub unsafe extern "C" fn vkCmdSetViewportWScalingNV(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
     viewportCount: u32,
-    pViewportWScalings: Option<std::ptr::NonNull<VkViewportWScalingNV>>,
+    pViewportWScalings: Option<NonNull<VkViewportWScalingNV>>,
 ) {
     unimplemented!(
         "vkCmdSetViewportWScalingNV(
@@ -530,8 +530,8 @@ pub unsafe extern "C" fn vkCmdSetViewportWScalingNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetBufferMemoryRequirements2(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkBufferMemoryRequirementsInfo2>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkBufferMemoryRequirementsInfo2>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2>>,
 ) {
     unimplemented!("vkGetBufferMemoryRequirements2(device, pInfo, pMemoryRequirements")
 }
@@ -539,9 +539,9 @@ pub unsafe extern "C" fn vkGetBufferMemoryRequirements2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateOpticalFlowSessionNV(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkOpticalFlowSessionCreateInfoNV>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSession: Option<std::ptr::NonNull<VkOpticalFlowSessionNV>>,
+    pCreateInfo: Option<NonNull<VkOpticalFlowSessionCreateInfoNV>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSession: Option<NonNull<VkOpticalFlowSessionNV>>,
 ) -> VkResult {
     unimplemented!("vkCreateOpticalFlowSessionNV(device, pCreateInfo, pAllocator, pSession")
 }
@@ -595,8 +595,8 @@ pub unsafe extern "C" fn vkCmdDispatchBase(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceExternalSemaphoreProperties(
     physicalDevice: VkPhysicalDevice,
-    pExternalSemaphoreInfo: Option<std::ptr::NonNull<VkPhysicalDeviceExternalSemaphoreInfo>>,
-    pExternalSemaphoreProperties: Option<std::ptr::NonNull<VkExternalSemaphoreProperties>>,
+    pExternalSemaphoreInfo: Option<NonNull<VkPhysicalDeviceExternalSemaphoreInfo>>,
+    pExternalSemaphoreProperties: Option<NonNull<VkExternalSemaphoreProperties>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceExternalSemaphoreProperties(
@@ -620,8 +620,8 @@ pub unsafe extern "C" fn vkDebugReportMessageEXT(
     object: u64,
     location: isize,
     messageCode: i32,
-    pLayerPrefix: Option<std::ptr::NonNull<std::ffi::c_char>>,
-    pMessage: Option<std::ptr::NonNull<std::ffi::c_char>>,
+    pLayerPrefix: Option<NonNull<std::ffi::c_char>>,
+    pMessage: Option<NonNull<std::ffi::c_char>>,
 ) {
     unimplemented!(
         "vkDebugReportMessageEXT(
@@ -659,7 +659,7 @@ pub unsafe extern "C" fn vkCmdSetRayTracingPipelineStackSizeKHR(
 pub unsafe extern "C" fn vkCopyMemoryToAccelerationStructureKHR(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyMemoryToAccelerationStructureInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyMemoryToAccelerationStructureInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkCopyMemoryToAccelerationStructureKHR(device, deferredOperation, pInfo")
 }
@@ -668,7 +668,7 @@ pub unsafe extern "C" fn vkCopyMemoryToAccelerationStructureKHR(
 pub unsafe extern "C" fn vkDestroyEvent(
     device: VkDevice,
     event: VkEvent,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyEvent(device, event, pAllocator")
 }
@@ -677,7 +677,7 @@ pub unsafe extern "C" fn vkDestroyEvent(
 pub unsafe extern "C" fn vkDestroyPipelineCache(
     device: VkDevice,
     pipelineCache: VkPipelineCache,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyPipelineCache(device, pipelineCache, pAllocator")
 }
@@ -686,7 +686,7 @@ pub unsafe extern "C" fn vkDestroyPipelineCache(
 pub unsafe extern "C" fn vkDestroyDescriptorUpdateTemplate(
     device: VkDevice,
     descriptorUpdateTemplate: VkDescriptorUpdateTemplate,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDescriptorUpdateTemplate(device, descriptorUpdateTemplate, pAllocator")
 }
@@ -695,9 +695,9 @@ pub unsafe extern "C" fn vkDestroyDescriptorUpdateTemplate(
 pub unsafe extern "C" fn vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    pCounterCount: Option<std::ptr::NonNull<u32>>,
-    pCounters: Option<std::ptr::NonNull<VkPerformanceCounterKHR>>,
-    pCounterDescriptions: Option<std::ptr::NonNull<VkPerformanceCounterDescriptionKHR>>,
+    pCounterCount: Option<NonNull<u32>>,
+    pCounters: Option<NonNull<VkPerformanceCounterKHR>>,
+    pCounterDescriptions: Option<NonNull<VkPerformanceCounterDescriptionKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
@@ -721,7 +721,7 @@ pub unsafe extern "C" fn vkGetPrivateData(
     objectType: VkObjectType,
     objectHandle: u64,
     privateDataSlot: VkPrivateDataSlot,
-    pData: Option<std::ptr::NonNull<u64>>,
+    pData: Option<NonNull<u64>>,
 ) {
     unimplemented!("vkGetPrivateData(device, objectType, objectHandle, privateDataSlot, pData")
 }
@@ -729,8 +729,8 @@ pub unsafe extern "C" fn vkGetPrivateData(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginRenderPass2(
     commandBuffer: VkCommandBuffer,
-    pRenderPassBegin: Option<std::ptr::NonNull<VkRenderPassBeginInfo>>,
-    pSubpassBeginInfo: Option<std::ptr::NonNull<VkSubpassBeginInfo>>,
+    pRenderPassBegin: Option<NonNull<VkRenderPassBeginInfo>>,
+    pSubpassBeginInfo: Option<NonNull<VkSubpassBeginInfo>>,
 ) {
     unimplemented!("vkCmdBeginRenderPass2(commandBuffer, pRenderPassBegin, pSubpassBeginInfo")
 }
@@ -752,7 +752,7 @@ pub unsafe extern "C" fn vkCmdCopyBufferToImage(
     dstImage: VkImage,
     dstImageLayout: VkImageLayout,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkBufferImageCopy>>,
+    pRegions: Option<NonNull<VkBufferImageCopy>>,
 ) {
     unimplemented!(
         "vkCmdCopyBufferToImage(
@@ -770,7 +770,7 @@ pub unsafe extern "C" fn vkCmdCopyBufferToImage(
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilities2EXT(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
-    pSurfaceCapabilities: Option<std::ptr::NonNull<VkSurfaceCapabilities2EXT>>,
+    pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilities2EXT>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfaceCapabilities2EXT(physicalDevice, surface, pSurfaceCapabilities"
@@ -782,9 +782,9 @@ pub unsafe extern "C" fn vkCmdClearColorImage(
     commandBuffer: VkCommandBuffer,
     image: VkImage,
     imageLayout: VkImageLayout,
-    pColor: Option<std::ptr::NonNull<VkClearColorValue>>,
+    pColor: Option<NonNull<VkClearColorValue>>,
     rangeCount: u32,
-    pRanges: Option<std::ptr::NonNull<VkImageSubresourceRange>>,
+    pRanges: Option<NonNull<VkImageSubresourceRange>>,
 ) {
     unimplemented!(
         "vkCmdClearColorImage(
@@ -811,7 +811,7 @@ pub unsafe extern "C" fn vkCmdDrawMeshTasksEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkSignalSemaphore(
     device: VkDevice,
-    pSignalInfo: Option<std::ptr::NonNull<VkSemaphoreSignalInfo>>,
+    pSignalInfo: Option<NonNull<VkSemaphoreSignalInfo>>,
 ) -> VkResult {
     unimplemented!("vkSignalSemaphore(device, pSignalInfo")
 }
@@ -861,7 +861,7 @@ pub unsafe extern "C" fn vkCmdSetLineRasterizationModeEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyImage2(
     commandBuffer: VkCommandBuffer,
-    pCopyImageInfo: Option<std::ptr::NonNull<VkCopyImageInfo2>>,
+    pCopyImageInfo: Option<NonNull<VkCopyImageInfo2>>,
 ) {
     unimplemented!("vkCmdCopyImage2(commandBuffer, pCopyImageInfo")
 }
@@ -870,7 +870,7 @@ pub unsafe extern "C" fn vkCmdCopyImage2(
 pub unsafe extern "C" fn vkDestroyOpticalFlowSessionNV(
     device: VkDevice,
     session: VkOpticalFlowSessionNV,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyOpticalFlowSessionNV(device, session, pAllocator")
 }
@@ -879,7 +879,7 @@ pub unsafe extern "C" fn vkDestroyOpticalFlowSessionNV(
 pub unsafe extern "C" fn vkCmdSetCoverageModulationTableNV(
     commandBuffer: VkCommandBuffer,
     coverageModulationTableCount: u32,
-    pCoverageModulationTable: Option<std::ptr::NonNull<f32>>,
+    pCoverageModulationTable: Option<NonNull<f32>>,
 ) {
     unimplemented!(
         "vkCmdSetCoverageModulationTableNV(
@@ -913,7 +913,7 @@ pub unsafe extern "C" fn vkFreeCommandBuffers(
     device: VkDevice,
     commandPool: VkCommandPool,
     commandBufferCount: u32,
-    pCommandBuffers: Option<std::ptr::NonNull<VkCommandBuffer>>,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) {
     unimplemented!("vkFreeCommandBuffers(device, commandPool, commandBufferCount, pCommandBuffers")
 }
@@ -921,8 +921,8 @@ pub unsafe extern "C" fn vkFreeCommandBuffers(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetQueueCheckpointData2NV(
     queue: VkQueue,
-    pCheckpointDataCount: Option<std::ptr::NonNull<u32>>,
-    pCheckpointData: Option<std::ptr::NonNull<VkCheckpointData2NV>>,
+    pCheckpointDataCount: Option<NonNull<u32>>,
+    pCheckpointData: Option<NonNull<VkCheckpointData2NV>>,
 ) {
     unimplemented!("vkGetQueueCheckpointData2NV(queue, pCheckpointDataCount, pCheckpointData")
 }
@@ -930,9 +930,9 @@ pub unsafe extern "C" fn vkGetQueueCheckpointData2NV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateMacOSSurfaceMVK(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkMacOSSurfaceCreateInfoMVK>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkMacOSSurfaceCreateInfoMVK>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateMacOSSurfaceMVK(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -955,7 +955,7 @@ pub unsafe extern "C" fn vkCmdSetStencilReference(
 pub unsafe extern "C" fn vkDestroyPipeline(
     device: VkDevice,
     pipeline: VkPipeline,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyPipeline(device, pipeline, pAllocator")
 }
@@ -966,7 +966,7 @@ pub unsafe extern "C" fn vkCmdCopyBuffer(
     srcBuffer: VkBuffer,
     dstBuffer: VkBuffer,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkBufferCopy>>,
+    pRegions: Option<NonNull<VkBufferCopy>>,
 ) {
     unimplemented!("vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, regionCount, pRegions")
 }
@@ -974,7 +974,7 @@ pub unsafe extern "C" fn vkCmdCopyBuffer(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties2(
     physicalDevice: VkPhysicalDevice,
-    pMemoryProperties: Option<std::ptr::NonNull<VkPhysicalDeviceMemoryProperties2>>,
+    pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties2>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceMemoryProperties2(physicalDevice, pMemoryProperties")
 }
@@ -982,9 +982,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSparseImageFormatProperties2(
     physicalDevice: VkPhysicalDevice,
-    pFormatInfo: Option<std::ptr::NonNull<VkPhysicalDeviceSparseImageFormatInfo2>>,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkSparseImageFormatProperties2>>,
+    pFormatInfo: Option<NonNull<VkPhysicalDeviceSparseImageFormatInfo2>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkSparseImageFormatProperties2>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceSparseImageFormatProperties2(
@@ -999,8 +999,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSparseImageFormatProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDisplayPlaneCapabilities2KHR(
     physicalDevice: VkPhysicalDevice,
-    pDisplayPlaneInfo: Option<std::ptr::NonNull<VkDisplayPlaneInfo2KHR>>,
-    pCapabilities: Option<std::ptr::NonNull<VkDisplayPlaneCapabilities2KHR>>,
+    pDisplayPlaneInfo: Option<NonNull<VkDisplayPlaneInfo2KHR>>,
+    pCapabilities: Option<NonNull<VkDisplayPlaneCapabilities2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetDisplayPlaneCapabilities2KHR(physicalDevice, pDisplayPlaneInfo, pCapabilities"
@@ -1010,7 +1010,7 @@ pub unsafe extern "C" fn vkGetDisplayPlaneCapabilities2KHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetCheckpointNV(
     commandBuffer: VkCommandBuffer,
-    pCheckpointMarker: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pCheckpointMarker: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!("vkCmdSetCheckpointNV(commandBuffer, pCheckpointMarker")
 }
@@ -1018,9 +1018,9 @@ pub unsafe extern "C" fn vkCmdSetCheckpointNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateStreamDescriptorSurfaceGGP(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkStreamDescriptorSurfaceCreateInfoGGP>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkStreamDescriptorSurfaceCreateInfoGGP>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateStreamDescriptorSurfaceGGP(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -1029,7 +1029,7 @@ pub unsafe extern "C" fn vkCreateStreamDescriptorSurfaceGGP(
 pub unsafe extern "C" fn vkCmdExecuteGeneratedCommandsNV(
     commandBuffer: VkCommandBuffer,
     isPreprocessed: VkBool32,
-    pGeneratedCommandsInfo: Option<std::ptr::NonNull<VkGeneratedCommandsInfoNV>>,
+    pGeneratedCommandsInfo: Option<NonNull<VkGeneratedCommandsInfoNV>>,
 ) {
     unimplemented!(
         "vkCmdExecuteGeneratedCommandsNV(commandBuffer, isPreprocessed, pGeneratedCommandsInfo"
@@ -1039,9 +1039,9 @@ pub unsafe extern "C" fn vkCmdExecuteGeneratedCommandsNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateSemaphoreSciSyncPoolNV(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkSemaphoreSciSyncPoolCreateInfoNV>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSemaphorePool: Option<std::ptr::NonNull<VkSemaphoreSciSyncPoolNV>>,
+    pCreateInfo: Option<NonNull<VkSemaphoreSciSyncPoolCreateInfoNV>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSemaphorePool: Option<NonNull<VkSemaphoreSciSyncPoolNV>>,
 ) -> VkResult {
     unimplemented!("vkCreateSemaphoreSciSyncPoolNV(device, pCreateInfo, pAllocator, pSemaphorePool")
 }
@@ -1076,7 +1076,7 @@ pub unsafe extern "C" fn vkCmdDrawClusterIndirectHUAWEI(
 pub unsafe extern "C" fn vkDestroySemaphoreSciSyncPoolNV(
     device: VkDevice,
     semaphorePool: VkSemaphoreSciSyncPoolNV,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySemaphoreSciSyncPoolNV(device, semaphorePool, pAllocator")
 }
@@ -1085,7 +1085,7 @@ pub unsafe extern "C" fn vkDestroySemaphoreSciSyncPoolNV(
 pub unsafe extern "C" fn vkQueueSubmit(
     queue: VkQueue,
     submitCount: u32,
-    pSubmits: Option<std::ptr::NonNull<VkSubmitInfo>>,
+    pSubmits: Option<NonNull<VkSubmitInfo>>,
     fence: VkFence,
 ) -> VkResult {
     unimplemented!("vkQueueSubmit(queue, submitCount, pSubmits, fence")
@@ -1095,8 +1095,8 @@ pub unsafe extern "C" fn vkQueueSubmit(
 pub unsafe extern "C" fn vkSetHdrMetadataEXT(
     device: VkDevice,
     swapchainCount: u32,
-    pSwapchains: Option<std::ptr::NonNull<VkSwapchainKHR>>,
-    pMetadata: Option<std::ptr::NonNull<VkHdrMetadataEXT>>,
+    pSwapchains: Option<NonNull<VkSwapchainKHR>>,
+    pMetadata: Option<NonNull<VkHdrMetadataEXT>>,
 ) {
     unimplemented!("vkSetHdrMetadataEXT(device, swapchainCount, pSwapchains, pMetadata")
 }
@@ -1104,8 +1104,8 @@ pub unsafe extern "C" fn vkSetHdrMetadataEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkCooperativeMatrixPropertiesNV>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkCooperativeMatrixPropertiesNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(
@@ -1143,7 +1143,7 @@ pub unsafe extern "C" fn vkCmdDrawIndirectByteCountEXT(
 pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    connection: Option<std::ptr::NonNull<xcb_connection_t>>,
+    connection: Option<NonNull<xcb_connection_t>>,
     visual_id: xcb_visualid_t,
 ) -> VkBool32 {
     unimplemented!(
@@ -1169,7 +1169,7 @@ pub unsafe extern "C" fn vkGetMemoryWin32HandlePropertiesKHR(
     device: VkDevice,
     handleType: VkExternalMemoryHandleTypeFlagBits,
     handle: HANDLE,
-    pMemoryWin32HandleProperties: Option<std::ptr::NonNull<VkMemoryWin32HandlePropertiesKHR>>,
+    pMemoryWin32HandleProperties: Option<NonNull<VkMemoryWin32HandlePropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetMemoryWin32HandlePropertiesKHR(
@@ -1189,8 +1189,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSparseImageFormatProperties(
     samples: VkSampleCountFlagBits,
     usage: VkImageUsageFlags,
     tiling: VkImageTiling,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkSparseImageFormatProperties>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkSparseImageFormatProperties>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceSparseImageFormatProperties(
@@ -1209,7 +1209,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSparseImageFormatProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkInitializePerformanceApiINTEL(
     device: VkDevice,
-    pInitializeInfo: Option<std::ptr::NonNull<VkInitializePerformanceApiInfoINTEL>>,
+    pInitializeInfo: Option<NonNull<VkInitializePerformanceApiInfoINTEL>>,
 ) -> VkResult {
     unimplemented!("vkInitializePerformanceApiINTEL(device, pInitializeInfo")
 }
@@ -1217,9 +1217,9 @@ pub unsafe extern "C" fn vkInitializePerformanceApiINTEL(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateIndirectCommandsLayoutNV(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkIndirectCommandsLayoutCreateInfoNV>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pIndirectCommandsLayout: Option<std::ptr::NonNull<VkIndirectCommandsLayoutNV>>,
+    pCreateInfo: Option<NonNull<VkIndirectCommandsLayoutCreateInfoNV>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pIndirectCommandsLayout: Option<NonNull<VkIndirectCommandsLayoutNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateIndirectCommandsLayoutNV(device, pCreateInfo, pAllocator, pIndirectCommandsLayout"
@@ -1234,7 +1234,7 @@ pub unsafe extern "C" fn vkCmdBlitImage(
     dstImage: VkImage,
     dstImageLayout: VkImageLayout,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkImageBlit>>,
+    pRegions: Option<NonNull<VkImageBlit>>,
     filter: VkFilter,
 ) {
     unimplemented!(
@@ -1262,8 +1262,8 @@ pub unsafe extern "C" fn vkCmdSetRasterizationStreamEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetImageViewOpaqueCaptureDescriptorDataEXT(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkImageViewCaptureDescriptorDataInfoEXT>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfo: Option<NonNull<VkImageViewCaptureDescriptorDataInfoEXT>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetImageViewOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
 }
@@ -1271,9 +1271,9 @@ pub unsafe extern "C" fn vkGetImageViewOpaqueCaptureDescriptorDataEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateCuFunctionNVX(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkCuFunctionCreateInfoNVX>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pFunction: Option<std::ptr::NonNull<VkCuFunctionNVX>>,
+    pCreateInfo: Option<NonNull<VkCuFunctionCreateInfoNVX>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFunction: Option<NonNull<VkCuFunctionNVX>>,
 ) -> VkResult {
     unimplemented!("vkCreateCuFunctionNVX(device, pCreateInfo, pAllocator, pFunction")
 }
@@ -1282,7 +1282,7 @@ pub unsafe extern "C" fn vkCreateCuFunctionNVX(
 pub unsafe extern "C" fn vkDestroyMicromapEXT(
     device: VkDevice,
     micromap: VkMicromapEXT,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyMicromapEXT(device, micromap, pAllocator")
 }
@@ -1290,8 +1290,8 @@ pub unsafe extern "C" fn vkDestroyMicromapEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateDeviceLayerProperties(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkLayerProperties>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkLayerProperties>>,
 ) -> VkResult {
     unimplemented!("vkEnumerateDeviceLayerProperties(physicalDevice, pPropertyCount, pProperties")
 }
@@ -1299,7 +1299,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceLayerProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkReleaseSwapchainImagesEXT(
     device: VkDevice,
-    pReleaseInfo: Option<std::ptr::NonNull<VkReleaseSwapchainImagesInfoEXT>>,
+    pReleaseInfo: Option<NonNull<VkReleaseSwapchainImagesInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkReleaseSwapchainImagesEXT(device, pReleaseInfo")
 }
@@ -1308,7 +1308,7 @@ pub unsafe extern "C" fn vkReleaseSwapchainImagesEXT(
 pub unsafe extern "C" fn vkCmdExecuteCommands(
     commandBuffer: VkCommandBuffer,
     commandBufferCount: u32,
-    pCommandBuffers: Option<std::ptr::NonNull<VkCommandBuffer>>,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) {
     unimplemented!("vkCmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers")
 }
@@ -1316,8 +1316,8 @@ pub unsafe extern "C" fn vkCmdExecuteCommands(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDescriptorSetLayoutHostMappingInfoVALVE(
     device: VkDevice,
-    pBindingReference: Option<std::ptr::NonNull<VkDescriptorSetBindingReferenceVALVE>>,
-    pHostMapping: Option<std::ptr::NonNull<VkDescriptorSetLayoutHostMappingInfoVALVE>>,
+    pBindingReference: Option<NonNull<VkDescriptorSetBindingReferenceVALVE>>,
+    pHostMapping: Option<NonNull<VkDescriptorSetLayoutHostMappingInfoVALVE>>,
 ) {
     unimplemented!(
         "vkGetDescriptorSetLayoutHostMappingInfoVALVE(device, pBindingReference, pHostMapping"
@@ -1345,7 +1345,7 @@ pub unsafe extern "C" fn vkCmdCopyAccelerationStructureNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkQueuePresentKHR(
     queue: VkQueue,
-    pPresentInfo: Option<std::ptr::NonNull<VkPresentInfoKHR>>,
+    pPresentInfo: Option<NonNull<VkPresentInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkQueuePresentKHR(queue, pPresentInfo")
 }
@@ -1353,7 +1353,7 @@ pub unsafe extern "C" fn vkQueuePresentKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyBufferToImage2(
     commandBuffer: VkCommandBuffer,
-    pCopyBufferToImageInfo: Option<std::ptr::NonNull<VkCopyBufferToImageInfo2>>,
+    pCopyBufferToImageInfo: Option<NonNull<VkCopyBufferToImageInfo2>>,
 ) {
     unimplemented!("vkCmdCopyBufferToImage2(commandBuffer, pCopyBufferToImageInfo")
 }
@@ -1361,9 +1361,9 @@ pub unsafe extern "C" fn vkCmdCopyBufferToImage2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateIOSSurfaceMVK(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkIOSSurfaceCreateInfoMVK>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkIOSSurfaceCreateInfoMVK>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateIOSSurfaceMVK(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -1372,7 +1372,7 @@ pub unsafe extern "C" fn vkCreateIOSSurfaceMVK(
 pub unsafe extern "C" fn vkUpdateVideoSessionParametersKHR(
     device: VkDevice,
     videoSessionParameters: VkVideoSessionParametersKHR,
-    pUpdateInfo: Option<std::ptr::NonNull<VkVideoSessionParametersUpdateInfoKHR>>,
+    pUpdateInfo: Option<NonNull<VkVideoSessionParametersUpdateInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkUpdateVideoSessionParametersKHR(device, videoSessionParameters, pUpdateInfo")
 }
@@ -1381,7 +1381,7 @@ pub unsafe extern "C" fn vkUpdateVideoSessionParametersKHR(
 pub unsafe extern "C" fn vkDestroyShaderEXT(
     device: VkDevice,
     shader: VkShaderEXT,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyShaderEXT(device, shader, pAllocator")
 }
@@ -1400,9 +1400,9 @@ pub unsafe extern "C" fn vkCmdWriteBufferMarker2AMD(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateSwapchainKHR(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkSwapchainCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSwapchain: Option<std::ptr::NonNull<VkSwapchainKHR>>,
+    pCreateInfo: Option<NonNull<VkSwapchainCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSwapchain: Option<NonNull<VkSwapchainKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain")
 }
@@ -1411,14 +1411,14 @@ pub unsafe extern "C" fn vkCreateSwapchainKHR(
 pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     physicalDevice: VkPhysicalDevice,
     format: VkFormat,
-    pFormatProperties: Option<std::ptr::NonNull<VkFormatProperties>>,
+    pFormatProperties: Option<NonNull<VkFormatProperties>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties")
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateInstanceVersion(
-    pApiVersion: Option<std::ptr::NonNull<u32>>,
+    pApiVersion: Option<NonNull<u32>>,
 ) -> VkResult {
     unimplemented!("vkEnumerateInstanceVersion(pApiVersion")
 }
@@ -1427,9 +1427,9 @@ pub unsafe extern "C" fn vkEnumerateInstanceVersion(
 pub unsafe extern "C" fn vkCreateSharedSwapchainsKHR(
     device: VkDevice,
     swapchainCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkSwapchainCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSwapchains: Option<std::ptr::NonNull<VkSwapchainKHR>>,
+    pCreateInfos: Option<NonNull<VkSwapchainCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSwapchains: Option<NonNull<VkSwapchainKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateSharedSwapchainsKHR(
@@ -1446,8 +1446,8 @@ pub unsafe extern "C" fn vkCreateSharedSwapchainsKHR(
 pub unsafe extern "C" fn vkGetValidationCacheDataEXT(
     device: VkDevice,
     validationCache: VkValidationCacheEXT,
-    pDataSize: Option<std::ptr::NonNull<isize>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pDataSize: Option<NonNull<isize>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetValidationCacheDataEXT(device, validationCache, pDataSize, pData")
 }
@@ -1455,8 +1455,8 @@ pub unsafe extern "C" fn vkGetValidationCacheDataEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkAcquirePerformanceConfigurationINTEL(
     device: VkDevice,
-    pAcquireInfo: Option<std::ptr::NonNull<VkPerformanceConfigurationAcquireInfoINTEL>>,
-    pConfiguration: Option<std::ptr::NonNull<VkPerformanceConfigurationINTEL>>,
+    pAcquireInfo: Option<NonNull<VkPerformanceConfigurationAcquireInfoINTEL>>,
+    pConfiguration: Option<NonNull<VkPerformanceConfigurationINTEL>>,
 ) -> VkResult {
     unimplemented!("vkAcquirePerformanceConfigurationINTEL(device, pAcquireInfo, pConfiguration")
 }
@@ -1465,7 +1465,7 @@ pub unsafe extern "C" fn vkAcquirePerformanceConfigurationINTEL(
 pub unsafe extern "C" fn vkDestroyRenderPass(
     device: VkDevice,
     renderPass: VkRenderPass,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyRenderPass(device, renderPass, pAllocator")
 }
@@ -1473,9 +1473,9 @@ pub unsafe extern "C" fn vkDestroyRenderPass(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateMicromapEXT(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkMicromapCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pMicromap: Option<std::ptr::NonNull<VkMicromapEXT>>,
+    pCreateInfo: Option<NonNull<VkMicromapCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pMicromap: Option<NonNull<VkMicromapEXT>>,
 ) -> VkResult {
     unimplemented!("vkCreateMicromapEXT(device, pCreateInfo, pAllocator, pMicromap")
 }
@@ -1483,9 +1483,9 @@ pub unsafe extern "C" fn vkCreateMicromapEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateQueryPool(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkQueryPoolCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pQueryPool: Option<std::ptr::NonNull<VkQueryPool>>,
+    pCreateInfo: Option<NonNull<VkQueryPoolCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pQueryPool: Option<NonNull<VkQueryPool>>,
 ) -> VkResult {
     unimplemented!("vkCreateQueryPool(device, pCreateInfo, pAllocator, pQueryPool")
 }
@@ -1493,8 +1493,8 @@ pub unsafe extern "C" fn vkCreateQueryPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDescriptorSetLayoutSupport(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkDescriptorSetLayoutCreateInfo>>,
-    pSupport: Option<std::ptr::NonNull<VkDescriptorSetLayoutSupport>>,
+    pCreateInfo: Option<NonNull<VkDescriptorSetLayoutCreateInfo>>,
+    pSupport: Option<NonNull<VkDescriptorSetLayoutSupport>>,
 ) {
     unimplemented!("vkGetDescriptorSetLayoutSupport(device, pCreateInfo, pSupport")
 }
@@ -1502,7 +1502,7 @@ pub unsafe extern "C" fn vkGetDescriptorSetLayoutSupport(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdControlVideoCodingKHR(
     commandBuffer: VkCommandBuffer,
-    pCodingControlInfo: Option<std::ptr::NonNull<VkVideoCodingControlInfoKHR>>,
+    pCodingControlInfo: Option<NonNull<VkVideoCodingControlInfoKHR>>,
 ) {
     unimplemented!("vkCmdControlVideoCodingKHR(commandBuffer, pCodingControlInfo")
 }
@@ -1510,7 +1510,7 @@ pub unsafe extern "C" fn vkCmdControlVideoCodingKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkSetDebugUtilsObjectNameEXT(
     device: VkDevice,
-    pNameInfo: Option<std::ptr::NonNull<VkDebugUtilsObjectNameInfoEXT>>,
+    pNameInfo: Option<NonNull<VkDebugUtilsObjectNameInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkSetDebugUtilsObjectNameEXT(device, pNameInfo")
 }
@@ -1518,9 +1518,9 @@ pub unsafe extern "C" fn vkSetDebugUtilsObjectNameEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateXlibSurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkXlibSurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkXlibSurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateXlibSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -1529,9 +1529,9 @@ pub unsafe extern "C" fn vkCreateXlibSurfaceKHR(
 pub unsafe extern "C" fn vkRegisterDisplayEventEXT(
     device: VkDevice,
     display: VkDisplayKHR,
-    pDisplayEventInfo: Option<std::ptr::NonNull<VkDisplayEventInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pFence: Option<std::ptr::NonNull<VkFence>>,
+    pDisplayEventInfo: Option<NonNull<VkDisplayEventInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFence: Option<NonNull<VkFence>>,
 ) -> VkResult {
     unimplemented!(
         "vkRegisterDisplayEventEXT(device, display, pDisplayEventInfo, pAllocator, pFence"
@@ -1542,7 +1542,7 @@ pub unsafe extern "C" fn vkRegisterDisplayEventEXT(
 pub unsafe extern "C" fn vkCmdWriteAccelerationStructuresPropertiesNV(
     commandBuffer: VkCommandBuffer,
     accelerationStructureCount: u32,
-    pAccelerationStructures: Option<std::ptr::NonNull<VkAccelerationStructureNV>>,
+    pAccelerationStructures: Option<NonNull<VkAccelerationStructureNV>>,
     queryType: VkQueryType,
     queryPool: VkQueryPool,
     firstQuery: u32,
@@ -1562,8 +1562,8 @@ pub unsafe extern "C" fn vkCmdWriteAccelerationStructuresPropertiesNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(
     physicalDevice: VkPhysicalDevice,
-    pQualityLevelInfo: Option<std::ptr::NonNull<VkPhysicalDeviceVideoEncodeQualityLevelInfoKHR>>,
-    pQualityLevelProperties: Option<std::ptr::NonNull<VkVideoEncodeQualityLevelPropertiesKHR>>,
+    pQualityLevelInfo: Option<NonNull<VkPhysicalDeviceVideoEncodeQualityLevelInfoKHR>>,
+    pQualityLevelProperties: Option<NonNull<VkVideoEncodeQualityLevelPropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(
@@ -1577,7 +1577,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCuLaunchKernelNVX(
     commandBuffer: VkCommandBuffer,
-    pLaunchInfo: Option<std::ptr::NonNull<VkCuLaunchInfoNVX>>,
+    pLaunchInfo: Option<NonNull<VkCuLaunchInfoNVX>>,
 ) {
     unimplemented!("vkCmdCuLaunchKernelNVX(commandBuffer, pLaunchInfo")
 }
@@ -1586,7 +1586,7 @@ pub unsafe extern "C" fn vkCmdCuLaunchKernelNVX(
 pub unsafe extern "C" fn vkDestroyQueryPool(
     device: VkDevice,
     queryPool: VkQueryPool,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyQueryPool(device, queryPool, pAllocator")
 }
@@ -1594,16 +1594,16 @@ pub unsafe extern "C" fn vkDestroyQueryPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkQueueBeginDebugUtilsLabelEXT(
     queue: VkQueue,
-    pLabelInfo: Option<std::ptr::NonNull<VkDebugUtilsLabelEXT>>,
+    pLabelInfo: Option<NonNull<VkDebugUtilsLabelEXT>>,
 ) {
     unimplemented!("vkQueueBeginDebugUtilsLabelEXT(queue, pLabelInfo")
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateInstance(
-    pCreateInfo: Option<std::ptr::NonNull<VkInstanceCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pInstance: Option<std::ptr::NonNull<VkInstance>>,
+    pCreateInfo: Option<NonNull<VkInstanceCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pInstance: Option<NonNull<VkInstance>>,
 ) -> VkResult {
     println!("Hello from vkCreateInstance()!");
 
@@ -1631,10 +1631,11 @@ pub unsafe extern "C" fn vkCreateInstance(
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
     instance: VkInstance,
-    pPhysicalDeviceCount: Option<std::ptr::NonNull<u32>>,
-    pPhysicalDevices: Option<std::ptr::NonNull<VkPhysicalDevice>>,
+    pPhysicalDeviceCount: Option<NonNull<u32>>,
+    pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
 ) -> VkResult {
     // VUID-vkEnumeratePhysicalDevices-instance-parameter
+    let Some(instance) = instance else { unreachable!() };
     let instance: &Instance = get_dispatchable_handle_ref(instance);
 
     // VUID-vkEnumeratePhysicalDevices-pPhysicalDeviceCount-parameter
@@ -1656,11 +1657,12 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     physicalDevice: VkPhysicalDevice,
-    pLayerName: Option<std::ptr::NonNull<std::ffi::c_char>>,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkExtensionProperties>>,
+    pLayerName: Option<NonNull<std::ffi::c_char>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
     // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
+    let Some(physicalDevice) = physicalDevice else { unreachable!() };
     let physicalDevice: &PhysicalDevice = get_dispatchable_handle_ref(physicalDevice);
 
     // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
@@ -1680,7 +1682,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyAccelerationStructureToMemoryKHR(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyAccelerationStructureToMemoryInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyAccelerationStructureToMemoryInfoKHR>>,
 ) {
     unimplemented!("vkCmdCopyAccelerationStructureToMemoryKHR(commandBuffer, pInfo")
 }
@@ -1693,8 +1695,8 @@ pub unsafe extern "C" fn vkGetEventStatus(device: VkDevice, event: VkEvent) -> V
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilities2KHR(
     physicalDevice: VkPhysicalDevice,
-    pSurfaceInfo: Option<std::ptr::NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
-    pSurfaceCapabilities: Option<std::ptr::NonNull<VkSurfaceCapabilities2KHR>>,
+    pSurfaceInfo: Option<NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
+    pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilities2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfaceCapabilities2KHR(
@@ -1708,8 +1710,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilities2KHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceImageMemoryRequirements(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkDeviceImageMemoryRequirements>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkDeviceImageMemoryRequirements>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2>>,
 ) {
     unimplemented!("vkGetDeviceImageMemoryRequirements(device, pInfo, pMemoryRequirements")
 }
@@ -1717,7 +1719,7 @@ pub unsafe extern "C" fn vkGetDeviceImageMemoryRequirements(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures2(
     physicalDevice: VkPhysicalDevice,
-    pFeatures: Option<std::ptr::NonNull<VkPhysicalDeviceFeatures2>>,
+    pFeatures: Option<NonNull<VkPhysicalDeviceFeatures2>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceFeatures2(physicalDevice, pFeatures")
 }
@@ -1726,7 +1728,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures2(
 pub unsafe extern "C" fn vkDestroyVideoSessionKHR(
     device: VkDevice,
     videoSession: VkVideoSessionKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyVideoSessionKHR(device, videoSession, pAllocator")
 }
@@ -1734,9 +1736,9 @@ pub unsafe extern "C" fn vkDestroyVideoSessionKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateHeadlessSurfaceEXT(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkHeadlessSurfaceCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkHeadlessSurfaceCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateHeadlessSurfaceEXT(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -1744,8 +1746,8 @@ pub unsafe extern "C" fn vkCreateHeadlessSurfaceEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemorySciBufNV(
     device: VkDevice,
-    pGetSciBufInfo: Option<std::ptr::NonNull<VkMemoryGetSciBufInfoNV>>,
-    pHandle: Option<std::ptr::NonNull<NvSciBufObj>>,
+    pGetSciBufInfo: Option<NonNull<VkMemoryGetSciBufInfoNV>>,
+    pHandle: Option<NonNull<NvSciBufObj>>,
 ) -> VkResult {
     unimplemented!("vkGetMemorySciBufNV(device, pGetSciBufInfo, pHandle")
 }
@@ -1753,8 +1755,8 @@ pub unsafe extern "C" fn vkGetMemorySciBufNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemoryWin32HandleKHR(
     device: VkDevice,
-    pGetWin32HandleInfo: Option<std::ptr::NonNull<VkMemoryGetWin32HandleInfoKHR>>,
-    pHandle: Option<std::ptr::NonNull<HANDLE>>,
+    pGetWin32HandleInfo: Option<NonNull<VkMemoryGetWin32HandleInfoKHR>>,
+    pHandle: Option<NonNull<HANDLE>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryWin32HandleKHR(device, pGetWin32HandleInfo, pHandle")
 }
@@ -1762,7 +1764,7 @@ pub unsafe extern "C" fn vkGetMemoryWin32HandleKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportFenceWin32HandleKHR(
     device: VkDevice,
-    pImportFenceWin32HandleInfo: Option<std::ptr::NonNull<VkImportFenceWin32HandleInfoKHR>>,
+    pImportFenceWin32HandleInfo: Option<NonNull<VkImportFenceWin32HandleInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkImportFenceWin32HandleKHR(device, pImportFenceWin32HandleInfo")
 }
@@ -1771,15 +1773,15 @@ pub unsafe extern "C" fn vkImportFenceWin32HandleKHR(
 pub unsafe extern "C" fn vkCmdWaitEvents(
     commandBuffer: VkCommandBuffer,
     eventCount: u32,
-    pEvents: Option<std::ptr::NonNull<VkEvent>>,
+    pEvents: Option<NonNull<VkEvent>>,
     srcStageMask: VkPipelineStageFlags,
     dstStageMask: VkPipelineStageFlags,
     memoryBarrierCount: u32,
-    pMemoryBarriers: Option<std::ptr::NonNull<VkMemoryBarrier>>,
+    pMemoryBarriers: Option<NonNull<VkMemoryBarrier>>,
     bufferMemoryBarrierCount: u32,
-    pBufferMemoryBarriers: Option<std::ptr::NonNull<VkBufferMemoryBarrier>>,
+    pBufferMemoryBarriers: Option<NonNull<VkBufferMemoryBarrier>>,
     imageMemoryBarrierCount: u32,
-    pImageMemoryBarriers: Option<std::ptr::NonNull<VkImageMemoryBarrier>>,
+    pImageMemoryBarriers: Option<NonNull<VkImageMemoryBarrier>>,
 ) {
     unimplemented!(
         "vkCmdWaitEvents(
@@ -1802,7 +1804,7 @@ pub unsafe extern "C" fn vkCmdWaitEvents(
 pub unsafe extern "C" fn vkResetFences(
     device: VkDevice,
     fenceCount: u32,
-    pFences: Option<std::ptr::NonNull<VkFence>>,
+    pFences: Option<NonNull<VkFence>>,
 ) -> VkResult {
     unimplemented!("vkResetFences(device, fenceCount, pFences")
 }
@@ -1811,8 +1813,8 @@ pub unsafe extern "C" fn vkResetFences(
 pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements(
     device: VkDevice,
     image: VkImage,
-    pSparseMemoryRequirementCount: Option<std::ptr::NonNull<u32>>,
-    pSparseMemoryRequirements: Option<std::ptr::NonNull<VkSparseImageMemoryRequirements>>,
+    pSparseMemoryRequirementCount: Option<NonNull<u32>>,
+    pSparseMemoryRequirements: Option<NonNull<VkSparseImageMemoryRequirements>>,
 ) {
     unimplemented!(
         "vkGetImageSparseMemoryRequirements(
@@ -1827,9 +1829,9 @@ pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetRandROutputDisplayEXT(
     physicalDevice: VkPhysicalDevice,
-    dpy: Option<std::ptr::NonNull<Display>>,
+    dpy: Option<NonNull<Display>>,
     rrOutput: RROutput,
-    pDisplay: Option<std::ptr::NonNull<VkDisplayKHR>>,
+    pDisplay: Option<NonNull<VkDisplayKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetRandROutputDisplayEXT(physicalDevice, dpy, rrOutput, pDisplay")
 }
@@ -1838,7 +1840,7 @@ pub unsafe extern "C" fn vkGetRandROutputDisplayEXT(
 pub unsafe extern "C" fn vkGetRefreshCycleDurationGOOGLE(
     device: VkDevice,
     swapchain: VkSwapchainKHR,
-    pDisplayTimingProperties: Option<std::ptr::NonNull<VkRefreshCycleDurationGOOGLE>>,
+    pDisplayTimingProperties: Option<NonNull<VkRefreshCycleDurationGOOGLE>>,
 ) -> VkResult {
     unimplemented!("vkGetRefreshCycleDurationGOOGLE(device, swapchain, pDisplayTimingProperties")
 }
@@ -1859,7 +1861,7 @@ pub unsafe extern "C" fn vkCmdBindPipelineShaderGroupNV(
 pub unsafe extern "C" fn vkDestroyBufferView(
     device: VkDevice,
     bufferView: VkBufferView,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyBufferView(device, bufferView, pAllocator")
 }
@@ -1868,7 +1870,7 @@ pub unsafe extern "C" fn vkDestroyBufferView(
 pub unsafe extern "C" fn vkDestroyPipelineLayout(
     device: VkDevice,
     pipelineLayout: VkPipelineLayout,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyPipelineLayout(device, pipelineLayout, pAllocator")
 }
@@ -1876,7 +1878,7 @@ pub unsafe extern "C" fn vkDestroyPipelineLayout(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetImageViewHandleNVX(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkImageViewHandleInfoNVX>>,
+    pInfo: Option<NonNull<VkImageViewHandleInfoNVX>>,
 ) -> u32 {
     unimplemented!("vkGetImageViewHandleNVX(device, pInfo")
 }
@@ -1884,9 +1886,9 @@ pub unsafe extern "C" fn vkGetImageViewHandleNVX(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateWin32SurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkWin32SurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkWin32SurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateWin32SurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -1894,7 +1896,7 @@ pub unsafe extern "C" fn vkCreateWin32SurfaceKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkSetDebugUtilsObjectTagEXT(
     device: VkDevice,
-    pTagInfo: Option<std::ptr::NonNull<VkDebugUtilsObjectTagInfoEXT>>,
+    pTagInfo: Option<NonNull<VkDebugUtilsObjectTagInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkSetDebugUtilsObjectTagEXT(device, pTagInfo")
 }
@@ -1913,7 +1915,7 @@ pub unsafe extern "C" fn vkMergePipelineCaches(
     device: VkDevice,
     dstCache: VkPipelineCache,
     srcCacheCount: u32,
-    pSrcCaches: Option<std::ptr::NonNull<VkPipelineCache>>,
+    pSrcCaches: Option<NonNull<VkPipelineCache>>,
 ) -> VkResult {
     unimplemented!("vkMergePipelineCaches(device, dstCache, srcCacheCount, pSrcCaches")
 }
@@ -1921,7 +1923,7 @@ pub unsafe extern "C" fn vkMergePipelineCaches(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportSemaphoreSciSyncObjNV(
     device: VkDevice,
-    pImportSemaphoreSciSyncInfo: Option<std::ptr::NonNull<VkImportSemaphoreSciSyncInfoNV>>,
+    pImportSemaphoreSciSyncInfo: Option<NonNull<VkImportSemaphoreSciSyncInfoNV>>,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreSciSyncObjNV(device, pImportSemaphoreSciSyncInfo")
 }
@@ -1934,7 +1936,7 @@ pub unsafe extern "C" fn vkCmdCopyMemoryToImageIndirectNV(
     stride: u32,
     dstImage: VkImage,
     dstImageLayout: VkImageLayout,
-    pImageSubresources: Option<std::ptr::NonNull<VkImageSubresourceLayers>>,
+    pImageSubresources: Option<NonNull<VkImageSubresourceLayers>>,
 ) {
     unimplemented!(
         "vkCmdCopyMemoryToImageIndirectNV(
@@ -1953,7 +1955,7 @@ pub unsafe extern "C" fn vkCmdCopyMemoryToImageIndirectNV(
 pub unsafe extern "C" fn vkDestroyDescriptorPool(
     device: VkDevice,
     descriptorPool: VkDescriptorPool,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDescriptorPool(device, descriptorPool, pAllocator")
 }
@@ -1963,7 +1965,7 @@ pub unsafe extern "C" fn vkMergeValidationCachesEXT(
     device: VkDevice,
     dstCache: VkValidationCacheEXT,
     srcCacheCount: u32,
-    pSrcCaches: Option<std::ptr::NonNull<VkValidationCacheEXT>>,
+    pSrcCaches: Option<NonNull<VkValidationCacheEXT>>,
 ) -> VkResult {
     unimplemented!("vkMergeValidationCachesEXT(device, dstCache, srcCacheCount, pSrcCaches")
 }
@@ -1971,7 +1973,7 @@ pub unsafe extern "C" fn vkMergeValidationCachesEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportFenceFdKHR(
     device: VkDevice,
-    pImportFenceFdInfo: Option<std::ptr::NonNull<VkImportFenceFdInfoKHR>>,
+    pImportFenceFdInfo: Option<NonNull<VkImportFenceFdInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkImportFenceFdKHR(device, pImportFenceFdInfo")
 }
@@ -2012,7 +2014,7 @@ pub unsafe extern "C" fn vkGetDescriptorSetLayoutBindingOffsetEXT(
     device: VkDevice,
     layout: VkDescriptorSetLayout,
     binding: u32,
-    pOffset: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pOffset: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!("vkGetDescriptorSetLayoutBindingOffsetEXT(device, layout, binding, pOffset")
 }
@@ -2021,8 +2023,8 @@ pub unsafe extern "C" fn vkGetDescriptorSetLayoutBindingOffsetEXT(
 pub unsafe extern "C" fn vkGetDisplayModePropertiesKHR(
     physicalDevice: VkPhysicalDevice,
     display: VkDisplayKHR,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayModePropertiesKHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayModePropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetDisplayModePropertiesKHR(physicalDevice, display, pPropertyCount, pProperties"
@@ -2032,9 +2034,9 @@ pub unsafe extern "C" fn vkGetDisplayModePropertiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkAllocateMemory(
     device: VkDevice,
-    pAllocateInfo: Option<std::ptr::NonNull<VkMemoryAllocateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pMemory: Option<std::ptr::NonNull<VkDeviceMemory>>,
+    pAllocateInfo: Option<NonNull<VkMemoryAllocateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pMemory: Option<NonNull<VkDeviceMemory>>,
 ) -> VkResult {
     unimplemented!("vkAllocateMemory(device, pAllocateInfo, pAllocator, pMemory")
 }
@@ -2042,8 +2044,8 @@ pub unsafe extern "C" fn vkAllocateMemory(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetFenceWin32HandleKHR(
     device: VkDevice,
-    pGetWin32HandleInfo: Option<std::ptr::NonNull<VkFenceGetWin32HandleInfoKHR>>,
-    pHandle: Option<std::ptr::NonNull<HANDLE>>,
+    pGetWin32HandleInfo: Option<NonNull<VkFenceGetWin32HandleInfoKHR>>,
+    pHandle: Option<NonNull<HANDLE>>,
 ) -> VkResult {
     unimplemented!("vkGetFenceWin32HandleKHR(device, pGetWin32HandleInfo, pHandle")
 }
@@ -2051,7 +2053,7 @@ pub unsafe extern "C" fn vkGetFenceWin32HandleKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportFenceSciSyncObjNV(
     device: VkDevice,
-    pImportFenceSciSyncInfo: Option<std::ptr::NonNull<VkImportFenceSciSyncInfoNV>>,
+    pImportFenceSciSyncInfo: Option<NonNull<VkImportFenceSciSyncInfoNV>>,
 ) -> VkResult {
     unimplemented!("vkImportFenceSciSyncObjNV(device, pImportFenceSciSyncInfo")
 }
@@ -2060,7 +2062,7 @@ pub unsafe extern "C" fn vkImportFenceSciSyncObjNV(
 pub unsafe extern "C" fn vkGetWinrtDisplayNV(
     physicalDevice: VkPhysicalDevice,
     deviceRelativeId: u32,
-    pDisplay: Option<std::ptr::NonNull<VkDisplayKHR>>,
+    pDisplay: Option<NonNull<VkDisplayKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetWinrtDisplayNV(physicalDevice, deviceRelativeId, pDisplay")
 }
@@ -2086,9 +2088,9 @@ pub unsafe extern "C" fn vkGetSwapchainStatusKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreatePipelineCache(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkPipelineCacheCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelineCache: Option<std::ptr::NonNull<VkPipelineCache>>,
+    pCreateInfo: Option<NonNull<VkPipelineCacheCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelineCache: Option<NonNull<VkPipelineCache>>,
 ) -> VkResult {
     unimplemented!("vkCreatePipelineCache(device, pCreateInfo, pAllocator, pPipelineCache")
 }
@@ -2096,7 +2098,7 @@ pub unsafe extern "C" fn vkCreatePipelineCache(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceGroupPresentCapabilitiesKHR(
     device: VkDevice,
-    pDeviceGroupPresentCapabilities: Option<std::ptr::NonNull<VkDeviceGroupPresentCapabilitiesKHR>>,
+    pDeviceGroupPresentCapabilities: Option<NonNull<VkDeviceGroupPresentCapabilitiesKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetDeviceGroupPresentCapabilitiesKHR(device, pDeviceGroupPresentCapabilities")
 }
@@ -2125,7 +2127,7 @@ pub unsafe extern "C" fn vkCmdSetViewportWScalingEnableNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBlitImage2(
     commandBuffer: VkCommandBuffer,
-    pBlitImageInfo: Option<std::ptr::NonNull<VkBlitImageInfo2>>,
+    pBlitImageInfo: Option<NonNull<VkBlitImageInfo2>>,
 ) {
     unimplemented!("vkCmdBlitImage2(commandBuffer, pBlitImageInfo")
 }
@@ -2134,7 +2136,7 @@ pub unsafe extern "C" fn vkCmdBlitImage2(
 pub unsafe extern "C" fn vkCmdOpticalFlowExecuteNV(
     commandBuffer: VkCommandBuffer,
     session: VkOpticalFlowSessionNV,
-    pExecuteInfo: Option<std::ptr::NonNull<VkOpticalFlowExecuteInfoNV>>,
+    pExecuteInfo: Option<NonNull<VkOpticalFlowExecuteInfoNV>>,
 ) {
     unimplemented!("vkCmdOpticalFlowExecuteNV(commandBuffer, session, pExecuteInfo")
 }
@@ -2150,8 +2152,8 @@ pub unsafe extern "C" fn vkCmdSetDepthCompareOp(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPipelinePropertiesEXT(
     device: VkDevice,
-    pPipelineInfo: Option<std::ptr::NonNull<VkPipelineInfoEXT>>,
-    pPipelineProperties: Option<std::ptr::NonNull<VkBaseOutStructure>>,
+    pPipelineInfo: Option<NonNull<VkPipelineInfoEXT>>,
+    pPipelineProperties: Option<NonNull<VkBaseOutStructure>>,
 ) -> VkResult {
     unimplemented!("vkGetPipelinePropertiesEXT(device, pPipelineInfo, pPipelineProperties")
 }
@@ -2159,7 +2161,7 @@ pub unsafe extern "C" fn vkGetPipelinePropertiesEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkExportMetalObjectsEXT(
     device: VkDevice,
-    pMetalObjectsInfo: Option<std::ptr::NonNull<VkExportMetalObjectsInfoEXT>>,
+    pMetalObjectsInfo: Option<NonNull<VkExportMetalObjectsInfoEXT>>,
 ) {
     unimplemented!("vkExportMetalObjectsEXT(device, pMetalObjectsInfo")
 }
@@ -2167,9 +2169,9 @@ pub unsafe extern "C" fn vkExportMetalObjectsEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkRegisterDeviceEventEXT(
     device: VkDevice,
-    pDeviceEventInfo: Option<std::ptr::NonNull<VkDeviceEventInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pFence: Option<std::ptr::NonNull<VkFence>>,
+    pDeviceEventInfo: Option<NonNull<VkDeviceEventInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFence: Option<NonNull<VkFence>>,
 ) -> VkResult {
     unimplemented!("vkRegisterDeviceEventEXT(device, pDeviceEventInfo, pAllocator, pFence")
 }
@@ -2178,7 +2180,7 @@ pub unsafe extern "C" fn vkRegisterDeviceEventEXT(
 pub unsafe extern "C" fn vkCmdBindDescriptorBuffersEXT(
     commandBuffer: VkCommandBuffer,
     bufferCount: u32,
-    pBindingInfos: Option<std::ptr::NonNull<VkDescriptorBufferBindingInfoEXT>>,
+    pBindingInfos: Option<NonNull<VkDescriptorBufferBindingInfoEXT>>,
 ) {
     unimplemented!("vkCmdBindDescriptorBuffersEXT(commandBuffer, bufferCount, pBindingInfos")
 }
@@ -2187,7 +2189,7 @@ pub unsafe extern "C" fn vkCmdBindDescriptorBuffersEXT(
 pub unsafe extern "C" fn vkCopyMicromapToMemoryEXT(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyMicromapToMemoryInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMicromapToMemoryInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkCopyMicromapToMemoryEXT(device, deferredOperation, pInfo")
 }
@@ -2213,7 +2215,7 @@ pub unsafe extern "C" fn vkCmdSetCoverageToColorLocationNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyMemoryToMicromapEXT(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyMemoryToMicromapInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMemoryToMicromapInfoEXT>>,
 ) {
     unimplemented!("vkCmdCopyMemoryToMicromapEXT(commandBuffer, pInfo")
 }
@@ -2221,8 +2223,8 @@ pub unsafe extern "C" fn vkCmdCopyMemoryToMicromapEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceAccelerationStructureCompatibilityKHR(
     device: VkDevice,
-    pVersionInfo: Option<std::ptr::NonNull<VkAccelerationStructureVersionInfoKHR>>,
-    pCompatibility: Option<std::ptr::NonNull<VkAccelerationStructureCompatibilityKHR>>,
+    pVersionInfo: Option<NonNull<VkAccelerationStructureVersionInfoKHR>>,
+    pCompatibility: Option<NonNull<VkAccelerationStructureCompatibilityKHR>>,
 ) {
     unimplemented!(
         "vkGetDeviceAccelerationStructureCompatibilityKHR(device, pVersionInfo, pCompatibility"
@@ -2242,7 +2244,7 @@ pub unsafe extern "C" fn vkCmdBindPipeline(
 pub unsafe extern "C" fn vkGetImageDrmFormatModifierPropertiesEXT(
     device: VkDevice,
     image: VkImage,
-    pProperties: Option<std::ptr::NonNull<VkImageDrmFormatModifierPropertiesEXT>>,
+    pProperties: Option<NonNull<VkImageDrmFormatModifierPropertiesEXT>>,
 ) -> VkResult {
     unimplemented!("vkGetImageDrmFormatModifierPropertiesEXT(device, image, pProperties")
 }
@@ -2250,7 +2252,7 @@ pub unsafe extern "C" fn vkGetImageDrmFormatModifierPropertiesEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdResolveImage2(
     commandBuffer: VkCommandBuffer,
-    pResolveImageInfo: Option<std::ptr::NonNull<VkResolveImageInfo2>>,
+    pResolveImageInfo: Option<NonNull<VkResolveImageInfo2>>,
 ) {
     unimplemented!("vkCmdResolveImage2(commandBuffer, pResolveImageInfo")
 }
@@ -2258,7 +2260,7 @@ pub unsafe extern "C" fn vkCmdResolveImage2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyMicromapEXT(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyMicromapInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMicromapInfoEXT>>,
 ) {
     unimplemented!("vkCmdCopyMicromapEXT(commandBuffer, pInfo")
 }
@@ -2268,7 +2270,7 @@ pub unsafe extern "C" fn vkFreeDescriptorSets(
     device: VkDevice,
     descriptorPool: VkDescriptorPool,
     descriptorSetCount: u32,
-    pDescriptorSets: Option<std::ptr::NonNull<VkDescriptorSet>>,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
 ) -> VkResult {
     unimplemented!(
         "vkFreeDescriptorSets(device, descriptorPool, descriptorSetCount, pDescriptorSets"
@@ -2292,8 +2294,8 @@ pub unsafe extern "C" fn vkCmdSetRepresentativeFragmentTestEnableNV(
 pub unsafe extern "C" fn vkGetFramebufferTilePropertiesQCOM(
     device: VkDevice,
     framebuffer: VkFramebuffer,
-    pPropertiesCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkTilePropertiesQCOM>>,
+    pPropertiesCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkTilePropertiesQCOM>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetFramebufferTilePropertiesQCOM(device, framebuffer, pPropertiesCount, pProperties"
@@ -2303,9 +2305,9 @@ pub unsafe extern "C" fn vkGetFramebufferTilePropertiesQCOM(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDevice(
     physicalDevice: VkPhysicalDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkDeviceCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pDevice: Option<std::ptr::NonNull<VkDevice>>,
+    pCreateInfo: Option<NonNull<VkDeviceCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pDevice: Option<NonNull<VkDevice>>,
 ) -> VkResult {
     unimplemented!("vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice")
 }
@@ -2329,7 +2331,7 @@ pub unsafe extern "C" fn vkAcquireImageANDROID(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetPerformanceOverrideINTEL(
     commandBuffer: VkCommandBuffer,
-    pOverrideInfo: Option<std::ptr::NonNull<VkPerformanceOverrideInfoINTEL>>,
+    pOverrideInfo: Option<NonNull<VkPerformanceOverrideInfoINTEL>>,
 ) -> VkResult {
     unimplemented!("vkCmdSetPerformanceOverrideINTEL(commandBuffer, pOverrideInfo")
 }
@@ -2337,9 +2339,9 @@ pub unsafe extern "C" fn vkCmdSetPerformanceOverrideINTEL(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreatePipelineLayout(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkPipelineLayoutCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelineLayout: Option<std::ptr::NonNull<VkPipelineLayout>>,
+    pCreateInfo: Option<NonNull<VkPipelineLayoutCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelineLayout: Option<NonNull<VkPipelineLayout>>,
 ) -> VkResult {
     unimplemented!("vkCreatePipelineLayout(device, pCreateInfo, pAllocator, pPipelineLayout")
 }
@@ -2349,7 +2351,7 @@ pub unsafe extern "C" fn vkGetDrmDisplayEXT(
     physicalDevice: VkPhysicalDevice,
     drmFd: i32,
     connectorId: u32,
-    display: Option<std::ptr::NonNull<VkDisplayKHR>>,
+    display: Option<NonNull<VkDisplayKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetDrmDisplayEXT(physicalDevice, drmFd, connectorId, display")
 }
@@ -2358,7 +2360,7 @@ pub unsafe extern "C" fn vkGetDrmDisplayEXT(
 pub unsafe extern "C" fn vkGetPhysicalDeviceWaylandPresentationSupportKHR(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    display: Option<std::ptr::NonNull<wl_display>>,
+    display: Option<NonNull<wl_display>>,
 ) -> VkBool32 {
     unimplemented!("vkGetPhysicalDeviceWaylandPresentationSupportKHR(physicalDevice, queueFamilyIndex, display")
 }
@@ -2366,7 +2368,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceWaylandPresentationSupportKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkDebugMarkerSetObjectNameEXT(
     device: VkDevice,
-    pNameInfo: Option<std::ptr::NonNull<VkDebugMarkerObjectNameInfoEXT>>,
+    pNameInfo: Option<NonNull<VkDebugMarkerObjectNameInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkDebugMarkerSetObjectNameEXT(device, pNameInfo")
 }
@@ -2374,7 +2376,7 @@ pub unsafe extern "C" fn vkDebugMarkerSetObjectNameEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkAcquireXlibDisplayEXT(
     physicalDevice: VkPhysicalDevice,
-    dpy: Option<std::ptr::NonNull<Display>>,
+    dpy: Option<NonNull<Display>>,
     display: VkDisplayKHR,
 ) -> VkResult {
     unimplemented!("vkAcquireXlibDisplayEXT(physicalDevice, dpy, display")
@@ -2388,7 +2390,7 @@ pub unsafe extern "C" fn vkCmdCopyImage(
     dstImage: VkImage,
     dstImageLayout: VkImageLayout,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkImageCopy>>,
+    pRegions: Option<NonNull<VkImageCopy>>,
 ) {
     unimplemented!(
         "vkCmdCopyImage(
@@ -2407,7 +2409,7 @@ pub unsafe extern "C" fn vkCmdCopyImage(
 pub unsafe extern "C" fn vkBindImageMemory2(
     device: VkDevice,
     bindInfoCount: u32,
-    pBindInfos: Option<std::ptr::NonNull<VkBindImageMemoryInfo>>,
+    pBindInfos: Option<NonNull<VkBindImageMemoryInfo>>,
 ) -> VkResult {
     unimplemented!("vkBindImageMemory2(device, bindInfoCount, pBindInfos")
 }
@@ -2416,7 +2418,7 @@ pub unsafe extern "C" fn vkBindImageMemory2(
 pub unsafe extern "C" fn vkDisplayPowerControlEXT(
     device: VkDevice,
     display: VkDisplayKHR,
-    pDisplayPowerInfo: Option<std::ptr::NonNull<VkDisplayPowerInfoEXT>>,
+    pDisplayPowerInfo: Option<NonNull<VkDisplayPowerInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkDisplayPowerControlEXT(device, display, pDisplayPowerInfo")
 }
@@ -2425,8 +2427,8 @@ pub unsafe extern "C" fn vkDisplayPowerControlEXT(
 pub unsafe extern "C" fn vkGetPastPresentationTimingGOOGLE(
     device: VkDevice,
     swapchain: VkSwapchainKHR,
-    pPresentationTimingCount: Option<std::ptr::NonNull<u32>>,
-    pPresentationTimings: Option<std::ptr::NonNull<VkPastPresentationTimingGOOGLE>>,
+    pPresentationTimingCount: Option<NonNull<u32>>,
+    pPresentationTimings: Option<NonNull<VkPastPresentationTimingGOOGLE>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPastPresentationTimingGOOGLE(
@@ -2441,8 +2443,8 @@ pub unsafe extern "C" fn vkGetPastPresentationTimingGOOGLE(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDynamicRenderingTilePropertiesQCOM(
     device: VkDevice,
-    pRenderingInfo: Option<std::ptr::NonNull<VkRenderingInfo>>,
-    pProperties: Option<std::ptr::NonNull<VkTilePropertiesQCOM>>,
+    pRenderingInfo: Option<NonNull<VkRenderingInfo>>,
+    pProperties: Option<NonNull<VkTilePropertiesQCOM>>,
 ) -> VkResult {
     unimplemented!("vkGetDynamicRenderingTilePropertiesQCOM(device, pRenderingInfo, pProperties")
 }
@@ -2452,9 +2454,9 @@ pub unsafe extern "C" fn vkCreateRayTracingPipelinesNV(
     device: VkDevice,
     pipelineCache: VkPipelineCache,
     createInfoCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkRayTracingPipelineCreateInfoNV>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelines: Option<std::ptr::NonNull<VkPipeline>>,
+    pCreateInfos: Option<NonNull<VkRayTracingPipelineCreateInfoNV>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelines: Option<NonNull<VkPipeline>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateRayTracingPipelinesNV(
@@ -2472,7 +2474,7 @@ pub unsafe extern "C" fn vkCreateRayTracingPipelinesNV(
 pub unsafe extern "C" fn vkDestroyBuffer(
     device: VkDevice,
     buffer: VkBuffer,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyBuffer(device, buffer, pAllocator")
 }
@@ -2499,7 +2501,7 @@ pub unsafe extern "C" fn vkReleasePerformanceConfigurationINTEL(
 pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
     device: VkDevice,
     memoryRangeCount: u32,
-    pMemoryRanges: Option<std::ptr::NonNull<VkMappedMemoryRange>>,
+    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
     unimplemented!("vkFlushMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
 }
@@ -2508,7 +2510,7 @@ pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
 pub unsafe extern "C" fn vkDestroyShaderModule(
     device: VkDevice,
     shaderModule: VkShaderModule,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyShaderModule(device, shaderModule, pAllocator")
 }
@@ -2516,8 +2518,8 @@ pub unsafe extern "C" fn vkDestroyShaderModule(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
     physicalDevice: VkPhysicalDevice,
-    pTimeDomainCount: Option<std::ptr::NonNull<u32>>,
-    pTimeDomains: Option<std::ptr::NonNull<VkTimeDomainEXT>>,
+    pTimeDomainCount: Option<NonNull<u32>>,
+    pTimeDomains: Option<NonNull<VkTimeDomainEXT>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
@@ -2553,8 +2555,8 @@ pub unsafe extern "C" fn vkCmdSetStencilOp(
 pub unsafe extern "C" fn vkGetVideoSessionMemoryRequirementsKHR(
     device: VkDevice,
     videoSession: VkVideoSessionKHR,
-    pMemoryRequirementsCount: Option<std::ptr::NonNull<u32>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkVideoSessionMemoryRequirementsKHR>>,
+    pMemoryRequirementsCount: Option<NonNull<u32>>,
+    pMemoryRequirements: Option<NonNull<VkVideoSessionMemoryRequirementsKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetVideoSessionMemoryRequirementsKHR(
@@ -2569,7 +2571,7 @@ pub unsafe extern "C" fn vkGetVideoSessionMemoryRequirementsKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyMicromapToMemoryEXT(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyMicromapToMemoryInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMicromapToMemoryInfoEXT>>,
 ) {
     unimplemented!("vkCmdCopyMicromapToMemoryEXT(commandBuffer, pInfo")
 }
@@ -2577,8 +2579,8 @@ pub unsafe extern "C" fn vkCmdCopyMicromapToMemoryEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlaneProperties2KHR(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayPlaneProperties2KHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayPlaneProperties2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceDisplayPlaneProperties2KHR(physicalDevice, pPropertyCount, pProperties"
@@ -2592,7 +2594,7 @@ pub unsafe extern "C" fn vkMapMemory(
     offset: VkDeviceSize,
     size: VkDeviceSize,
     flags: VkMemoryMapFlags,
-    ppData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    ppData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkMapMemory(device, memory, offset, size, flags, ppData")
 }
@@ -2601,8 +2603,8 @@ pub unsafe extern "C" fn vkMapMemory(
 pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
     device: VkDevice,
     swapchain: VkSwapchainKHR,
-    pSwapchainImageCount: Option<std::ptr::NonNull<u32>>,
-    pSwapchainImages: Option<std::ptr::NonNull<VkImage>>,
+    pSwapchainImageCount: Option<NonNull<u32>>,
+    pSwapchainImages: Option<NonNull<VkImage>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages"
@@ -2612,8 +2614,8 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetSemaphoreWin32HandleKHR(
     device: VkDevice,
-    pGetWin32HandleInfo: Option<std::ptr::NonNull<VkSemaphoreGetWin32HandleInfoKHR>>,
-    pHandle: Option<std::ptr::NonNull<HANDLE>>,
+    pGetWin32HandleInfo: Option<NonNull<VkSemaphoreGetWin32HandleInfoKHR>>,
+    pHandle: Option<NonNull<HANDLE>>,
 ) -> VkResult {
     unimplemented!("vkGetSemaphoreWin32HandleKHR(device, pGetWin32HandleInfo, pHandle")
 }
@@ -2621,7 +2623,7 @@ pub unsafe extern "C" fn vkGetSemaphoreWin32HandleKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportSemaphoreWin32HandleKHR(
     device: VkDevice,
-    pImportSemaphoreWin32HandleInfo: Option<std::ptr::NonNull<VkImportSemaphoreWin32HandleInfoKHR>>,
+    pImportSemaphoreWin32HandleInfo: Option<NonNull<VkImportSemaphoreWin32HandleInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreWin32HandleKHR(device, pImportSemaphoreWin32HandleInfo")
 }
@@ -2629,7 +2631,7 @@ pub unsafe extern "C" fn vkImportSemaphoreWin32HandleKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdEndVideoCodingKHR(
     commandBuffer: VkCommandBuffer,
-    pEndCodingInfo: Option<std::ptr::NonNull<VkVideoEndCodingInfoKHR>>,
+    pEndCodingInfo: Option<NonNull<VkVideoEndCodingInfoKHR>>,
 ) {
     unimplemented!("vkCmdEndVideoCodingKHR(commandBuffer, pEndCodingInfo")
 }
@@ -2638,9 +2640,9 @@ pub unsafe extern "C" fn vkCmdEndVideoCodingKHR(
 pub unsafe extern "C" fn vkCreateShadersEXT(
     device: VkDevice,
     createInfoCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkShaderCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pShaders: Option<std::ptr::NonNull<VkShaderEXT>>,
+    pCreateInfos: Option<NonNull<VkShaderCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pShaders: Option<NonNull<VkShaderEXT>>,
 ) -> VkResult {
     unimplemented!("vkCreateShadersEXT(device, createInfoCount, pCreateInfos, pAllocator, pShaders")
 }
@@ -2648,7 +2650,7 @@ pub unsafe extern "C" fn vkCreateShadersEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceProperties2(
     physicalDevice: VkPhysicalDevice,
-    pProperties: Option<std::ptr::NonNull<VkPhysicalDeviceProperties2>>,
+    pProperties: Option<NonNull<VkPhysicalDeviceProperties2>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceProperties2(physicalDevice, pProperties")
 }
@@ -2656,7 +2658,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkDebugMarkerSetObjectTagEXT(
     device: VkDevice,
-    pTagInfo: Option<std::ptr::NonNull<VkDebugMarkerObjectTagInfoEXT>>,
+    pTagInfo: Option<NonNull<VkDebugMarkerObjectTagInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkDebugMarkerSetObjectTagEXT(device, pTagInfo")
 }
@@ -2672,8 +2674,8 @@ pub unsafe extern "C" fn vkCmdSetCoverageReductionModeNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetSamplerOpaqueCaptureDescriptorDataEXT(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkSamplerCaptureDescriptorDataInfoEXT>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfo: Option<NonNull<VkSamplerCaptureDescriptorDataInfoEXT>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetSamplerOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
 }
@@ -2720,7 +2722,7 @@ pub unsafe extern "C" fn vkCmdTraceRaysNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdEncodeVideoKHR(
     commandBuffer: VkCommandBuffer,
-    pEncodeInfo: Option<std::ptr::NonNull<VkVideoEncodeInfoKHR>>,
+    pEncodeInfo: Option<NonNull<VkVideoEncodeInfoKHR>>,
 ) {
     unimplemented!("vkCmdEncodeVideoKHR(commandBuffer, pEncodeInfo")
 }
@@ -2738,7 +2740,7 @@ pub unsafe extern "C" fn vkGetSwapchainCounterEXT(
     device: VkDevice,
     swapchain: VkSwapchainKHR,
     counter: VkSurfaceCounterFlagBitsEXT,
-    pCounterValue: Option<std::ptr::NonNull<u64>>,
+    pCounterValue: Option<NonNull<u64>>,
 ) -> VkResult {
     unimplemented!("vkGetSwapchainCounterEXT(device, swapchain, counter, pCounterValue")
 }
@@ -2757,8 +2759,8 @@ pub unsafe extern "C" fn vkSetPrivateData(
 #[no_mangle]
 pub unsafe extern "C" fn vkAllocateCommandBuffers(
     device: VkDevice,
-    pAllocateInfo: Option<std::ptr::NonNull<VkCommandBufferAllocateInfo>>,
-    pCommandBuffers: Option<std::ptr::NonNull<VkCommandBuffer>>,
+    pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) -> VkResult {
     unimplemented!("vkAllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers")
 }
@@ -2787,9 +2789,9 @@ pub unsafe extern "C" fn vkCmdDrawIndirect(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements2(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkImageSparseMemoryRequirementsInfo2>>,
-    pSparseMemoryRequirementCount: Option<std::ptr::NonNull<u32>>,
-    pSparseMemoryRequirements: Option<std::ptr::NonNull<VkSparseImageMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkImageSparseMemoryRequirementsInfo2>>,
+    pSparseMemoryRequirementCount: Option<NonNull<u32>>,
+    pSparseMemoryRequirements: Option<NonNull<VkSparseImageMemoryRequirements2>>,
 ) {
     unimplemented!(
         "vkGetImageSparseMemoryRequirements2(
@@ -2805,7 +2807,7 @@ pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements2(
 pub unsafe extern "C" fn vkDestroyDescriptorSetLayout(
     device: VkDevice,
     descriptorSetLayout: VkDescriptorSetLayout,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDescriptorSetLayout(device, descriptorSetLayout, pAllocator")
 }
@@ -2817,9 +2819,9 @@ pub unsafe extern "C" fn vkCmdBindDescriptorSets(
     layout: VkPipelineLayout,
     firstSet: u32,
     descriptorSetCount: u32,
-    pDescriptorSets: Option<std::ptr::NonNull<VkDescriptorSet>>,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
     dynamicOffsetCount: u32,
-    pDynamicOffsets: Option<std::ptr::NonNull<u32>>,
+    pDynamicOffsets: Option<NonNull<u32>>,
 ) {
     unimplemented!(
         "vkCmdBindDescriptorSets(
@@ -2838,9 +2840,9 @@ pub unsafe extern "C" fn vkCmdBindDescriptorSets(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
     physicalDevice: VkPhysicalDevice,
-    pOpticalFlowImageFormatInfo: Option<std::ptr::NonNull<VkOpticalFlowImageFormatInfoNV>>,
-    pFormatCount: Option<std::ptr::NonNull<u32>>,
-    pImageFormatProperties: Option<std::ptr::NonNull<VkOpticalFlowImageFormatPropertiesNV>>,
+    pOpticalFlowImageFormatInfo: Option<NonNull<VkOpticalFlowImageFormatInfoNV>>,
+    pFormatCount: Option<NonNull<u32>>,
+    pImageFormatProperties: Option<NonNull<VkOpticalFlowImageFormatPropertiesNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
@@ -2857,7 +2859,7 @@ pub unsafe extern "C" fn vkCmdSetViewport(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
     viewportCount: u32,
-    pViewports: Option<std::ptr::NonNull<VkViewport>>,
+    pViewports: Option<NonNull<VkViewport>>,
 ) {
     unimplemented!("vkCmdSetViewport(commandBuffer, firstViewport, viewportCount, pViewports")
 }
@@ -2866,7 +2868,7 @@ pub unsafe extern "C" fn vkCmdSetViewport(
 pub unsafe extern "C" fn vkCmdSetSampleMaskEXT(
     commandBuffer: VkCommandBuffer,
     samples: VkSampleCountFlagBits,
-    pSampleMask: Option<std::ptr::NonNull<VkSampleMask>>,
+    pSampleMask: Option<NonNull<VkSampleMask>>,
 ) {
     unimplemented!("vkCmdSetSampleMaskEXT(commandBuffer, samples, pSampleMask")
 }
@@ -2874,8 +2876,8 @@ pub unsafe extern "C" fn vkCmdSetSampleMaskEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkAllocateDescriptorSets(
     device: VkDevice,
-    pAllocateInfo: Option<std::ptr::NonNull<VkDescriptorSetAllocateInfo>>,
-    pDescriptorSets: Option<std::ptr::NonNull<VkDescriptorSet>>,
+    pAllocateInfo: Option<NonNull<VkDescriptorSetAllocateInfo>>,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
 ) -> VkResult {
     unimplemented!("vkAllocateDescriptorSets(device, pAllocateInfo, pDescriptorSets")
 }
@@ -2884,7 +2886,7 @@ pub unsafe extern "C" fn vkAllocateDescriptorSets(
 pub unsafe extern "C" fn vkGetPhysicalDeviceXlibPresentationSupportKHR(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    dpy: Option<std::ptr::NonNull<Display>>,
+    dpy: Option<NonNull<Display>>,
     visualID: VisualID,
 ) -> VkBool32 {
     unimplemented!(
@@ -2900,9 +2902,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceXlibPresentationSupportKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDirectFBSurfaceEXT(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkDirectFBSurfaceCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkDirectFBSurfaceCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateDirectFBSurfaceEXT(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -2919,9 +2921,9 @@ pub unsafe extern "C" fn vkCmdSetStencilWriteMask(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateImagePipeSurfaceFUCHSIA(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkImagePipeSurfaceCreateInfoFUCHSIA>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkImagePipeSurfaceCreateInfoFUCHSIA>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateImagePipeSurfaceFUCHSIA(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -2929,9 +2931,9 @@ pub unsafe extern "C" fn vkCreateImagePipeSurfaceFUCHSIA(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateWaylandSurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkWaylandSurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkWaylandSurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateWaylandSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -2958,9 +2960,9 @@ pub unsafe extern "C" fn vkCmdWriteTimestamp2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateSampler(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkSamplerCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSampler: Option<std::ptr::NonNull<VkSampler>>,
+    pCreateInfo: Option<NonNull<VkSamplerCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSampler: Option<NonNull<VkSampler>>,
 ) -> VkResult {
     unimplemented!("vkCreateSampler(device, pCreateInfo, pAllocator, pSampler")
 }
@@ -2969,8 +2971,8 @@ pub unsafe extern "C" fn vkCreateSampler(
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
-    pPresentModeCount: Option<std::ptr::NonNull<u32>>,
-    pPresentModes: Option<std::ptr::NonNull<VkPresentModeKHR>>,
+    pPresentModeCount: Option<NonNull<u32>>,
+    pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfacePresentModesKHR(
@@ -2987,10 +2989,10 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers2(
     commandBuffer: VkCommandBuffer,
     firstBinding: u32,
     bindingCount: u32,
-    pBuffers: Option<std::ptr::NonNull<VkBuffer>>,
-    pOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
-    pSizes: Option<std::ptr::NonNull<VkDeviceSize>>,
-    pStrides: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pBuffers: Option<NonNull<VkBuffer>>,
+    pOffsets: Option<NonNull<VkDeviceSize>>,
+    pSizes: Option<NonNull<VkDeviceSize>>,
+    pStrides: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdBindVertexBuffers2(
@@ -3007,8 +3009,8 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers2(
 
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateInstanceLayerProperties(
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkLayerProperties>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkLayerProperties>>,
 ) -> VkResult {
     unimplemented!("vkEnumerateInstanceLayerProperties(pPropertyCount, pProperties")
 }
@@ -3017,7 +3019,7 @@ pub unsafe extern "C" fn vkEnumerateInstanceLayerProperties(
 pub unsafe extern "C" fn vkDestroyDeferredOperationKHR(
     device: VkDevice,
     operation: VkDeferredOperationKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDeferredOperationKHR(device, operation, pAllocator")
 }
@@ -3027,7 +3029,7 @@ pub unsafe extern "C" fn vkCmdSetExclusiveScissorEnableNV(
     commandBuffer: VkCommandBuffer,
     firstExclusiveScissor: u32,
     exclusiveScissorCount: u32,
-    pExclusiveScissorEnables: Option<std::ptr::NonNull<VkBool32>>,
+    pExclusiveScissorEnables: Option<NonNull<VkBool32>>,
 ) {
     unimplemented!(
         "vkCmdSetExclusiveScissorEnableNV(
@@ -3043,7 +3045,7 @@ pub unsafe extern "C" fn vkCmdSetExclusiveScissorEnableNV(
 pub unsafe extern "C" fn vkGetDescriptorSetLayoutSizeEXT(
     device: VkDevice,
     layout: VkDescriptorSetLayout,
-    pLayoutSizeInBytes: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pLayoutSizeInBytes: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!("vkGetDescriptorSetLayoutSizeEXT(device, layout, pLayoutSizeInBytes")
 }
@@ -3052,7 +3054,7 @@ pub unsafe extern "C" fn vkGetDescriptorSetLayoutSizeEXT(
 pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties2(
     physicalDevice: VkPhysicalDevice,
     format: VkFormat,
-    pFormatProperties: Option<std::ptr::NonNull<VkFormatProperties2>>,
+    pFormatProperties: Option<NonNull<VkFormatProperties2>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceFormatProperties2(physicalDevice, format, pFormatProperties")
 }
@@ -3060,7 +3062,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdInsertDebugUtilsLabelEXT(
     commandBuffer: VkCommandBuffer,
-    pLabelInfo: Option<std::ptr::NonNull<VkDebugUtilsLabelEXT>>,
+    pLabelInfo: Option<NonNull<VkDebugUtilsLabelEXT>>,
 ) {
     unimplemented!("vkCmdInsertDebugUtilsLabelEXT(commandBuffer, pLabelInfo")
 }
@@ -3070,7 +3072,7 @@ pub unsafe extern "C" fn vkCmdSetViewportSwizzleNV(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
     viewportCount: u32,
-    pViewportSwizzles: Option<std::ptr::NonNull<VkViewportSwizzleNV>>,
+    pViewportSwizzles: Option<NonNull<VkViewportSwizzleNV>>,
 ) {
     unimplemented!(
         "vkCmdSetViewportSwizzleNV(
@@ -3086,7 +3088,7 @@ pub unsafe extern "C" fn vkCmdSetViewportSwizzleNV(
 pub unsafe extern "C" fn vkGetImageMemoryRequirements(
     device: VkDevice,
     image: VkImage,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
 ) {
     unimplemented!("vkGetImageMemoryRequirements(device, image, pMemoryRequirements")
 }
@@ -3096,8 +3098,8 @@ pub unsafe extern "C" fn vkCmdBeginTransformFeedbackEXT(
     commandBuffer: VkCommandBuffer,
     firstCounterBuffer: u32,
     counterBufferCount: u32,
-    pCounterBuffers: Option<std::ptr::NonNull<VkBuffer>>,
-    pCounterBufferOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pCounterBuffers: Option<NonNull<VkBuffer>>,
+    pCounterBufferOffsets: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdBeginTransformFeedbackEXT(
@@ -3123,8 +3125,8 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers(
     commandBuffer: VkCommandBuffer,
     firstBinding: u32,
     bindingCount: u32,
-    pBuffers: Option<std::ptr::NonNull<VkBuffer>>,
-    pOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pBuffers: Option<NonNull<VkBuffer>>,
+    pOffsets: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdBindVertexBuffers(
@@ -3144,7 +3146,7 @@ pub unsafe extern "C" fn vkCmdPushConstants(
     stageFlags: VkShaderStageFlags,
     offset: u32,
     size: u32,
-    pValues: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pValues: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!("vkCmdPushConstants(commandBuffer, layout, stageFlags, offset, size, pValues")
 }
@@ -3157,7 +3159,7 @@ pub unsafe extern "C" fn vkCmdDebugMarkerEndEXT(commandBuffer: VkCommandBuffer) 
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     physicalDevice: VkPhysicalDevice,
-    pMemoryProperties: Option<std::ptr::NonNull<VkPhysicalDeviceMemoryProperties>>,
+    pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties")
 }
@@ -3170,9 +3172,9 @@ pub unsafe extern "C" fn vkCmdSetFrontFace(commandBuffer: VkCommandBuffer, front
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateViSurfaceNN(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkViSurfaceCreateInfoNN>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkViSurfaceCreateInfoNN>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateViSurfaceNN(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -3180,8 +3182,8 @@ pub unsafe extern "C" fn vkCreateViSurfaceNN(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemoryAndroidHardwareBufferANDROID(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkMemoryGetAndroidHardwareBufferInfoANDROID>>,
-    pBuffer: Option<std::ptr::NonNull<AHardwareBuffer>>,
+    pInfo: Option<NonNull<VkMemoryGetAndroidHardwareBufferInfoANDROID>>,
+    pBuffer: Option<NonNull<AHardwareBuffer>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryAndroidHardwareBufferANDROID(device, pInfo, pBuffer")
 }
@@ -3190,7 +3192,7 @@ pub unsafe extern "C" fn vkGetMemoryAndroidHardwareBufferANDROID(
 pub unsafe extern "C" fn vkCmdSetEvent2(
     commandBuffer: VkCommandBuffer,
     event: VkEvent,
-    pDependencyInfo: Option<std::ptr::NonNull<VkDependencyInfo>>,
+    pDependencyInfo: Option<NonNull<VkDependencyInfo>>,
 ) {
     unimplemented!("vkCmdSetEvent2(commandBuffer, event, pDependencyInfo")
 }
@@ -3202,11 +3204,11 @@ pub unsafe extern "C" fn vkCmdPipelineBarrier(
     dstStageMask: VkPipelineStageFlags,
     dependencyFlags: VkDependencyFlags,
     memoryBarrierCount: u32,
-    pMemoryBarriers: Option<std::ptr::NonNull<VkMemoryBarrier>>,
+    pMemoryBarriers: Option<NonNull<VkMemoryBarrier>>,
     bufferMemoryBarrierCount: u32,
-    pBufferMemoryBarriers: Option<std::ptr::NonNull<VkBufferMemoryBarrier>>,
+    pBufferMemoryBarriers: Option<NonNull<VkBufferMemoryBarrier>>,
     imageMemoryBarrierCount: u32,
-    pImageMemoryBarriers: Option<std::ptr::NonNull<VkImageMemoryBarrier>>,
+    pImageMemoryBarriers: Option<NonNull<VkImageMemoryBarrier>>,
 ) {
     unimplemented!(
         "vkCmdPipelineBarrier(
@@ -3228,7 +3230,7 @@ pub unsafe extern "C" fn vkCmdPipelineBarrier(
 pub unsafe extern "C" fn vkCopyAccelerationStructureKHR(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyAccelerationStructureInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyAccelerationStructureInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkCopyAccelerationStructureKHR(device, deferredOperation, pInfo")
 }
@@ -3236,8 +3238,8 @@ pub unsafe extern "C" fn vkCopyAccelerationStructureKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties2(
     physicalDevice: VkPhysicalDevice,
-    pQueueFamilyPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pQueueFamilyProperties: Option<std::ptr::NonNull<VkQueueFamilyProperties2>>,
+    pQueueFamilyPropertyCount: Option<NonNull<u32>>,
+    pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties2>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceQueueFamilyProperties2(
@@ -3251,9 +3253,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateMetalSurfaceEXT(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkMetalSurfaceCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkMetalSurfaceCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateMetalSurfaceEXT(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -3271,7 +3273,7 @@ pub unsafe extern "C" fn vkCmdDrawMeshTasksNV(
 pub unsafe extern "C" fn vkDestroySamplerYcbcrConversion(
     device: VkDevice,
     ycbcrConversion: VkSamplerYcbcrConversion,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySamplerYcbcrConversion(device, ycbcrConversion, pAllocator")
 }
@@ -3280,7 +3282,7 @@ pub unsafe extern "C" fn vkDestroySamplerYcbcrConversion(
 pub unsafe extern "C" fn vkGetPhysicalDeviceScreenPresentationSupportQNX(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    window: Option<std::ptr::NonNull<_screen_window>>,
+    window: Option<NonNull<_screen_window>>,
 ) -> VkBool32 {
     unimplemented!(
         "vkGetPhysicalDeviceScreenPresentationSupportQNX(physicalDevice, queueFamilyIndex, window"
@@ -3325,8 +3327,8 @@ pub unsafe extern "C" fn vkCmdBindInvocationMaskHUAWEI(
 pub unsafe extern "C" fn vkGetShaderBinaryDataEXT(
     device: VkDevice,
     shader: VkShaderEXT,
-    pDataSize: Option<std::ptr::NonNull<isize>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pDataSize: Option<NonNull<isize>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetShaderBinaryDataEXT(device, shader, pDataSize, pData")
 }
@@ -3334,8 +3336,8 @@ pub unsafe extern "C" fn vkGetShaderBinaryDataEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemoryFdKHR(
     device: VkDevice,
-    pGetFdInfo: Option<std::ptr::NonNull<VkMemoryGetFdInfoKHR>>,
-    pFd: Option<std::ptr::NonNull<int>>,
+    pGetFdInfo: Option<NonNull<VkMemoryGetFdInfoKHR>>,
+    pFd: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryFdKHR(device, pGetFdInfo, pFd")
 }
@@ -3343,9 +3345,9 @@ pub unsafe extern "C" fn vkGetMemoryFdKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateCommandPool(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkCommandPoolCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pCommandPool: Option<std::ptr::NonNull<VkCommandPool>>,
+    pCreateInfo: Option<NonNull<VkCommandPoolCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pCommandPool: Option<NonNull<VkCommandPool>>,
 ) -> VkResult {
     unimplemented!("vkCreateCommandPool(device, pCreateInfo, pAllocator, pCommandPool")
 }
@@ -3353,8 +3355,8 @@ pub unsafe extern "C" fn vkCreateCommandPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetSemaphoreZirconHandleFUCHSIA(
     device: VkDevice,
-    pGetZirconHandleInfo: Option<std::ptr::NonNull<VkSemaphoreGetZirconHandleInfoFUCHSIA>>,
-    pZirconHandle: Option<std::ptr::NonNull<zx_handle_t>>,
+    pGetZirconHandleInfo: Option<NonNull<VkSemaphoreGetZirconHandleInfoFUCHSIA>>,
+    pZirconHandle: Option<NonNull<zx_handle_t>>,
 ) -> VkResult {
     unimplemented!("vkGetSemaphoreZirconHandleFUCHSIA(device, pGetZirconHandleInfo, pZirconHandle")
 }
@@ -3363,7 +3365,7 @@ pub unsafe extern "C" fn vkGetSemaphoreZirconHandleFUCHSIA(
 pub unsafe extern "C" fn vkDestroyDebugUtilsMessengerEXT(
     instance: VkInstance,
     messenger: VkDebugUtilsMessengerEXT,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator")
 }
@@ -3371,7 +3373,7 @@ pub unsafe extern "C" fn vkDestroyDebugUtilsMessengerEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetSampleLocationsEXT(
     commandBuffer: VkCommandBuffer,
-    pSampleLocationsInfo: Option<std::ptr::NonNull<VkSampleLocationsInfoEXT>>,
+    pSampleLocationsInfo: Option<NonNull<VkSampleLocationsInfoEXT>>,
 ) {
     unimplemented!("vkCmdSetSampleLocationsEXT(commandBuffer, pSampleLocationsInfo")
 }
@@ -3404,9 +3406,9 @@ pub unsafe extern "C" fn vkCmdCopyQueryPoolResults(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDescriptorEXT(
     device: VkDevice,
-    pDescriptorInfo: Option<std::ptr::NonNull<VkDescriptorGetInfoEXT>>,
+    pDescriptorInfo: Option<NonNull<VkDescriptorGetInfoEXT>>,
     dataSize: isize,
-    pDescriptor: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pDescriptor: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!("vkGetDescriptorEXT(device, pDescriptorInfo, dataSize, pDescriptor")
 }
@@ -3414,7 +3416,7 @@ pub unsafe extern "C" fn vkGetDescriptorEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdDecodeVideoKHR(
     commandBuffer: VkCommandBuffer,
-    pDecodeInfo: Option<std::ptr::NonNull<VkVideoDecodeInfoKHR>>,
+    pDecodeInfo: Option<NonNull<VkVideoDecodeInfoKHR>>,
 ) {
     unimplemented!("vkCmdDecodeVideoKHR(commandBuffer, pDecodeInfo")
 }
@@ -3423,7 +3425,7 @@ pub unsafe extern "C" fn vkCmdDecodeVideoKHR(
 pub unsafe extern "C" fn vkGetDeviceMemoryCommitment(
     device: VkDevice,
     memory: VkDeviceMemory,
-    pCommittedMemoryInBytes: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pCommittedMemoryInBytes: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!("vkGetDeviceMemoryCommitment(device, memory, pCommittedMemoryInBytes")
 }
@@ -3431,9 +3433,9 @@ pub unsafe extern "C" fn vkGetDeviceMemoryCommitment(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateSamplerYcbcrConversion(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkSamplerYcbcrConversionCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pYcbcrConversion: Option<std::ptr::NonNull<VkSamplerYcbcrConversion>>,
+    pCreateInfo: Option<NonNull<VkSamplerYcbcrConversionCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pYcbcrConversion: Option<NonNull<VkSamplerYcbcrConversion>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateSamplerYcbcrConversion(device, pCreateInfo, pAllocator, pYcbcrConversion"
@@ -3452,7 +3454,7 @@ pub unsafe extern "C" fn vkReleaseFullScreenExclusiveModeEXT(
 pub unsafe extern "C" fn vkCmdSetViewportWithCount(
     commandBuffer: VkCommandBuffer,
     viewportCount: u32,
-    pViewports: Option<std::ptr::NonNull<VkViewport>>,
+    pViewports: Option<NonNull<VkViewport>>,
 ) {
     unimplemented!("vkCmdSetViewportWithCount(commandBuffer, viewportCount, pViewports")
 }
@@ -3462,7 +3464,7 @@ pub unsafe extern "C" fn vkGetDisplayPlaneCapabilitiesKHR(
     physicalDevice: VkPhysicalDevice,
     mode: VkDisplayModeKHR,
     planeIndex: u32,
-    pCapabilities: Option<std::ptr::NonNull<VkDisplayPlaneCapabilitiesKHR>>,
+    pCapabilities: Option<NonNull<VkDisplayPlaneCapabilitiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetDisplayPlaneCapabilitiesKHR(physicalDevice, mode, planeIndex, pCapabilities"
@@ -3472,9 +3474,9 @@ pub unsafe extern "C" fn vkGetDisplayPlaneCapabilitiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateValidationCacheEXT(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkValidationCacheCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pValidationCache: Option<std::ptr::NonNull<VkValidationCacheEXT>>,
+    pCreateInfo: Option<NonNull<VkValidationCacheCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pValidationCache: Option<NonNull<VkValidationCacheEXT>>,
 ) -> VkResult {
     unimplemented!("vkCreateValidationCacheEXT(device, pCreateInfo, pAllocator, pValidationCache")
 }
@@ -3485,9 +3487,9 @@ pub unsafe extern "C" fn vkCreateRayTracingPipelinesKHR(
     deferredOperation: VkDeferredOperationKHR,
     pipelineCache: VkPipelineCache,
     createInfoCount: u32,
-    pCreateInfos: Option<std::ptr::NonNull<VkRayTracingPipelineCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pPipelines: Option<std::ptr::NonNull<VkPipeline>>,
+    pCreateInfos: Option<NonNull<VkRayTracingPipelineCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelines: Option<NonNull<VkPipeline>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateRayTracingPipelinesKHR(
@@ -3505,7 +3507,7 @@ pub unsafe extern "C" fn vkCreateRayTracingPipelinesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdPreprocessGeneratedCommandsNV(
     commandBuffer: VkCommandBuffer,
-    pGeneratedCommandsInfo: Option<std::ptr::NonNull<VkGeneratedCommandsInfoNV>>,
+    pGeneratedCommandsInfo: Option<NonNull<VkGeneratedCommandsInfoNV>>,
 ) {
     unimplemented!("vkCmdPreprocessGeneratedCommandsNV(commandBuffer, pGeneratedCommandsInfo")
 }
@@ -3513,9 +3515,9 @@ pub unsafe extern "C" fn vkCmdPreprocessGeneratedCommandsNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateAndroidSurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkAndroidSurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkAndroidSurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateAndroidSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -3552,7 +3554,7 @@ pub unsafe extern "C" fn vkCmdDrawIndexed(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyImageToBuffer2(
     commandBuffer: VkCommandBuffer,
-    pCopyImageToBufferInfo: Option<std::ptr::NonNull<VkCopyImageToBufferInfo2>>,
+    pCopyImageToBufferInfo: Option<NonNull<VkCopyImageToBufferInfo2>>,
 ) {
     unimplemented!("vkCmdCopyImageToBuffer2(commandBuffer, pCopyImageToBufferInfo")
 }
@@ -3569,7 +3571,7 @@ pub unsafe extern "C" fn vkCmdSetLineStippleEnableEXT(
 pub unsafe extern "C" fn vkDestroyImage(
     device: VkDevice,
     image: VkImage,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyImage(device, image, pAllocator")
 }
@@ -3577,9 +3579,9 @@ pub unsafe extern "C" fn vkDestroyImage(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkDescriptorSetLayoutCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSetLayout: Option<std::ptr::NonNull<VkDescriptorSetLayout>>,
+    pCreateInfo: Option<NonNull<VkDescriptorSetLayoutCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSetLayout: Option<NonNull<VkDescriptorSetLayout>>,
 ) -> VkResult {
     unimplemented!("vkCreateDescriptorSetLayout(device, pCreateInfo, pAllocator, pSetLayout")
 }
@@ -3588,7 +3590,7 @@ pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
 pub unsafe extern "C" fn vkDestroyCuModuleNVX(
     device: VkDevice,
     module: VkCuModuleNVX,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyCuModuleNVX(device, module, pAllocator")
 }
@@ -3596,8 +3598,8 @@ pub unsafe extern "C" fn vkDestroyCuModuleNVX(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemoryRemoteAddressNV(
     device: VkDevice,
-    pMemoryGetRemoteAddressInfo: Option<std::ptr::NonNull<VkMemoryGetRemoteAddressInfoNV>>,
-    pAddress: Option<std::ptr::NonNull<VkRemoteAddressNV>>,
+    pMemoryGetRemoteAddressInfo: Option<NonNull<VkMemoryGetRemoteAddressInfoNV>>,
+    pAddress: Option<NonNull<VkRemoteAddressNV>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryRemoteAddressNV(device, pMemoryGetRemoteAddressInfo, pAddress")
 }
@@ -3605,7 +3607,7 @@ pub unsafe extern "C" fn vkGetMemoryRemoteAddressNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetPerformanceMarkerINTEL(
     commandBuffer: VkCommandBuffer,
-    pMarkerInfo: Option<std::ptr::NonNull<VkPerformanceMarkerInfoINTEL>>,
+    pMarkerInfo: Option<NonNull<VkPerformanceMarkerInfoINTEL>>,
 ) -> VkResult {
     unimplemented!("vkCmdSetPerformanceMarkerINTEL(commandBuffer, pMarkerInfo")
 }
@@ -3623,9 +3625,9 @@ pub unsafe extern "C" fn vkCmdDispatchIndirect(
 pub unsafe extern "C" fn vkGetFaultData(
     device: VkDevice,
     faultQueryBehavior: VkFaultQueryBehavior,
-    pUnrecordedFaults: Option<std::ptr::NonNull<VkBool32>>,
-    pFaultCount: Option<std::ptr::NonNull<u32>>,
-    pFaults: Option<std::ptr::NonNull<VkFaultData>>,
+    pUnrecordedFaults: Option<NonNull<VkBool32>>,
+    pFaultCount: Option<NonNull<u32>>,
+    pFaults: Option<NonNull<VkFaultData>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetFaultData(
@@ -3642,7 +3644,7 @@ pub unsafe extern "C" fn vkGetFaultData(
 pub unsafe extern "C" fn vkQueueSubmit2(
     queue: VkQueue,
     submitCount: u32,
-    pSubmits: Option<std::ptr::NonNull<VkSubmitInfo2>>,
+    pSubmits: Option<NonNull<VkSubmitInfo2>>,
     fence: VkFence,
 ) -> VkResult {
     unimplemented!("vkQueueSubmit2(queue, submitCount, pSubmits, fence")
@@ -3651,7 +3653,7 @@ pub unsafe extern "C" fn vkQueueSubmit2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdDebugMarkerInsertEXT(
     commandBuffer: VkCommandBuffer,
-    pMarkerInfo: Option<std::ptr::NonNull<VkDebugMarkerMarkerInfoEXT>>,
+    pMarkerInfo: Option<NonNull<VkDebugMarkerMarkerInfoEXT>>,
 ) {
     unimplemented!("vkCmdDebugMarkerInsertEXT(commandBuffer, pMarkerInfo")
 }
@@ -3661,7 +3663,7 @@ pub unsafe extern "C" fn vkCmdSetViewportShadingRatePaletteNV(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
     viewportCount: u32,
-    pShadingRatePalettes: Option<std::ptr::NonNull<VkShadingRatePaletteNV>>,
+    pShadingRatePalettes: Option<NonNull<VkShadingRatePaletteNV>>,
 ) {
     unimplemented!(
         "vkCmdSetViewportShadingRatePaletteNV(
@@ -3680,7 +3682,7 @@ pub unsafe extern "C" fn vkCmdPushDescriptorSetKHR(
     layout: VkPipelineLayout,
     set: u32,
     descriptorWriteCount: u32,
-    pDescriptorWrites: Option<std::ptr::NonNull<VkWriteDescriptorSet>>,
+    pDescriptorWrites: Option<NonNull<VkWriteDescriptorSet>>,
 ) {
     unimplemented!(
         "vkCmdPushDescriptorSetKHR(
@@ -3704,7 +3706,7 @@ pub unsafe extern "C" fn vkCmdSetColorBlendEquationEXT(
     commandBuffer: VkCommandBuffer,
     firstAttachment: u32,
     attachmentCount: u32,
-    pColorBlendEquations: Option<std::ptr::NonNull<VkColorBlendEquationEXT>>,
+    pColorBlendEquations: Option<NonNull<VkColorBlendEquationEXT>>,
 ) {
     unimplemented!(
         "vkCmdSetColorBlendEquationEXT(
@@ -3727,7 +3729,7 @@ pub unsafe extern "C" fn vkCmdSetRasterizationSamplesEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkBeginCommandBuffer(
     commandBuffer: VkCommandBuffer,
-    pBeginInfo: Option<std::ptr::NonNull<VkCommandBufferBeginInfo>>,
+    pBeginInfo: Option<NonNull<VkCommandBufferBeginInfo>>,
 ) -> VkResult {
     unimplemented!("vkBeginCommandBuffer(commandBuffer, pBeginInfo")
 }
@@ -3737,9 +3739,9 @@ pub unsafe extern "C" fn vkCmdClearDepthStencilImage(
     commandBuffer: VkCommandBuffer,
     image: VkImage,
     imageLayout: VkImageLayout,
-    pDepthStencil: Option<std::ptr::NonNull<VkClearDepthStencilValue>>,
+    pDepthStencil: Option<NonNull<VkClearDepthStencilValue>>,
     rangeCount: u32,
-    pRanges: Option<std::ptr::NonNull<VkImageSubresourceRange>>,
+    pRanges: Option<NonNull<VkImageSubresourceRange>>,
 ) {
     unimplemented!(
         "vkCmdClearDepthStencilImage(
@@ -3764,8 +3766,8 @@ pub unsafe extern "C" fn vkCmdSetShadingRateImageEnableNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetSemaphoreFdKHR(
     device: VkDevice,
-    pGetFdInfo: Option<std::ptr::NonNull<VkSemaphoreGetFdInfoKHR>>,
-    pFd: Option<std::ptr::NonNull<int>>,
+    pGetFdInfo: Option<NonNull<VkSemaphoreGetFdInfoKHR>>,
+    pFd: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!("vkGetSemaphoreFdKHR(device, pGetFdInfo, pFd")
 }
@@ -3774,7 +3776,7 @@ pub unsafe extern "C" fn vkGetSemaphoreFdKHR(
 pub unsafe extern "C" fn vkGetDescriptorSetHostMappingVALVE(
     device: VkDevice,
     descriptorSet: VkDescriptorSet,
-    ppData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    ppData: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!("vkGetDescriptorSetHostMappingVALVE(device, descriptorSet, ppData")
 }
@@ -3783,7 +3785,7 @@ pub unsafe extern "C" fn vkGetDescriptorSetHostMappingVALVE(
 pub unsafe extern "C" fn vkFreeMemory(
     device: VkDevice,
     memory: VkDeviceMemory,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkFreeMemory(device, memory, pAllocator")
 }
@@ -3791,8 +3793,8 @@ pub unsafe extern "C" fn vkFreeMemory(
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumeratePhysicalDeviceGroups(
     instance: VkInstance,
-    pPhysicalDeviceGroupCount: Option<std::ptr::NonNull<u32>>,
-    pPhysicalDeviceGroupProperties: Option<std::ptr::NonNull<VkPhysicalDeviceGroupProperties>>,
+    pPhysicalDeviceGroupCount: Option<NonNull<u32>>,
+    pPhysicalDeviceGroupProperties: Option<NonNull<VkPhysicalDeviceGroupProperties>>,
 ) -> VkResult {
     unimplemented!(
         "vkEnumeratePhysicalDeviceGroups(
@@ -3806,8 +3808,8 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDeviceGroups(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceQueue2(
     device: VkDevice,
-    pQueueInfo: Option<std::ptr::NonNull<VkDeviceQueueInfo2>>,
-    pQueue: Option<std::ptr::NonNull<VkQueue>>,
+    pQueueInfo: Option<NonNull<VkDeviceQueueInfo2>>,
+    pQueue: Option<NonNull<VkQueue>>,
 ) {
     unimplemented!("vkGetDeviceQueue2(device, pQueueInfo, pQueue")
 }
@@ -3815,9 +3817,9 @@ pub unsafe extern "C" fn vkGetDeviceQueue2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateRenderPass2(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkRenderPassCreateInfo2>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pRenderPass: Option<std::ptr::NonNull<VkRenderPass>>,
+    pCreateInfo: Option<NonNull<VkRenderPassCreateInfo2>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pRenderPass: Option<NonNull<VkRenderPass>>,
 ) -> VkResult {
     unimplemented!("vkCreateRenderPass2(device, pCreateInfo, pAllocator, pRenderPass")
 }
@@ -3836,7 +3838,7 @@ pub unsafe extern "C" fn vkCmdDispatch(
 pub unsafe extern "C" fn vkDestroyAccelerationStructureNV(
     device: VkDevice,
     accelerationStructure: VkAccelerationStructureNV,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyAccelerationStructureNV(device, accelerationStructure, pAllocator")
 }
@@ -3844,8 +3846,8 @@ pub unsafe extern "C" fn vkDestroyAccelerationStructureNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(
     physicalDevice: VkPhysicalDevice,
-    pCombinationCount: Option<std::ptr::NonNull<u32>>,
-    pCombinations: Option<std::ptr::NonNull<VkFramebufferMixedSamplesCombinationNV>>,
+    pCombinationCount: Option<NonNull<u32>>,
+    pCombinations: Option<NonNull<VkFramebufferMixedSamplesCombinationNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(
@@ -3868,7 +3870,7 @@ pub unsafe extern "C" fn vkCmdSetPrimitiveTopology(
 pub unsafe extern "C" fn vkCmdWriteAccelerationStructuresPropertiesKHR(
     commandBuffer: VkCommandBuffer,
     accelerationStructureCount: u32,
-    pAccelerationStructures: Option<std::ptr::NonNull<VkAccelerationStructureKHR>>,
+    pAccelerationStructures: Option<NonNull<VkAccelerationStructureKHR>>,
     queryType: VkQueryType,
     queryPool: VkQueryPool,
     firstQuery: u32,
@@ -3889,7 +3891,7 @@ pub unsafe extern "C" fn vkCmdWriteAccelerationStructuresPropertiesKHR(
 pub unsafe extern "C" fn vkDestroyImageView(
     device: VkDevice,
     imageView: VkImageView,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyImageView(device, imageView, pAllocator")
 }
@@ -3898,7 +3900,7 @@ pub unsafe extern "C" fn vkDestroyImageView(
 pub unsafe extern "C" fn vkImportSemaphoreZirconHandleFUCHSIA(
     device: VkDevice,
     pImportSemaphoreZirconHandleInfo: Option<
-        std::ptr::NonNull<VkImportSemaphoreZirconHandleInfoFUCHSIA>,
+        NonNull<VkImportSemaphoreZirconHandleInfoFUCHSIA>,
     >,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreZirconHandleFUCHSIA(device, pImportSemaphoreZirconHandleInfo")
@@ -3911,7 +3913,7 @@ pub unsafe extern "C" fn vkCmdCopyImageToBuffer(
     srcImageLayout: VkImageLayout,
     dstBuffer: VkBuffer,
     regionCount: u32,
-    pRegions: Option<std::ptr::NonNull<VkBufferImageCopy>>,
+    pRegions: Option<NonNull<VkBufferImageCopy>>,
 ) {
     unimplemented!(
         "vkCmdCopyImageToBuffer(
@@ -3948,8 +3950,8 @@ pub unsafe extern "C" fn vkResetDescriptorPool(
 pub unsafe extern "C" fn vkGetPipelineCacheData(
     device: VkDevice,
     pipelineCache: VkPipelineCache,
-    pDataSize: Option<std::ptr::NonNull<isize>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pDataSize: Option<NonNull<isize>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetPipelineCacheData(device, pipelineCache, pDataSize, pData")
 }
@@ -3959,7 +3961,7 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     device: VkDevice,
     queueFamilyIndex: u32,
     queueIndex: u32,
-    pQueue: Option<std::ptr::NonNull<VkQueue>>,
+    pQueue: Option<NonNull<VkQueue>>,
 ) {
     unimplemented!("vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue")
 }
@@ -3967,8 +3969,8 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetFenceSciSyncFenceNV(
     device: VkDevice,
-    pGetSciSyncHandleInfo: Option<std::ptr::NonNull<VkFenceGetSciSyncInfoNV>>,
-    pHandle: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pGetSciSyncHandleInfo: Option<NonNull<VkFenceGetSciSyncInfoNV>>,
+    pHandle: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetFenceSciSyncFenceNV(device, pGetSciSyncHandleInfo, pHandle")
 }
@@ -3977,9 +3979,9 @@ pub unsafe extern "C" fn vkGetFenceSciSyncFenceNV(
 pub unsafe extern "C" fn vkCmdSetVertexInputEXT(
     commandBuffer: VkCommandBuffer,
     vertexBindingDescriptionCount: u32,
-    pVertexBindingDescriptions: Option<std::ptr::NonNull<VkVertexInputBindingDescription2EXT>>,
+    pVertexBindingDescriptions: Option<NonNull<VkVertexInputBindingDescription2EXT>>,
     vertexAttributeDescriptionCount: u32,
-    pVertexAttributeDescriptions: Option<std::ptr::NonNull<VkVertexInputAttributeDescription2EXT>>,
+    pVertexAttributeDescriptions: Option<NonNull<VkVertexInputAttributeDescription2EXT>>,
 ) {
     unimplemented!(
         "vkCmdSetVertexInputEXT(
@@ -3996,7 +3998,7 @@ pub unsafe extern "C" fn vkCmdSetVertexInputEXT(
 pub unsafe extern "C" fn vkGetBufferCollectionPropertiesFUCHSIA(
     device: VkDevice,
     collection: VkBufferCollectionFUCHSIA,
-    pProperties: Option<std::ptr::NonNull<VkBufferCollectionPropertiesFUCHSIA>>,
+    pProperties: Option<NonNull<VkBufferCollectionPropertiesFUCHSIA>>,
 ) -> VkResult {
     unimplemented!("vkGetBufferCollectionPropertiesFUCHSIA(device, collection, pProperties")
 }
@@ -4006,7 +4008,7 @@ pub unsafe extern "C" fn vkCmdSetCoarseSampleOrderNV(
     commandBuffer: VkCommandBuffer,
     sampleOrderType: VkCoarseSampleOrderTypeNV,
     customSampleOrderCount: u32,
-    pCustomSampleOrders: Option<std::ptr::NonNull<VkCoarseSampleOrderCustomNV>>,
+    pCustomSampleOrders: Option<NonNull<VkCoarseSampleOrderCustomNV>>,
 ) {
     unimplemented!(
         "vkCmdSetCoarseSampleOrderNV(
@@ -4041,8 +4043,8 @@ pub unsafe extern "C" fn vkCmdSetBlendConstants(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties2(
     physicalDevice: VkPhysicalDevice,
-    pImageFormatInfo: Option<std::ptr::NonNull<VkPhysicalDeviceImageFormatInfo2>>,
-    pImageFormatProperties: Option<std::ptr::NonNull<VkImageFormatProperties2>>,
+    pImageFormatInfo: Option<NonNull<VkPhysicalDeviceImageFormatInfo2>>,
+    pImageFormatProperties: Option<NonNull<VkImageFormatProperties2>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceImageFormatProperties2(
@@ -4056,9 +4058,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties2(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateEvent(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkEventCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pEvent: Option<std::ptr::NonNull<VkEvent>>,
+    pCreateInfo: Option<NonNull<VkEventCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pEvent: Option<NonNull<VkEvent>>,
 ) -> VkResult {
     unimplemented!("vkCreateEvent(device, pCreateInfo, pAllocator, pEvent")
 }
@@ -4066,7 +4068,7 @@ pub unsafe extern "C" fn vkCreateEvent(
 #[no_mangle]
 pub unsafe extern "C" fn vkDestroyDevice(
     device: VkDevice,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDevice(device, pAllocator")
 }
@@ -4075,7 +4077,7 @@ pub unsafe extern "C" fn vkDestroyDevice(
 pub unsafe extern "C" fn vkBindBufferMemory2(
     device: VkDevice,
     bindInfoCount: u32,
-    pBindInfos: Option<std::ptr::NonNull<VkBindBufferMemoryInfo>>,
+    pBindInfos: Option<NonNull<VkBindBufferMemoryInfo>>,
 ) -> VkResult {
     unimplemented!("vkBindBufferMemory2(device, bindInfoCount, pBindInfos")
 }
@@ -4085,7 +4087,7 @@ pub unsafe extern "C" fn vkGetAccelerationStructureHandleNV(
     device: VkDevice,
     accelerationStructure: VkAccelerationStructureNV,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetAccelerationStructureHandleNV(device, accelerationStructure, dataSize, pData"
@@ -4096,7 +4098,7 @@ pub unsafe extern "C" fn vkGetAccelerationStructureHandleNV(
 pub unsafe extern "C" fn vkWaitForFences(
     device: VkDevice,
     fenceCount: u32,
-    pFences: Option<std::ptr::NonNull<VkFence>>,
+    pFences: Option<NonNull<VkFence>>,
     waitAll: VkBool32,
     timeout: u64,
 ) -> VkResult {
@@ -4112,7 +4114,7 @@ pub unsafe extern "C" fn vkCmdEndConditionalRenderingEXT(commandBuffer: VkComman
 pub unsafe extern "C" fn vkGetPhysicalDeviceMultisamplePropertiesEXT(
     physicalDevice: VkPhysicalDevice,
     samples: VkSampleCountFlagBits,
-    pMultisampleProperties: Option<std::ptr::NonNull<VkMultisamplePropertiesEXT>>,
+    pMultisampleProperties: Option<NonNull<VkMultisamplePropertiesEXT>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceMultisamplePropertiesEXT(physicalDevice, samples, pMultisampleProperties")
 }
@@ -4121,8 +4123,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMultisamplePropertiesEXT(
 pub unsafe extern "C" fn vkGetImageSubresourceLayout2EXT(
     device: VkDevice,
     image: VkImage,
-    pSubresource: Option<std::ptr::NonNull<VkImageSubresource2EXT>>,
-    pLayout: Option<std::ptr::NonNull<VkSubresourceLayout2EXT>>,
+    pSubresource: Option<NonNull<VkImageSubresource2EXT>>,
+    pLayout: Option<NonNull<VkSubresourceLayout2EXT>>,
 ) {
     unimplemented!("vkGetImageSubresourceLayout2EXT(device, image, pSubresource, pLayout")
 }
@@ -4131,7 +4133,7 @@ pub unsafe extern "C" fn vkGetImageSubresourceLayout2EXT(
 pub unsafe extern "C" fn vkDestroyCommandPool(
     device: VkDevice,
     commandPool: VkCommandPool,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyCommandPool(device, commandPool, pAllocator")
 }
@@ -4139,9 +4141,9 @@ pub unsafe extern "C" fn vkDestroyCommandPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDisplayPlaneSurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkDisplaySurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkDisplaySurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateDisplayPlaneSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -4159,7 +4161,7 @@ pub unsafe extern "C" fn vkCmdCopyMemoryIndirectNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     physicalDevice: VkPhysicalDevice,
-    pProperties: Option<std::ptr::NonNull<VkPhysicalDeviceProperties>>,
+    pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceProperties(physicalDevice, pProperties")
 }
@@ -4167,9 +4169,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPipelineExecutableStatisticsKHR(
     device: VkDevice,
-    pExecutableInfo: Option<std::ptr::NonNull<VkPipelineExecutableInfoKHR>>,
-    pStatisticCount: Option<std::ptr::NonNull<u32>>,
-    pStatistics: Option<std::ptr::NonNull<VkPipelineExecutableStatisticKHR>>,
+    pExecutableInfo: Option<NonNull<VkPipelineExecutableInfoKHR>>,
+    pStatisticCount: Option<NonNull<u32>>,
+    pStatistics: Option<NonNull<VkPipelineExecutableStatisticKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetPipelineExecutableStatisticsKHR(device, pExecutableInfo, pStatisticCount, pStatistics")
 }
@@ -4177,7 +4179,7 @@ pub unsafe extern "C" fn vkGetPipelineExecutableStatisticsKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetFragmentShadingRateKHR(
     commandBuffer: VkCommandBuffer,
-    pFragmentSize: Option<std::ptr::NonNull<VkExtent2D>>,
+    pFragmentSize: Option<NonNull<VkExtent2D>>,
     combinerOps: *const VkFragmentShadingRateCombinerOpKHR,
 ) {
     let _ = unsafe { std::slice::from_raw_parts(combinerOps, 2) };
@@ -4187,8 +4189,8 @@ pub unsafe extern "C" fn vkCmdSetFragmentShadingRateKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayProperties2KHR(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayProperties2KHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayProperties2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceDisplayProperties2KHR(physicalDevice, pPropertyCount, pProperties"
@@ -4199,8 +4201,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayProperties2KHR(
 pub unsafe extern "C" fn vkGetImageSubresourceLayout(
     device: VkDevice,
     image: VkImage,
-    pSubresource: Option<std::ptr::NonNull<VkImageSubresource>>,
-    pLayout: Option<std::ptr::NonNull<VkSubresourceLayout>>,
+    pSubresource: Option<NonNull<VkImageSubresource>>,
+    pLayout: Option<NonNull<VkSubresourceLayout>>,
 ) {
     unimplemented!("vkGetImageSubresourceLayout(device, image, pSubresource, pLayout")
 }
@@ -4208,7 +4210,7 @@ pub unsafe extern "C" fn vkGetImageSubresourceLayout(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportFenceSciSyncFenceNV(
     device: VkDevice,
-    pImportFenceSciSyncInfo: Option<std::ptr::NonNull<VkImportFenceSciSyncInfoNV>>,
+    pImportFenceSciSyncInfo: Option<NonNull<VkImportFenceSciSyncInfoNV>>,
 ) -> VkResult {
     unimplemented!("vkImportFenceSciSyncFenceNV(device, pImportFenceSciSyncInfo")
 }
@@ -4224,8 +4226,8 @@ pub unsafe extern "C" fn vkCmdSetDepthTestEnable(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceVideoCapabilitiesKHR(
     physicalDevice: VkPhysicalDevice,
-    pVideoProfile: Option<std::ptr::NonNull<VkVideoProfileInfoKHR>>,
-    pCapabilities: Option<std::ptr::NonNull<VkVideoCapabilitiesKHR>>,
+    pVideoProfile: Option<NonNull<VkVideoProfileInfoKHR>>,
+    pCapabilities: Option<NonNull<VkVideoCapabilitiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice, pVideoProfile, pCapabilities"
@@ -4254,9 +4256,9 @@ pub unsafe extern "C" fn vkCmdDraw(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateImageView(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkImageViewCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pView: Option<std::ptr::NonNull<VkImageView>>,
+    pCreateInfo: Option<NonNull<VkImageViewCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pView: Option<NonNull<VkImageView>>,
 ) -> VkResult {
     unimplemented!("vkCreateImageView(device, pCreateInfo, pAllocator, pView")
 }
@@ -4264,7 +4266,7 @@ pub unsafe extern "C" fn vkCreateImageView(
 #[no_mangle]
 pub unsafe extern "C" fn vkDestroyInstance(
     instance: VkInstance,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyInstance(instance, pAllocator")
 }
@@ -4273,7 +4275,7 @@ pub unsafe extern "C" fn vkDestroyInstance(
 pub unsafe extern "C" fn vkDestroyFence(
     device: VkDevice,
     fence: VkFence,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyFence(device, fence, pAllocator")
 }
@@ -4281,7 +4283,7 @@ pub unsafe extern "C" fn vkDestroyFence(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdSetPerformanceStreamMarkerINTEL(
     commandBuffer: VkCommandBuffer,
-    pMarkerInfo: Option<std::ptr::NonNull<VkPerformanceStreamMarkerInfoINTEL>>,
+    pMarkerInfo: Option<NonNull<VkPerformanceStreamMarkerInfoINTEL>>,
 ) -> VkResult {
     unimplemented!("vkCmdSetPerformanceStreamMarkerINTEL(commandBuffer, pMarkerInfo")
 }
@@ -4306,8 +4308,8 @@ pub unsafe extern "C" fn vkCompileDeferredNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetImageMemoryRequirements2(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkImageMemoryRequirementsInfo2>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkImageMemoryRequirementsInfo2>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2>>,
 ) {
     unimplemented!("vkGetImageMemoryRequirements2(device, pInfo, pMemoryRequirements")
 }
@@ -4333,8 +4335,8 @@ pub unsafe extern "C" fn vkCmdSetPatchControlPointsEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceGroupSurfacePresentModes2EXT(
     device: VkDevice,
-    pSurfaceInfo: Option<std::ptr::NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
-    pModes: Option<std::ptr::NonNull<VkDeviceGroupPresentModeFlagsKHR>>,
+    pSurfaceInfo: Option<NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
+    pModes: Option<NonNull<VkDeviceGroupPresentModeFlagsKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetDeviceGroupSurfacePresentModes2EXT(device, pSurfaceInfo, pModes")
 }
@@ -4350,8 +4352,8 @@ pub unsafe extern "C" fn vkCmdSetSampleLocationsEnableEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetAndroidHardwareBufferPropertiesANDROID(
     device: VkDevice,
-    buffer: Option<std::ptr::NonNull<AHardwareBuffer>>,
-    pProperties: Option<std::ptr::NonNull<VkAndroidHardwareBufferPropertiesANDROID>>,
+    buffer: Option<NonNull<AHardwareBuffer>>,
+    pProperties: Option<NonNull<VkAndroidHardwareBufferPropertiesANDROID>>,
 ) -> VkResult {
     unimplemented!("vkGetAndroidHardwareBufferPropertiesANDROID(device, buffer, pProperties")
 }
@@ -4360,7 +4362,7 @@ pub unsafe extern "C" fn vkGetAndroidHardwareBufferPropertiesANDROID(
 pub unsafe extern "C" fn vkDestroyBufferCollectionFUCHSIA(
     device: VkDevice,
     collection: VkBufferCollectionFUCHSIA,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyBufferCollectionFUCHSIA(device, collection, pAllocator")
 }
@@ -4369,11 +4371,11 @@ pub unsafe extern "C" fn vkDestroyBufferCollectionFUCHSIA(
 pub unsafe extern "C" fn vkCmdDrawMultiIndexedEXT(
     commandBuffer: VkCommandBuffer,
     drawCount: u32,
-    pIndexInfo: Option<std::ptr::NonNull<VkMultiDrawIndexedInfoEXT>>,
+    pIndexInfo: Option<NonNull<VkMultiDrawIndexedInfoEXT>>,
     instanceCount: u32,
     firstInstance: u32,
     stride: u32,
-    pVertexOffset: Option<std::ptr::NonNull<i32>>,
+    pVertexOffset: Option<NonNull<i32>>,
 ) {
     unimplemented!(
         "vkCmdDrawMultiIndexedEXT(
@@ -4392,7 +4394,7 @@ pub unsafe extern "C" fn vkCmdDrawMultiIndexedEXT(
 pub unsafe extern "C" fn vkCmdSetColorWriteEnableEXT(
     commandBuffer: VkCommandBuffer,
     attachmentCount: u32,
-    pColorWriteEnables: Option<std::ptr::NonNull<VkBool32>>,
+    pColorWriteEnables: Option<NonNull<VkBool32>>,
 ) {
     unimplemented!("vkCmdSetColorWriteEnableEXT(commandBuffer, attachmentCount, pColorWriteEnables")
 }
@@ -4400,8 +4402,8 @@ pub unsafe extern "C" fn vkCmdSetColorWriteEnableEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetGeneratedCommandsMemoryRequirementsNV(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkGeneratedCommandsMemoryRequirementsInfoNV>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkGeneratedCommandsMemoryRequirementsInfoNV>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2>>,
 ) {
     unimplemented!("vkGetGeneratedCommandsMemoryRequirementsNV(device, pInfo, pMemoryRequirements")
 }
@@ -4409,8 +4411,8 @@ pub unsafe extern "C" fn vkGetGeneratedCommandsMemoryRequirementsNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceRefreshableObjectTypesKHR(
     physicalDevice: VkPhysicalDevice,
-    pRefreshableObjectTypeCount: Option<std::ptr::NonNull<u32>>,
-    pRefreshableObjectTypes: Option<std::ptr::NonNull<VkObjectType>>,
+    pRefreshableObjectTypeCount: Option<NonNull<u32>>,
+    pRefreshableObjectTypes: Option<NonNull<VkObjectType>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceRefreshableObjectTypesKHR(
@@ -4443,7 +4445,7 @@ pub unsafe extern "C" fn vkGetDeferredOperationResultKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkQueueInsertDebugUtilsLabelEXT(
     queue: VkQueue,
-    pLabelInfo: Option<std::ptr::NonNull<VkDebugUtilsLabelEXT>>,
+    pLabelInfo: Option<NonNull<VkDebugUtilsLabelEXT>>,
 ) {
     unimplemented!("vkQueueInsertDebugUtilsLabelEXT(queue, pLabelInfo")
 }
@@ -4451,8 +4453,8 @@ pub unsafe extern "C" fn vkQueueInsertDebugUtilsLabelEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetBufferOpaqueCaptureDescriptorDataEXT(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkBufferCaptureDescriptorDataInfoEXT>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfo: Option<NonNull<VkBufferCaptureDescriptorDataInfoEXT>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetBufferOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
 }
@@ -4474,7 +4476,7 @@ pub unsafe extern "C" fn vkAcquireNextImageKHR(
     timeout: u64,
     semaphore: VkSemaphore,
     fence: VkFence,
-    pImageIndex: Option<std::ptr::NonNull<u32>>,
+    pImageIndex: Option<NonNull<u32>>,
 ) -> VkResult {
     unimplemented!(
         "vkAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex"
@@ -4485,7 +4487,7 @@ pub unsafe extern "C" fn vkAcquireNextImageKHR(
 pub unsafe extern "C" fn vkGetPerformanceParameterINTEL(
     device: VkDevice,
     parameter: VkPerformanceParameterTypeINTEL,
-    pValue: Option<std::ptr::NonNull<VkPerformanceValueINTEL>>,
+    pValue: Option<NonNull<VkPerformanceValueINTEL>>,
 ) -> VkResult {
     unimplemented!("vkGetPerformanceParameterINTEL(device, parameter, pValue")
 }
@@ -4496,8 +4498,8 @@ pub unsafe extern "C" fn vkGetShaderInfoAMD(
     pipeline: VkPipeline,
     shaderStage: VkShaderStageFlagBits,
     infoType: VkShaderInfoTypeAMD,
-    pInfoSize: Option<std::ptr::NonNull<isize>>,
-    pInfo: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfoSize: Option<NonNull<isize>>,
+    pInfo: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetShaderInfoAMD(device, pipeline, shaderStage, infoType, pInfoSize, pInfo")
 }
@@ -4506,10 +4508,10 @@ pub unsafe extern "C" fn vkGetShaderInfoAMD(
 pub unsafe extern "C" fn vkWriteAccelerationStructuresPropertiesKHR(
     device: VkDevice,
     accelerationStructureCount: u32,
-    pAccelerationStructures: Option<std::ptr::NonNull<VkAccelerationStructureKHR>>,
+    pAccelerationStructures: Option<NonNull<VkAccelerationStructureKHR>>,
     queryType: VkQueryType,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
     stride: isize,
 ) -> VkResult {
     unimplemented!(
@@ -4528,8 +4530,8 @@ pub unsafe extern "C" fn vkWriteAccelerationStructuresPropertiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkAcquireNextImage2KHR(
     device: VkDevice,
-    pAcquireInfo: Option<std::ptr::NonNull<VkAcquireNextImageInfoKHR>>,
-    pImageIndex: Option<std::ptr::NonNull<u32>>,
+    pAcquireInfo: Option<NonNull<VkAcquireNextImageInfoKHR>>,
+    pImageIndex: Option<NonNull<u32>>,
 ) -> VkResult {
     unimplemented!("vkAcquireNextImage2KHR(device, pAcquireInfo, pImageIndex")
 }
@@ -4539,7 +4541,7 @@ pub unsafe extern "C" fn vkCmdSetColorBlendAdvancedEXT(
     commandBuffer: VkCommandBuffer,
     firstAttachment: u32,
     attachmentCount: u32,
-    pColorBlendAdvanced: Option<std::ptr::NonNull<VkColorBlendAdvancedEXT>>,
+    pColorBlendAdvanced: Option<NonNull<VkColorBlendAdvancedEXT>>,
 ) {
     unimplemented!(
         "vkCmdSetColorBlendAdvancedEXT(
@@ -4557,8 +4559,8 @@ pub unsafe extern "C" fn vkGetSwapchainGrallocUsage2ANDROID(
     format: VkFormat,
     imageUsage: VkImageUsageFlags,
     swapchainImageUsage: VkSwapchainImageUsageFlagsANDROID,
-    grallocConsumerUsage: Option<std::ptr::NonNull<u64>>,
-    grallocProducerUsage: Option<std::ptr::NonNull<u64>>,
+    grallocConsumerUsage: Option<NonNull<u64>>,
+    grallocProducerUsage: Option<NonNull<u64>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetSwapchainGrallocUsage2ANDROID(
@@ -4580,7 +4582,7 @@ pub unsafe extern "C" fn vkCmdSetLineWidth(commandBuffer: VkCommandBuffer, lineW
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdDebugMarkerBeginEXT(
     commandBuffer: VkCommandBuffer,
-    pMarkerInfo: Option<std::ptr::NonNull<VkDebugMarkerMarkerInfoEXT>>,
+    pMarkerInfo: Option<NonNull<VkDebugMarkerMarkerInfoEXT>>,
 ) {
     unimplemented!("vkCmdDebugMarkerBeginEXT(commandBuffer, pMarkerInfo")
 }
@@ -4588,8 +4590,8 @@ pub unsafe extern "C" fn vkCmdDebugMarkerBeginEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceExternalBufferProperties(
     physicalDevice: VkPhysicalDevice,
-    pExternalBufferInfo: Option<std::ptr::NonNull<VkPhysicalDeviceExternalBufferInfo>>,
-    pExternalBufferProperties: Option<std::ptr::NonNull<VkExternalBufferProperties>>,
+    pExternalBufferInfo: Option<NonNull<VkPhysicalDeviceExternalBufferInfo>>,
+    pExternalBufferProperties: Option<NonNull<VkExternalBufferProperties>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceExternalBufferProperties(
@@ -4605,7 +4607,7 @@ pub unsafe extern "C" fn vkCmdSetExclusiveScissorNV(
     commandBuffer: VkCommandBuffer,
     firstExclusiveScissor: u32,
     exclusiveScissorCount: u32,
-    pExclusiveScissors: Option<std::ptr::NonNull<VkRect2D>>,
+    pExclusiveScissors: Option<NonNull<VkRect2D>>,
 ) {
     unimplemented!(
         "vkCmdSetExclusiveScissorNV(
@@ -4630,7 +4632,7 @@ pub unsafe extern "C" fn vkCmdSetColorBlendEnableEXT(
     commandBuffer: VkCommandBuffer,
     firstAttachment: u32,
     attachmentCount: u32,
-    pColorBlendEnables: Option<std::ptr::NonNull<VkBool32>>,
+    pColorBlendEnables: Option<NonNull<VkBool32>>,
 ) {
     unimplemented!(
         "vkCmdSetColorBlendEnableEXT(
@@ -4647,7 +4649,7 @@ pub unsafe extern "C" fn vkCmdSetScissor(
     commandBuffer: VkCommandBuffer,
     firstScissor: u32,
     scissorCount: u32,
-    pScissors: Option<std::ptr::NonNull<VkRect2D>>,
+    pScissors: Option<NonNull<VkRect2D>>,
 ) {
     unimplemented!("vkCmdSetScissor(commandBuffer, firstScissor, scissorCount, pScissors")
 }
@@ -4656,8 +4658,8 @@ pub unsafe extern "C" fn vkCmdSetScissor(
 pub unsafe extern "C" fn vkGetDisplayModeProperties2KHR(
     physicalDevice: VkPhysicalDevice,
     display: VkDisplayKHR,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayModeProperties2KHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayModeProperties2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetDisplayModeProperties2KHR(physicalDevice, display, pPropertyCount, pProperties"
@@ -4670,7 +4672,7 @@ pub unsafe extern "C" fn vkCmdPushDescriptorSetWithTemplateKHR(
     descriptorUpdateTemplate: VkDescriptorUpdateTemplate,
     layout: VkPipelineLayout,
     set: u32,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!(
         "vkCmdPushDescriptorSetWithTemplateKHR(
@@ -4686,7 +4688,7 @@ pub unsafe extern "C" fn vkCmdPushDescriptorSetWithTemplateKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetAccelerationStructureDeviceAddressKHR(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkAccelerationStructureDeviceAddressInfoKHR>>,
+    pInfo: Option<NonNull<VkAccelerationStructureDeviceAddressInfoKHR>>,
 ) -> VkDeviceAddress {
     unimplemented!("vkGetAccelerationStructureDeviceAddressKHR(device, pInfo")
 }
@@ -4694,7 +4696,7 @@ pub unsafe extern "C" fn vkGetAccelerationStructureDeviceAddressKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     physicalDevice: VkPhysicalDevice,
-    pFeatures: Option<std::ptr::NonNull<VkPhysicalDeviceFeatures>>,
+    pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
 ) {
     unimplemented!("vkGetPhysicalDeviceFeatures(physicalDevice, pFeatures")
 }
@@ -4704,7 +4706,7 @@ pub unsafe extern "C" fn vkCmdSetColorWriteMaskEXT(
     commandBuffer: VkCommandBuffer,
     firstAttachment: u32,
     attachmentCount: u32,
-    pColorWriteMasks: Option<std::ptr::NonNull<VkColorComponentFlags>>,
+    pColorWriteMasks: Option<NonNull<VkColorComponentFlags>>,
 ) {
     unimplemented!(
         "vkCmdSetColorWriteMaskEXT(
@@ -4719,9 +4721,9 @@ pub unsafe extern "C" fn vkCmdSetColorWriteMaskEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateBufferCollectionFUCHSIA(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkBufferCollectionCreateInfoFUCHSIA>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pCollection: Option<std::ptr::NonNull<VkBufferCollectionFUCHSIA>>,
+    pCreateInfo: Option<NonNull<VkBufferCollectionCreateInfoFUCHSIA>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pCollection: Option<NonNull<VkBufferCollectionFUCHSIA>>,
 ) -> VkResult {
     unimplemented!("vkCreateBufferCollectionFUCHSIA(device, pCreateInfo, pAllocator, pCollection")
 }
@@ -4730,7 +4732,7 @@ pub unsafe extern "C" fn vkCreateBufferCollectionFUCHSIA(
 pub unsafe extern "C" fn vkDestroyAccelerationStructureKHR(
     device: VkDevice,
     accelerationStructure: VkAccelerationStructureKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyAccelerationStructureKHR(device, accelerationStructure, pAllocator")
 }
@@ -4738,7 +4740,7 @@ pub unsafe extern "C" fn vkDestroyAccelerationStructureKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginVideoCodingKHR(
     commandBuffer: VkCommandBuffer,
-    pBeginInfo: Option<std::ptr::NonNull<VkVideoBeginCodingInfoKHR>>,
+    pBeginInfo: Option<NonNull<VkVideoBeginCodingInfoKHR>>,
 ) {
     unimplemented!("vkCmdBeginVideoCodingKHR(commandBuffer, pBeginInfo")
 }
@@ -4746,9 +4748,9 @@ pub unsafe extern "C" fn vkCmdBeginVideoCodingKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateAccelerationStructureKHR(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkAccelerationStructureCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pAccelerationStructure: Option<std::ptr::NonNull<VkAccelerationStructureKHR>>,
+    pCreateInfo: Option<NonNull<VkAccelerationStructureCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pAccelerationStructure: Option<NonNull<VkAccelerationStructureKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateAccelerationStructureKHR(device, pCreateInfo, pAllocator, pAccelerationStructure"
@@ -4758,8 +4760,8 @@ pub unsafe extern "C" fn vkCreateAccelerationStructureKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     physicalDevice: VkPhysicalDevice,
-    pQueueFamilyPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pQueueFamilyProperties: Option<std::ptr::NonNull<VkQueueFamilyProperties>>,
+    pQueueFamilyPropertyCount: Option<NonNull<u32>>,
+    pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceQueueFamilyProperties(
@@ -4774,7 +4776,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
 pub unsafe extern "C" fn vkCmdBuildMicromapsEXT(
     commandBuffer: VkCommandBuffer,
     infoCount: u32,
-    pInfos: Option<std::ptr::NonNull<VkMicromapBuildInfoEXT>>,
+    pInfos: Option<NonNull<VkMicromapBuildInfoEXT>>,
 ) {
     unimplemented!("vkCmdBuildMicromapsEXT(commandBuffer, infoCount, pInfos")
 }
@@ -4783,8 +4785,8 @@ pub unsafe extern "C" fn vkCmdBuildMicromapsEXT(
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
-    pSurfaceFormatCount: Option<std::ptr::NonNull<u32>>,
-    pSurfaceFormats: Option<std::ptr::NonNull<VkSurfaceFormatKHR>>,
+    pSurfaceFormatCount: Option<NonNull<u32>>,
+    pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfaceFormatsKHR(
@@ -4799,8 +4801,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetFenceSciSyncObjNV(
     device: VkDevice,
-    pGetSciSyncHandleInfo: Option<std::ptr::NonNull<VkFenceGetSciSyncInfoNV>>,
-    pHandle: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pGetSciSyncHandleInfo: Option<NonNull<VkFenceGetSciSyncInfoNV>>,
+    pHandle: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetFenceSciSyncObjNV(device, pGetSciSyncHandleInfo, pHandle")
 }
@@ -4835,7 +4837,7 @@ pub unsafe extern "C" fn vkUpdateDescriptorSetWithTemplate(
     device: VkDevice,
     descriptorSet: VkDescriptorSet,
     descriptorUpdateTemplate: VkDescriptorUpdateTemplate,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!(
         "vkUpdateDescriptorSetWithTemplate(device, descriptorSet, descriptorUpdateTemplate, pData"
@@ -4846,7 +4848,7 @@ pub unsafe extern "C" fn vkUpdateDescriptorSetWithTemplate(
 pub unsafe extern "C" fn vkGetRenderAreaGranularity(
     device: VkDevice,
     renderPass: VkRenderPass,
-    pGranularity: Option<std::ptr::NonNull<VkExtent2D>>,
+    pGranularity: Option<NonNull<VkExtent2D>>,
 ) {
     unimplemented!("vkGetRenderAreaGranularity(device, renderPass, pGranularity")
 }
@@ -4856,7 +4858,7 @@ pub unsafe extern "C" fn vkCmdSetDiscardRectangleEXT(
     commandBuffer: VkCommandBuffer,
     firstDiscardRectangle: u32,
     discardRectangleCount: u32,
-    pDiscardRectangles: Option<std::ptr::NonNull<VkRect2D>>,
+    pDiscardRectangles: Option<NonNull<VkRect2D>>,
 ) {
     unimplemented!(
         "vkCmdSetDiscardRectangleEXT(
@@ -4894,9 +4896,9 @@ pub unsafe extern "C" fn vkCmdDrawMeshTasksIndirectCountEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModes2EXT(
     physicalDevice: VkPhysicalDevice,
-    pSurfaceInfo: Option<std::ptr::NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
-    pPresentModeCount: Option<std::ptr::NonNull<u32>>,
-    pPresentModes: Option<std::ptr::NonNull<VkPresentModeKHR>>,
+    pSurfaceInfo: Option<NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
+    pPresentModeCount: Option<NonNull<u32>>,
+    pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfacePresentModes2EXT(
@@ -4911,9 +4913,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModes2EXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceImageSparseMemoryRequirements(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkDeviceImageMemoryRequirements>>,
-    pSparseMemoryRequirementCount: Option<std::ptr::NonNull<u32>>,
-    pSparseMemoryRequirements: Option<std::ptr::NonNull<VkSparseImageMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkDeviceImageMemoryRequirements>>,
+    pSparseMemoryRequirementCount: Option<NonNull<u32>>,
+    pSparseMemoryRequirements: Option<NonNull<VkSparseImageMemoryRequirements2>>,
 ) {
     unimplemented!(
         "vkGetDeviceImageSparseMemoryRequirements(
@@ -4929,8 +4931,8 @@ pub unsafe extern "C" fn vkGetDeviceImageSparseMemoryRequirements(
 pub unsafe extern "C" fn vkCmdWaitEvents2(
     commandBuffer: VkCommandBuffer,
     eventCount: u32,
-    pEvents: Option<std::ptr::NonNull<VkEvent>>,
-    pDependencyInfos: Option<std::ptr::NonNull<VkDependencyInfo>>,
+    pEvents: Option<NonNull<VkEvent>>,
+    pDependencyInfos: Option<NonNull<VkDependencyInfo>>,
 ) {
     unimplemented!("vkCmdWaitEvents2(commandBuffer, eventCount, pEvents, pDependencyInfos")
 }
@@ -4939,7 +4941,7 @@ pub unsafe extern "C" fn vkCmdWaitEvents2(
 pub unsafe extern "C" fn vkCmdDrawMultiEXT(
     commandBuffer: VkCommandBuffer,
     drawCount: u32,
-    pVertexInfo: Option<std::ptr::NonNull<VkMultiDrawInfoEXT>>,
+    pVertexInfo: Option<NonNull<VkMultiDrawInfoEXT>>,
     instanceCount: u32,
     firstInstance: u32,
     stride: u32,
@@ -4959,7 +4961,7 @@ pub unsafe extern "C" fn vkCmdDrawMultiEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceMemoryOpaqueCaptureAddress(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkDeviceMemoryOpaqueCaptureAddressInfo>>,
+    pInfo: Option<NonNull<VkDeviceMemoryOpaqueCaptureAddressInfo>>,
 ) -> u64 {
     unimplemented!("vkGetDeviceMemoryOpaqueCaptureAddress(device, pInfo")
 }
@@ -4976,7 +4978,7 @@ pub unsafe extern "C" fn vkCmdSetDepthBiasEnable(
 pub unsafe extern "C" fn vkSetBufferCollectionImageConstraintsFUCHSIA(
     device: VkDevice,
     collection: VkBufferCollectionFUCHSIA,
-    pImageConstraintsInfo: Option<std::ptr::NonNull<VkImageConstraintsInfoFUCHSIA>>,
+    pImageConstraintsInfo: Option<NonNull<VkImageConstraintsInfoFUCHSIA>>,
 ) -> VkResult {
     unimplemented!(
         "vkSetBufferCollectionImageConstraintsFUCHSIA(device, collection, pImageConstraintsInfo"
@@ -4987,7 +4989,7 @@ pub unsafe extern "C" fn vkSetBufferCollectionImageConstraintsFUCHSIA(
 pub unsafe extern "C" fn vkGetImageViewAddressNVX(
     device: VkDevice,
     imageView: VkImageView,
-    pProperties: Option<std::ptr::NonNull<VkImageViewAddressPropertiesNVX>>,
+    pProperties: Option<NonNull<VkImageViewAddressPropertiesNVX>>,
 ) -> VkResult {
     unimplemented!("vkGetImageViewAddressNVX(device, imageView, pProperties")
 }
@@ -5003,9 +5005,9 @@ pub unsafe extern "C" fn vkCmdSetDepthClipEnableEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkXcbSurfaceCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<std::ptr::NonNull<VkSurfaceKHR>>,
+    pCreateInfo: Option<NonNull<VkXcbSurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
@@ -5030,8 +5032,8 @@ pub unsafe extern "C" fn vkCmdSetDepthBounds(
 #[no_mangle]
 pub unsafe extern "C" fn vkMapMemory2KHR(
     device: VkDevice,
-    pMemoryMapInfo: Option<std::ptr::NonNull<VkMemoryMapInfoKHR>>,
-    ppData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pMemoryMapInfo: Option<NonNull<VkMemoryMapInfoKHR>>,
+    ppData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkMapMemory2KHR(device, pMemoryMapInfo, ppData")
 }
@@ -5039,7 +5041,7 @@ pub unsafe extern "C" fn vkMapMemory2KHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdEndRenderPass2(
     commandBuffer: VkCommandBuffer,
-    pSubpassEndInfo: Option<std::ptr::NonNull<VkSubpassEndInfo>>,
+    pSubpassEndInfo: Option<NonNull<VkSubpassEndInfo>>,
 ) {
     unimplemented!("vkCmdEndRenderPass2(commandBuffer, pSubpassEndInfo")
 }
@@ -5048,9 +5050,9 @@ pub unsafe extern "C" fn vkCmdEndRenderPass2(
 pub unsafe extern "C" fn vkCmdClearAttachments(
     commandBuffer: VkCommandBuffer,
     attachmentCount: u32,
-    pAttachments: Option<std::ptr::NonNull<VkClearAttachment>>,
+    pAttachments: Option<NonNull<VkClearAttachment>>,
     rectCount: u32,
-    pRects: Option<std::ptr::NonNull<VkClearRect>>,
+    pRects: Option<NonNull<VkClearRect>>,
 ) {
     unimplemented!(
         "vkCmdClearAttachments(
@@ -5077,7 +5079,7 @@ pub unsafe extern "C" fn vkCmdSetFragmentShadingRateEnumNV(
 pub unsafe extern "C" fn vkCmdWriteMicromapsPropertiesEXT(
     commandBuffer: VkCommandBuffer,
     micromapCount: u32,
-    pMicromaps: Option<std::ptr::NonNull<VkMicromapEXT>>,
+    pMicromaps: Option<NonNull<VkMicromapEXT>>,
     queryType: VkQueryType,
     queryPool: VkQueryPool,
     firstQuery: u32,
@@ -5097,7 +5099,7 @@ pub unsafe extern "C" fn vkCmdWriteMicromapsPropertiesEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSciSyncAttributesNV(
     physicalDevice: VkPhysicalDevice,
-    pSciSyncAttributesInfo: Option<std::ptr::NonNull<VkSciSyncAttributesInfoNV>>,
+    pSciSyncAttributesInfo: Option<NonNull<VkSciSyncAttributesInfoNV>>,
     pAttributes: NvSciSyncAttrList,
 ) -> VkResult {
     unimplemented!("vkGetPhysicalDeviceSciSyncAttributesNV(physicalDevice, pSciSyncAttributesInfo, pAttributes")
@@ -5107,7 +5109,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSciSyncAttributesNV(
 pub unsafe extern "C" fn vkGetShaderModuleIdentifierEXT(
     device: VkDevice,
     shaderModule: VkShaderModule,
-    pIdentifier: Option<std::ptr::NonNull<VkShaderModuleIdentifierEXT>>,
+    pIdentifier: Option<NonNull<VkShaderModuleIdentifierEXT>>,
 ) {
     unimplemented!("vkGetShaderModuleIdentifierEXT(device, shaderModule, pIdentifier")
 }
@@ -5116,8 +5118,8 @@ pub unsafe extern "C" fn vkGetShaderModuleIdentifierEXT(
 pub unsafe extern "C" fn vkCmdBindShadersEXT(
     commandBuffer: VkCommandBuffer,
     stageCount: u32,
-    pStages: Option<std::ptr::NonNull<VkShaderStageFlagBits>>,
-    pShaders: Option<std::ptr::NonNull<VkShaderEXT>>,
+    pStages: Option<NonNull<VkShaderStageFlagBits>>,
+    pShaders: Option<NonNull<VkShaderEXT>>,
 ) {
     unimplemented!("vkCmdBindShadersEXT(commandBuffer, stageCount, pStages, pShaders")
 }
@@ -5125,8 +5127,8 @@ pub unsafe extern "C" fn vkCmdBindShadersEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDeferredOperationKHR(
     device: VkDevice,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pDeferredOperation: Option<std::ptr::NonNull<VkDeferredOperationKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pDeferredOperation: Option<NonNull<VkDeferredOperationKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateDeferredOperationKHR(device, pAllocator, pDeferredOperation")
 }
@@ -5134,8 +5136,8 @@ pub unsafe extern "C" fn vkCreateDeferredOperationKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdNextSubpass2(
     commandBuffer: VkCommandBuffer,
-    pSubpassBeginInfo: Option<std::ptr::NonNull<VkSubpassBeginInfo>>,
-    pSubpassEndInfo: Option<std::ptr::NonNull<VkSubpassEndInfo>>,
+    pSubpassBeginInfo: Option<NonNull<VkSubpassBeginInfo>>,
+    pSubpassEndInfo: Option<NonNull<VkSubpassEndInfo>>,
 ) {
     unimplemented!("vkCmdNextSubpass2(commandBuffer, pSubpassBeginInfo, pSubpassEndInfo")
 }
@@ -5152,9 +5154,9 @@ pub unsafe extern "C" fn vkDeferredOperationJoinKHR(
 pub unsafe extern "C" fn vkGetCalibratedTimestampsEXT(
     device: VkDevice,
     timestampCount: u32,
-    pTimestampInfos: Option<std::ptr::NonNull<VkCalibratedTimestampInfoEXT>>,
-    pTimestamps: Option<std::ptr::NonNull<u64>>,
-    pMaxDeviation: Option<std::ptr::NonNull<u64>>,
+    pTimestampInfos: Option<NonNull<VkCalibratedTimestampInfoEXT>>,
+    pTimestamps: Option<NonNull<u64>>,
+    pMaxDeviation: Option<NonNull<u64>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetCalibratedTimestampsEXT(
@@ -5170,7 +5172,7 @@ pub unsafe extern "C" fn vkGetCalibratedTimestampsEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkUnmapMemory2KHR(
     device: VkDevice,
-    pMemoryUnmapInfo: Option<std::ptr::NonNull<VkMemoryUnmapInfoKHR>>,
+    pMemoryUnmapInfo: Option<NonNull<VkMemoryUnmapInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkUnmapMemory2KHR(device, pMemoryUnmapInfo")
 }
@@ -5199,7 +5201,7 @@ pub unsafe extern "C" fn vkCmdBeginQueryIndexedEXT(
 pub unsafe extern "C" fn vkDestroyDebugReportCallbackEXT(
     instance: VkInstance,
     callback: VkDebugReportCallbackEXT,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyDebugReportCallbackEXT(instance, callback, pAllocator")
 }
@@ -5208,7 +5210,7 @@ pub unsafe extern "C" fn vkDestroyDebugReportCallbackEXT(
 pub unsafe extern "C" fn vkDestroySemaphore(
     device: VkDevice,
     semaphore: VkSemaphore,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySemaphore(device, semaphore, pAllocator")
 }
@@ -5234,9 +5236,9 @@ pub unsafe extern "C" fn vkCmdResetQueryPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateBufferView(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkBufferViewCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pView: Option<std::ptr::NonNull<VkBufferView>>,
+    pCreateInfo: Option<NonNull<VkBufferViewCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pView: Option<NonNull<VkBufferView>>,
 ) -> VkResult {
     unimplemented!("vkCreateBufferView(device, pCreateInfo, pAllocator, pView")
 }
@@ -5255,7 +5257,7 @@ pub unsafe extern "C" fn vkCmdSetConservativeRasterizationModeEXT(
 pub unsafe extern "C" fn vkCopyMemoryToMicromapEXT(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyMemoryToMicromapInfoEXT>>,
+    pInfo: Option<NonNull<VkCopyMemoryToMicromapInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkCopyMemoryToMicromapEXT(device, deferredOperation, pInfo")
 }
@@ -5263,8 +5265,8 @@ pub unsafe extern "C" fn vkCopyMemoryToMicromapEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceBufferMemoryRequirements(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkDeviceBufferMemoryRequirements>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2>>,
+    pInfo: Option<NonNull<VkDeviceBufferMemoryRequirements>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2>>,
 ) {
     unimplemented!("vkGetDeviceBufferMemoryRequirements(device, pInfo, pMemoryRequirements")
 }
@@ -5272,10 +5274,10 @@ pub unsafe extern "C" fn vkGetDeviceBufferMemoryRequirements(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdTraceRaysIndirectKHR(
     commandBuffer: VkCommandBuffer,
-    pRaygenShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pMissShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pHitShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pCallableShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pRaygenShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pMissShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pHitShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pCallableShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
     indirectDeviceAddress: VkDeviceAddress,
 ) {
     unimplemented!(
@@ -5294,7 +5296,7 @@ pub unsafe extern "C" fn vkCmdTraceRaysIndirectKHR(
 pub unsafe extern "C" fn vkDestroySurfaceKHR(
     instance: VkInstance,
     surface: VkSurfaceKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySurfaceKHR(instance, surface, pAllocator")
 }
@@ -5302,7 +5304,7 @@ pub unsafe extern "C" fn vkDestroySurfaceKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginDebugUtilsLabelEXT(
     commandBuffer: VkCommandBuffer,
-    pLabelInfo: Option<std::ptr::NonNull<VkDebugUtilsLabelEXT>>,
+    pLabelInfo: Option<NonNull<VkDebugUtilsLabelEXT>>,
 ) {
     unimplemented!("vkCmdBeginDebugUtilsLabelEXT(commandBuffer, pLabelInfo")
 }
@@ -5310,7 +5312,7 @@ pub unsafe extern "C" fn vkCmdBeginDebugUtilsLabelEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyMemoryToAccelerationStructureKHR(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyMemoryToAccelerationStructureInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyMemoryToAccelerationStructureInfoKHR>>,
 ) {
     unimplemented!("vkCmdCopyMemoryToAccelerationStructureKHR(commandBuffer, pInfo")
 }
@@ -5318,7 +5320,7 @@ pub unsafe extern "C" fn vkCmdCopyMemoryToAccelerationStructureKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportSemaphoreFdKHR(
     device: VkDevice,
-    pImportSemaphoreFdInfo: Option<std::ptr::NonNull<VkImportSemaphoreFdInfoKHR>>,
+    pImportSemaphoreFdInfo: Option<NonNull<VkImportSemaphoreFdInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreFdKHR(device, pImportSemaphoreFdInfo")
 }
@@ -5327,7 +5329,7 @@ pub unsafe extern "C" fn vkImportSemaphoreFdKHR(
 pub unsafe extern "C" fn vkQueueBindSparse(
     queue: VkQueue,
     bindInfoCount: u32,
-    pBindInfo: Option<std::ptr::NonNull<VkBindSparseInfo>>,
+    pBindInfo: Option<NonNull<VkBindSparseInfo>>,
     fence: VkFence,
 ) -> VkResult {
     unimplemented!("vkQueueBindSparse(queue, bindInfoCount, pBindInfo, fence")
@@ -5338,7 +5340,7 @@ pub unsafe extern "C" fn vkGetMemoryWin32HandleNV(
     device: VkDevice,
     memory: VkDeviceMemory,
     handleType: VkExternalMemoryHandleTypeFlagsNV,
-    pHandle: Option<std::ptr::NonNull<HANDLE>>,
+    pHandle: Option<NonNull<HANDLE>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryWin32HandleNV(device, memory, handleType, pHandle")
 }
@@ -5347,7 +5349,7 @@ pub unsafe extern "C" fn vkGetMemoryWin32HandleNV(
 pub unsafe extern "C" fn vkDestroyVideoSessionParametersKHR(
     device: VkDevice,
     videoSessionParameters: VkVideoSessionParametersKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyVideoSessionParametersKHR(device, videoSessionParameters, pAllocator")
 }
@@ -5376,8 +5378,8 @@ pub unsafe extern "C" fn vkCmdDrawMeshTasksIndirectNV(
 pub unsafe extern "C" fn vkGetMemoryHostPointerPropertiesEXT(
     device: VkDevice,
     handleType: VkExternalMemoryHandleTypeFlagBits,
-    pHostPointer: Option<std::ptr::NonNull<std::ffi::c_void>>,
-    pMemoryHostPointerProperties: Option<std::ptr::NonNull<VkMemoryHostPointerPropertiesEXT>>,
+    pHostPointer: Option<NonNull<std::ffi::c_void>>,
+    pMemoryHostPointerProperties: Option<NonNull<VkMemoryHostPointerPropertiesEXT>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetMemoryHostPointerPropertiesEXT(
@@ -5402,9 +5404,9 @@ pub unsafe extern "C" fn vkCmdWriteTimestamp(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateAccelerationStructureNV(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkAccelerationStructureCreateInfoNV>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pAccelerationStructure: Option<std::ptr::NonNull<VkAccelerationStructureNV>>,
+    pCreateInfo: Option<NonNull<VkAccelerationStructureCreateInfoNV>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pAccelerationStructure: Option<NonNull<VkAccelerationStructureNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkCreateAccelerationStructureNV(device, pCreateInfo, pAllocator, pAccelerationStructure"
@@ -5416,7 +5418,7 @@ pub unsafe extern "C" fn vkGetMemoryFdPropertiesKHR(
     device: VkDevice,
     handleType: VkExternalMemoryHandleTypeFlagBits,
     fd: int,
-    pMemoryFdProperties: Option<std::ptr::NonNull<VkMemoryFdPropertiesKHR>>,
+    pMemoryFdProperties: Option<NonNull<VkMemoryFdPropertiesKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryFdPropertiesKHR(device, handleType, fd, pMemoryFdProperties")
 }
@@ -5457,7 +5459,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
     surface: VkSurfaceKHR,
-    pSupported: Option<std::ptr::NonNull<VkBool32>>,
+    pSupported: Option<NonNull<VkBool32>>,
 ) -> VkResult {
     unimplemented!("vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, pSupported")
 }
@@ -5466,7 +5468,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
 pub unsafe extern "C" fn vkDestroyValidationCacheEXT(
     device: VkDevice,
     validationCache: VkValidationCacheEXT,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyValidationCacheEXT(device, validationCache, pAllocator")
 }
@@ -5483,9 +5485,9 @@ pub unsafe extern "C" fn vkCmdResetEvent2(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormats2KHR(
     physicalDevice: VkPhysicalDevice,
-    pSurfaceInfo: Option<std::ptr::NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
-    pSurfaceFormatCount: Option<std::ptr::NonNull<u32>>,
-    pSurfaceFormats: Option<std::ptr::NonNull<VkSurfaceFormat2KHR>>,
+    pSurfaceInfo: Option<NonNull<VkPhysicalDeviceSurfaceInfo2KHR>>,
+    pSurfaceFormatCount: Option<NonNull<u32>>,
+    pSurfaceFormats: Option<NonNull<VkSurfaceFormat2KHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfaceFormats2KHR(
@@ -5501,7 +5503,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormats2KHR(
 pub unsafe extern "C" fn vkGetPhysicalDeviceDirectFBPresentationSupportEXT(
     physicalDevice: VkPhysicalDevice,
     queueFamilyIndex: u32,
-    dfb: Option<std::ptr::NonNull<IDirectFB>>,
+    dfb: Option<NonNull<IDirectFB>>,
 ) -> VkBool32 {
     unimplemented!(
         "vkGetPhysicalDeviceDirectFBPresentationSupportEXT(physicalDevice, queueFamilyIndex, dfb"
@@ -5511,9 +5513,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDirectFBPresentationSupportEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateBuffer(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkBufferCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pBuffer: Option<std::ptr::NonNull<VkBuffer>>,
+    pCreateInfo: Option<NonNull<VkBufferCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pBuffer: Option<NonNull<VkBuffer>>,
 ) -> VkResult {
     unimplemented!("vkCreateBuffer(device, pCreateInfo, pAllocator, pBuffer")
 }
@@ -5523,7 +5525,7 @@ pub unsafe extern "C" fn vkGetCommandPoolMemoryConsumption(
     device: VkDevice,
     commandPool: VkCommandPool,
     commandBuffer: VkCommandBuffer,
-    pConsumption: Option<std::ptr::NonNull<VkCommandPoolMemoryConsumption>>,
+    pConsumption: Option<NonNull<VkCommandPoolMemoryConsumption>>,
 ) {
     unimplemented!(
         "vkGetCommandPoolMemoryConsumption(device, commandPool, commandBuffer, pConsumption"
@@ -5534,8 +5536,8 @@ pub unsafe extern "C" fn vkGetCommandPoolMemoryConsumption(
 pub unsafe extern "C" fn vkCmdBuildAccelerationStructuresKHR(
     commandBuffer: VkCommandBuffer,
     infoCount: u32,
-    pInfos: Option<std::ptr::NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
-    ppBuildRangeInfos: Option<std::ptr::NonNull<VkAccelerationStructureBuildRangeInfoKHR>>,
+    pInfos: Option<NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
+    ppBuildRangeInfos: Option<NonNull<VkAccelerationStructureBuildRangeInfoKHR>>,
 ) {
     unimplemented!(
         "vkCmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppBuildRangeInfos"
@@ -5546,7 +5548,7 @@ pub unsafe extern "C" fn vkCmdBuildAccelerationStructuresKHR(
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
-    pSurfaceCapabilities: Option<std::ptr::NonNull<VkSurfaceCapabilitiesKHR>>,
+    pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, pSurfaceCapabilities"
@@ -5556,8 +5558,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceExternalFenceProperties(
     physicalDevice: VkPhysicalDevice,
-    pExternalFenceInfo: Option<std::ptr::NonNull<VkPhysicalDeviceExternalFenceInfo>>,
-    pExternalFenceProperties: Option<std::ptr::NonNull<VkExternalFenceProperties>>,
+    pExternalFenceInfo: Option<NonNull<VkPhysicalDeviceExternalFenceInfo>>,
+    pExternalFenceProperties: Option<NonNull<VkExternalFenceProperties>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceExternalFenceProperties(
@@ -5580,7 +5582,7 @@ pub unsafe extern "C" fn vkCmdSetCoverageToColorEnableNV(
 pub unsafe extern "C" fn vkDestroySwapchainKHR(
     device: VkDevice,
     swapchain: VkSwapchainKHR,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
 }
@@ -5591,7 +5593,7 @@ pub unsafe extern "C" fn vkGetDeviceGroupPeerMemoryFeatures(
     heapIndex: u32,
     localDeviceIndex: u32,
     remoteDeviceIndex: u32,
-    pPeerMemoryFeatures: Option<std::ptr::NonNull<VkPeerMemoryFeatureFlags>>,
+    pPeerMemoryFeatures: Option<NonNull<VkPeerMemoryFeatureFlags>>,
 ) {
     unimplemented!(
         "vkGetDeviceGroupPeerMemoryFeatures(
@@ -5608,7 +5610,7 @@ pub unsafe extern "C" fn vkGetDeviceGroupPeerMemoryFeatures(
 pub unsafe extern "C" fn vkCopyAccelerationStructureToMemoryKHR(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
-    pInfo: Option<std::ptr::NonNull<VkCopyAccelerationStructureToMemoryInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyAccelerationStructureToMemoryInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkCopyAccelerationStructureToMemoryKHR(device, deferredOperation, pInfo")
 }
@@ -5616,9 +5618,9 @@ pub unsafe extern "C" fn vkCopyAccelerationStructureToMemoryKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateSemaphore(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkSemaphoreCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pSemaphore: Option<std::ptr::NonNull<VkSemaphore>>,
+    pCreateInfo: Option<NonNull<VkSemaphoreCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSemaphore: Option<NonNull<VkSemaphore>>,
 ) -> VkResult {
     unimplemented!("vkCreateSemaphore(device, pCreateInfo, pAllocator, pSemaphore")
 }
@@ -5626,7 +5628,7 @@ pub unsafe extern "C" fn vkCreateSemaphore(
 #[no_mangle]
 pub unsafe extern "C" fn vkWaitSemaphores(
     device: VkDevice,
-    pWaitInfo: Option<std::ptr::NonNull<VkSemaphoreWaitInfo>>,
+    pWaitInfo: Option<NonNull<VkSemaphoreWaitInfo>>,
     timeout: u64,
 ) -> VkResult {
     unimplemented!("vkWaitSemaphores(device, pWaitInfo, timeout")
@@ -5636,7 +5638,7 @@ pub unsafe extern "C" fn vkWaitSemaphores(
 pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
     device: VkDevice,
     memoryRangeCount: u32,
-    pMemoryRanges: Option<std::ptr::NonNull<VkMappedMemoryRange>>,
+    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
     unimplemented!("vkInvalidateMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
 }
@@ -5645,7 +5647,7 @@ pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
 pub unsafe extern "C" fn vkGetBufferMemoryRequirements(
     device: VkDevice,
     buffer: VkBuffer,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
 ) {
     unimplemented!("vkGetBufferMemoryRequirements(device, buffer, pMemoryRequirements")
 }
@@ -5653,8 +5655,8 @@ pub unsafe extern "C" fn vkGetBufferMemoryRequirements(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetSemaphoreSciSyncObjNV(
     device: VkDevice,
-    pGetSciSyncInfo: Option<std::ptr::NonNull<VkSemaphoreGetSciSyncInfoNV>>,
-    pHandle: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pGetSciSyncInfo: Option<NonNull<VkSemaphoreGetSciSyncInfoNV>>,
+    pHandle: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetSemaphoreSciSyncObjNV(device, pGetSciSyncInfo, pHandle")
 }
@@ -5662,9 +5664,9 @@ pub unsafe extern "C" fn vkGetSemaphoreSciSyncObjNV(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDebugUtilsMessengerEXT(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkDebugUtilsMessengerCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pMessenger: Option<std::ptr::NonNull<VkDebugUtilsMessengerEXT>>,
+    pCreateInfo: Option<NonNull<VkDebugUtilsMessengerCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pMessenger: Option<NonNull<VkDebugUtilsMessengerEXT>>,
 ) -> VkResult {
     unimplemented!("vkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pMessenger")
 }
@@ -5673,8 +5675,8 @@ pub unsafe extern "C" fn vkCreateDebugUtilsMessengerEXT(
 pub unsafe extern "C" fn vkGetPhysicalDevicePresentRectanglesKHR(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
-    pRectCount: Option<std::ptr::NonNull<u32>>,
-    pRects: Option<std::ptr::NonNull<VkRect2D>>,
+    pRectCount: Option<NonNull<u32>>,
+    pRects: Option<NonNull<VkRect2D>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDevicePresentRectanglesKHR(physicalDevice, surface, pRectCount, pRects"
@@ -5684,9 +5686,9 @@ pub unsafe extern "C" fn vkGetPhysicalDevicePresentRectanglesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateCuModuleNVX(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkCuModuleCreateInfoNVX>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pModule: Option<std::ptr::NonNull<VkCuModuleNVX>>,
+    pCreateInfo: Option<NonNull<VkCuModuleCreateInfoNVX>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pModule: Option<NonNull<VkCuModuleNVX>>,
 ) -> VkResult {
     unimplemented!("vkCreateCuModuleNVX(device, pCreateInfo, pAllocator, pModule")
 }
@@ -5704,7 +5706,7 @@ pub unsafe extern "C" fn vkAcquireDrmDisplayEXT(
 pub unsafe extern "C" fn vkDestroyFramebuffer(
     device: VkDevice,
     framebuffer: VkFramebuffer,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyFramebuffer(device, framebuffer, pAllocator")
 }
@@ -5717,8 +5719,8 @@ pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
 #[no_mangle]
 pub unsafe extern "C" fn vkGetShaderModuleCreateInfoIdentifierEXT(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkShaderModuleCreateInfo>>,
-    pIdentifier: Option<std::ptr::NonNull<VkShaderModuleIdentifierEXT>>,
+    pCreateInfo: Option<NonNull<VkShaderModuleCreateInfo>>,
+    pIdentifier: Option<NonNull<VkShaderModuleIdentifierEXT>>,
 ) {
     unimplemented!("vkGetShaderModuleCreateInfoIdentifierEXT(device, pCreateInfo, pIdentifier")
 }
@@ -5726,9 +5728,9 @@ pub unsafe extern "C" fn vkGetShaderModuleCreateInfoIdentifierEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateVideoSessionParametersKHR(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkVideoSessionParametersCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pVideoSessionParameters: Option<std::ptr::NonNull<VkVideoSessionParametersKHR>>,
+    pCreateInfo: Option<NonNull<VkVideoSessionParametersCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pVideoSessionParameters: Option<NonNull<VkVideoSessionParametersKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateVideoSessionParametersKHR(device, pCreateInfo, pAllocator, pVideoSessionParameters")
 }
@@ -5736,9 +5738,9 @@ pub unsafe extern "C" fn vkCreateVideoSessionParametersKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPipelineExecutablePropertiesKHR(
     device: VkDevice,
-    pPipelineInfo: Option<std::ptr::NonNull<VkPipelineInfoKHR>>,
-    pExecutableCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkPipelineExecutablePropertiesKHR>>,
+    pPipelineInfo: Option<NonNull<VkPipelineInfoKHR>>,
+    pExecutableCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkPipelineExecutablePropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPipelineExecutablePropertiesKHR(device, pPipelineInfo, pExecutableCount, pProperties"
@@ -5749,10 +5751,10 @@ pub unsafe extern "C" fn vkGetPipelineExecutablePropertiesKHR(
 pub unsafe extern "C" fn vkCmdBuildAccelerationStructuresIndirectKHR(
     commandBuffer: VkCommandBuffer,
     infoCount: u32,
-    pInfos: Option<std::ptr::NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
-    pIndirectDeviceAddresses: Option<std::ptr::NonNull<VkDeviceAddress>>,
-    pIndirectStrides: Option<std::ptr::NonNull<u32>>,
-    ppMaxPrimitiveCounts: Option<std::ptr::NonNull<u32>>,
+    pInfos: Option<NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
+    pIndirectDeviceAddresses: Option<NonNull<VkDeviceAddress>>,
+    pIndirectStrides: Option<NonNull<u32>>,
+    ppMaxPrimitiveCounts: Option<NonNull<u32>>,
 ) {
     unimplemented!(
         "vkCmdBuildAccelerationStructuresIndirectKHR(
@@ -5782,8 +5784,8 @@ pub unsafe extern "C" fn vkCmdWriteBufferMarkerAMD(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
     physicalDevice: VkPhysicalDevice,
-    pPerformanceQueryCreateInfo: Option<std::ptr::NonNull<VkQueryPoolPerformanceCreateInfoKHR>>,
-    pNumPasses: Option<std::ptr::NonNull<u32>>,
+    pPerformanceQueryCreateInfo: Option<NonNull<VkQueryPoolPerformanceCreateInfoKHR>>,
+    pNumPasses: Option<NonNull<u32>>,
 ) {
     unimplemented!(
         "vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
@@ -5802,7 +5804,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
     tiling: VkImageTiling,
     usage: VkImageUsageFlags,
     flags: VkImageCreateFlags,
-    pImageFormatProperties: Option<std::ptr::NonNull<VkImageFormatProperties>>,
+    pImageFormatProperties: Option<NonNull<VkImageFormatProperties>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceImageFormatProperties(
@@ -5820,9 +5822,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateVideoSessionKHR(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkVideoSessionCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pVideoSession: Option<std::ptr::NonNull<VkVideoSessionKHR>>,
+    pCreateInfo: Option<NonNull<VkVideoSessionCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pVideoSession: Option<NonNull<VkVideoSessionKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateVideoSessionKHR(device, pCreateInfo, pAllocator, pVideoSession")
 }
@@ -5836,7 +5838,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
     usage: VkImageUsageFlags,
     flags: VkImageCreateFlags,
     externalHandleType: VkExternalMemoryHandleTypeFlagsNV,
-    pExternalImageFormatProperties: Option<std::ptr::NonNull<VkExternalImageFormatPropertiesNV>>,
+    pExternalImageFormatProperties: Option<NonNull<VkExternalImageFormatPropertiesNV>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
@@ -5882,7 +5884,7 @@ pub unsafe extern "C" fn vkSetDeviceMemoryPriorityEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkAcquireProfilingLockKHR(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkAcquireProfilingLockInfoKHR>>,
+    pInfo: Option<NonNull<VkAcquireProfilingLockInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkAcquireProfilingLockKHR(device, pInfo")
 }
@@ -5891,8 +5893,8 @@ pub unsafe extern "C" fn vkAcquireProfilingLockKHR(
 pub unsafe extern "C" fn vkGetMicromapBuildSizesEXT(
     device: VkDevice,
     buildType: VkAccelerationStructureBuildTypeKHR,
-    pBuildInfo: Option<std::ptr::NonNull<VkMicromapBuildInfoEXT>>,
-    pSizeInfo: Option<std::ptr::NonNull<VkMicromapBuildSizesInfoEXT>>,
+    pBuildInfo: Option<NonNull<VkMicromapBuildInfoEXT>>,
+    pSizeInfo: Option<NonNull<VkMicromapBuildSizesInfoEXT>>,
 ) {
     unimplemented!("vkGetMicromapBuildSizesEXT(device, buildType, pBuildInfo, pSizeInfo")
 }
@@ -5904,7 +5906,7 @@ pub unsafe extern "C" fn vkGetQueryPoolResults(
     firstQuery: u32,
     queryCount: u32,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
     stride: VkDeviceSize,
     flags: VkQueryResultFlags,
 ) -> VkResult {
@@ -5918,9 +5920,9 @@ pub unsafe extern "C" fn vkGetQueryPoolResults(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateRenderPass(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkRenderPassCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pRenderPass: Option<std::ptr::NonNull<VkRenderPass>>,
+    pCreateInfo: Option<NonNull<VkRenderPassCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pRenderPass: Option<NonNull<VkRenderPass>>,
 ) -> VkResult {
     unimplemented!("vkCreateRenderPass(device, pCreateInfo, pAllocator, pRenderPass")
 }
@@ -5928,8 +5930,8 @@ pub unsafe extern "C" fn vkCreateRenderPass(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceFaultInfoEXT(
     device: VkDevice,
-    pFaultCounts: Option<std::ptr::NonNull<VkDeviceFaultCountsEXT>>,
-    pFaultInfo: Option<std::ptr::NonNull<VkDeviceFaultInfoEXT>>,
+    pFaultCounts: Option<NonNull<VkDeviceFaultCountsEXT>>,
+    pFaultInfo: Option<NonNull<VkDeviceFaultInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkGetDeviceFaultInfoEXT(device, pFaultCounts, pFaultInfo")
 }
@@ -5939,7 +5941,7 @@ pub unsafe extern "C" fn vkGetMemoryZirconHandlePropertiesFUCHSIA(
     device: VkDevice,
     handleType: VkExternalMemoryHandleTypeFlagBits,
     zirconHandle: zx_handle_t,
-    pMemoryZirconHandleProperties: Option<std::ptr::NonNull<VkMemoryZirconHandlePropertiesFUCHSIA>>,
+    pMemoryZirconHandleProperties: Option<NonNull<VkMemoryZirconHandlePropertiesFUCHSIA>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetMemoryZirconHandlePropertiesFUCHSIA(
@@ -5954,10 +5956,10 @@ pub unsafe extern "C" fn vkGetMemoryZirconHandlePropertiesFUCHSIA(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdTraceRaysKHR(
     commandBuffer: VkCommandBuffer,
-    pRaygenShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pMissShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pHitShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
-    pCallableShaderBindingTable: Option<std::ptr::NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pRaygenShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pMissShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pHitShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
+    pCallableShaderBindingTable: Option<NonNull<VkStridedDeviceAddressRegionKHR>>,
     width: u32,
     height: u32,
     depth: u32,
@@ -5980,8 +5982,8 @@ pub unsafe extern "C" fn vkCmdTraceRaysKHR(
 pub unsafe extern "C" fn vkGetDisplayPlaneSupportedDisplaysKHR(
     physicalDevice: VkPhysicalDevice,
     planeIndex: u32,
-    pDisplayCount: Option<std::ptr::NonNull<u32>>,
-    pDisplays: Option<std::ptr::NonNull<VkDisplayKHR>>,
+    pDisplayCount: Option<NonNull<u32>>,
+    pDisplays: Option<NonNull<VkDisplayKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetDisplayPlaneSupportedDisplaysKHR(physicalDevice, planeIndex, pDisplayCount, pDisplays")
 }
@@ -5992,7 +5994,7 @@ pub unsafe extern "C" fn vkCmdUpdateBuffer(
     dstBuffer: VkBuffer,
     dstOffset: VkDeviceSize,
     dataSize: VkDeviceSize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) {
     unimplemented!("vkCmdUpdateBuffer(commandBuffer, dstBuffer, dstOffset, dataSize, pData")
 }
@@ -6026,8 +6028,8 @@ pub unsafe extern "C" fn vkCmdEndQuery(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPropertiesKHR(
     physicalDevice: VkPhysicalDevice,
-    pPropertyCount: Option<std::ptr::NonNull<u32>>,
-    pProperties: Option<std::ptr::NonNull<VkDisplayPropertiesKHR>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkDisplayPropertiesKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceDisplayPropertiesKHR(physicalDevice, pPropertyCount, pProperties"
@@ -6037,8 +6039,8 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPropertiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceFragmentShadingRatesKHR(
     physicalDevice: VkPhysicalDevice,
-    pFragmentShadingRateCount: Option<std::ptr::NonNull<u32>>,
-    pFragmentShadingRates: Option<std::ptr::NonNull<VkPhysicalDeviceFragmentShadingRateKHR>>,
+    pFragmentShadingRateCount: Option<NonNull<u32>>,
+    pFragmentShadingRates: Option<NonNull<VkPhysicalDeviceFragmentShadingRateKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPhysicalDeviceFragmentShadingRatesKHR(
@@ -6053,7 +6055,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFragmentShadingRatesKHR(
 pub unsafe extern "C" fn vkDestroyPrivateDataSlot(
     device: VkDevice,
     privateDataSlot: VkPrivateDataSlot,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyPrivateDataSlot(device, privateDataSlot, pAllocator")
 }
@@ -6061,7 +6063,7 @@ pub unsafe extern "C" fn vkDestroyPrivateDataSlot(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceProcAddr(
     device: VkDevice,
-    pName: Option<std::ptr::NonNull<std::ffi::c_char>>,
+    pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
     unimplemented!("vkGetDeviceProcAddr(device, pName")
 }
@@ -6086,9 +6088,9 @@ pub unsafe extern "C" fn vkReleaseDisplayEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDescriptorUpdateTemplate(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkDescriptorUpdateTemplateCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pDescriptorUpdateTemplate: Option<std::ptr::NonNull<VkDescriptorUpdateTemplate>>,
+    pCreateInfo: Option<NonNull<VkDescriptorUpdateTemplateCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pDescriptorUpdateTemplate: Option<NonNull<VkDescriptorUpdateTemplate>>,
 ) -> VkResult {
     unimplemented!("vkCreateDescriptorUpdateTemplate(device, pCreateInfo, pAllocator, pDescriptorUpdateTemplate")
 }
@@ -6120,8 +6122,8 @@ pub unsafe extern "C" fn vkCmdSetAttachmentFeedbackLoopEnableEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetMemoryZirconHandleFUCHSIA(
     device: VkDevice,
-    pGetZirconHandleInfo: Option<std::ptr::NonNull<VkMemoryGetZirconHandleInfoFUCHSIA>>,
-    pZirconHandle: Option<std::ptr::NonNull<zx_handle_t>>,
+    pGetZirconHandleInfo: Option<NonNull<VkMemoryGetZirconHandleInfoFUCHSIA>>,
+    pZirconHandle: Option<NonNull<zx_handle_t>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryZirconHandleFUCHSIA(device, pGetZirconHandleInfo, pZirconHandle")
 }
@@ -6129,9 +6131,9 @@ pub unsafe extern "C" fn vkGetMemoryZirconHandleFUCHSIA(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateFramebuffer(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkFramebufferCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pFramebuffer: Option<std::ptr::NonNull<VkFramebuffer>>,
+    pCreateInfo: Option<NonNull<VkFramebufferCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFramebuffer: Option<NonNull<VkFramebuffer>>,
 ) -> VkResult {
     unimplemented!("vkCreateFramebuffer(device, pCreateInfo, pAllocator, pFramebuffer")
 }
@@ -6140,7 +6142,7 @@ pub unsafe extern "C" fn vkCreateFramebuffer(
 pub unsafe extern "C" fn vkCmdSetScissorWithCount(
     commandBuffer: VkCommandBuffer,
     scissorCount: u32,
-    pScissors: Option<std::ptr::NonNull<VkRect2D>>,
+    pScissors: Option<NonNull<VkRect2D>>,
 ) {
     unimplemented!("vkCmdSetScissorWithCount(commandBuffer, scissorCount, pScissors")
 }
@@ -6158,9 +6160,9 @@ pub unsafe extern "C" fn vkCmdBindTransformFeedbackBuffersEXT(
     commandBuffer: VkCommandBuffer,
     firstBinding: u32,
     bindingCount: u32,
-    pBuffers: Option<std::ptr::NonNull<VkBuffer>>,
-    pOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
-    pSizes: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pBuffers: Option<NonNull<VkBuffer>>,
+    pOffsets: Option<NonNull<VkDeviceSize>>,
+    pSizes: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdBindTransformFeedbackBuffersEXT(
@@ -6181,7 +6183,7 @@ pub unsafe extern "C" fn vkGetRayTracingCaptureReplayShaderGroupHandlesKHR(
     firstGroup: u32,
     groupCount: u32,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetRayTracingCaptureReplayShaderGroupHandlesKHR(
@@ -6193,7 +6195,7 @@ pub unsafe extern "C" fn vkGetRayTracingCaptureReplayShaderGroupHandlesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginRendering(
     commandBuffer: VkCommandBuffer,
-    pRenderingInfo: Option<std::ptr::NonNull<VkRenderingInfo>>,
+    pRenderingInfo: Option<NonNull<VkRenderingInfo>>,
 ) {
     unimplemented!("vkCmdBeginRendering(commandBuffer, pRenderingInfo")
 }
@@ -6201,8 +6203,8 @@ pub unsafe extern "C" fn vkCmdBeginRendering(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetAccelerationStructureMemoryRequirementsNV(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkAccelerationStructureMemoryRequirementsInfoNV>>,
-    pMemoryRequirements: Option<std::ptr::NonNull<VkMemoryRequirements2KHR>>,
+    pInfo: Option<NonNull<VkAccelerationStructureMemoryRequirementsInfoNV>>,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements2KHR>>,
 ) {
     unimplemented!(
         "vkGetAccelerationStructureMemoryRequirementsNV(device, pInfo, pMemoryRequirements"
@@ -6213,7 +6215,7 @@ pub unsafe extern "C" fn vkGetAccelerationStructureMemoryRequirementsNV(
 pub unsafe extern "C" fn vkDestroyCuFunctionNVX(
     device: VkDevice,
     function: VkCuFunctionNVX,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyCuFunctionNVX(device, function, pAllocator")
 }
@@ -6225,8 +6227,8 @@ pub unsafe extern "C" fn vkCmdSetDescriptorBufferOffsetsEXT(
     layout: VkPipelineLayout,
     firstSet: u32,
     setCount: u32,
-    pBufferIndices: Option<std::ptr::NonNull<u32>>,
-    pOffsets: Option<std::ptr::NonNull<VkDeviceSize>>,
+    pBufferIndices: Option<NonNull<u32>>,
+    pOffsets: Option<NonNull<VkDeviceSize>>,
 ) {
     unimplemented!(
         "vkCmdSetDescriptorBufferOffsetsEXT(
@@ -6244,8 +6246,8 @@ pub unsafe extern "C" fn vkCmdSetDescriptorBufferOffsetsEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetDeviceMicromapCompatibilityEXT(
     device: VkDevice,
-    pVersionInfo: Option<std::ptr::NonNull<VkMicromapVersionInfoEXT>>,
-    pCompatibility: Option<std::ptr::NonNull<VkAccelerationStructureCompatibilityKHR>>,
+    pVersionInfo: Option<NonNull<VkMicromapVersionInfoEXT>>,
+    pCompatibility: Option<NonNull<VkAccelerationStructureCompatibilityKHR>>,
 ) {
     unimplemented!("vkGetDeviceMicromapCompatibilityEXT(device, pVersionInfo, pCompatibility")
 }
@@ -6254,7 +6256,7 @@ pub unsafe extern "C" fn vkGetDeviceMicromapCompatibilityEXT(
 pub unsafe extern "C" fn vkCmdDecompressMemoryNV(
     commandBuffer: VkCommandBuffer,
     decompressRegionCount: u32,
-    pDecompressMemoryRegions: Option<std::ptr::NonNull<VkDecompressMemoryRegionNV>>,
+    pDecompressMemoryRegions: Option<NonNull<VkDecompressMemoryRegionNV>>,
 ) {
     unimplemented!(
         "vkCmdDecompressMemoryNV(
@@ -6269,9 +6271,9 @@ pub unsafe extern "C" fn vkCmdDecompressMemoryNV(
 pub unsafe extern "C" fn vkUpdateDescriptorSets(
     device: VkDevice,
     descriptorWriteCount: u32,
-    pDescriptorWrites: Option<std::ptr::NonNull<VkWriteDescriptorSet>>,
+    pDescriptorWrites: Option<NonNull<VkWriteDescriptorSet>>,
     descriptorCopyCount: u32,
-    pDescriptorCopies: Option<std::ptr::NonNull<VkCopyDescriptorSet>>,
+    pDescriptorCopies: Option<NonNull<VkCopyDescriptorSet>>,
 ) {
     unimplemented!(
         "vkUpdateDescriptorSets(
@@ -6287,7 +6289,7 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetInstanceProcAddr(
     instance: VkInstance,
-    pName: Option<std::ptr::NonNull<std::ffi::c_char>>,
+    pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
     unimplemented!("vkGetInstanceProcAddr(instance, pName")
 }
@@ -6295,8 +6297,8 @@ pub unsafe extern "C" fn vkGetInstanceProcAddr(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetFenceFdKHR(
     device: VkDevice,
-    pGetFdInfo: Option<std::ptr::NonNull<VkFenceGetFdInfoKHR>>,
-    pFd: Option<std::ptr::NonNull<int>>,
+    pGetFdInfo: Option<NonNull<VkFenceGetFdInfoKHR>>,
+    pFd: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!("vkGetFenceFdKHR(device, pGetFdInfo, pFd")
 }
@@ -6305,7 +6307,7 @@ pub unsafe extern "C" fn vkGetFenceFdKHR(
 pub unsafe extern "C" fn vkGetSemaphoreCounterValue(
     device: VkDevice,
     semaphore: VkSemaphore,
-    pValue: Option<std::ptr::NonNull<u64>>,
+    pValue: Option<NonNull<u64>>,
 ) -> VkResult {
     unimplemented!("vkGetSemaphoreCounterValue(device, semaphore, pValue")
 }
@@ -6321,9 +6323,9 @@ pub unsafe extern "C" fn vkCmdSetStencilTestEnable(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateDebugReportCallbackEXT(
     instance: VkInstance,
-    pCreateInfo: Option<std::ptr::NonNull<VkDebugReportCallbackCreateInfoEXT>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pCallback: Option<std::ptr::NonNull<VkDebugReportCallbackEXT>>,
+    pCreateInfo: Option<NonNull<VkDebugReportCallbackCreateInfoEXT>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pCallback: Option<NonNull<VkDebugReportCallbackEXT>>,
 ) -> VkResult {
     unimplemented!("vkCreateDebugReportCallbackEXT(instance, pCreateInfo, pAllocator, pCallback")
 }
@@ -6333,7 +6335,7 @@ pub unsafe extern "C" fn vkBuildMicromapsEXT(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
     infoCount: u32,
-    pInfos: Option<std::ptr::NonNull<VkMicromapBuildInfoEXT>>,
+    pInfos: Option<NonNull<VkMicromapBuildInfoEXT>>,
 ) -> VkResult {
     unimplemented!("vkBuildMicromapsEXT(device, deferredOperation, infoCount, pInfos")
 }
@@ -6342,7 +6344,7 @@ pub unsafe extern "C" fn vkBuildMicromapsEXT(
 pub unsafe extern "C" fn vkSetBufferCollectionBufferConstraintsFUCHSIA(
     device: VkDevice,
     collection: VkBufferCollectionFUCHSIA,
-    pBufferConstraintsInfo: Option<std::ptr::NonNull<VkBufferConstraintsInfoFUCHSIA>>,
+    pBufferConstraintsInfo: Option<NonNull<VkBufferConstraintsInfoFUCHSIA>>,
 ) -> VkResult {
     unimplemented!(
         "vkSetBufferCollectionBufferConstraintsFUCHSIA(device, collection, pBufferConstraintsInfo"
@@ -6352,8 +6354,8 @@ pub unsafe extern "C" fn vkSetBufferCollectionBufferConstraintsFUCHSIA(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetPhysicalDeviceToolProperties(
     physicalDevice: VkPhysicalDevice,
-    pToolCount: Option<std::ptr::NonNull<u32>>,
-    pToolProperties: Option<std::ptr::NonNull<VkPhysicalDeviceToolProperties>>,
+    pToolCount: Option<NonNull<u32>>,
+    pToolProperties: Option<NonNull<VkPhysicalDeviceToolProperties>>,
 ) -> VkResult {
     unimplemented!("vkGetPhysicalDeviceToolProperties(physicalDevice, pToolCount, pToolProperties")
 }
@@ -6363,8 +6365,8 @@ pub unsafe extern "C" fn vkBuildAccelerationStructuresKHR(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,
     infoCount: u32,
-    pInfos: Option<std::ptr::NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
-    ppBuildRangeInfos: Option<std::ptr::NonNull<VkAccelerationStructureBuildRangeInfoKHR>>,
+    pInfos: Option<NonNull<VkAccelerationStructureBuildGeometryInfoKHR>>,
+    ppBuildRangeInfos: Option<NonNull<VkAccelerationStructureBuildRangeInfoKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkBuildAccelerationStructuresKHR(
@@ -6381,7 +6383,7 @@ pub unsafe extern "C" fn vkBuildAccelerationStructuresKHR(
 pub unsafe extern "C" fn vkGetDeviceGroupSurfacePresentModesKHR(
     device: VkDevice,
     surface: VkSurfaceKHR,
-    pModes: Option<std::ptr::NonNull<VkDeviceGroupPresentModeFlagsKHR>>,
+    pModes: Option<NonNull<VkDeviceGroupPresentModeFlagsKHR>>,
 ) -> VkResult {
     unimplemented!("vkGetDeviceGroupSurfacePresentModesKHR(device, surface, pModes")
 }
@@ -6391,7 +6393,7 @@ pub unsafe extern "C" fn vkGetSwapchainGrallocUsageANDROID(
     device: VkDevice,
     format: VkFormat,
     imageUsage: VkImageUsageFlags,
-    grallocUsage: Option<std::ptr::NonNull<int>>,
+    grallocUsage: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!("vkGetSwapchainGrallocUsageANDROID(device, format, imageUsage, grallocUsage")
 }
@@ -6401,7 +6403,7 @@ pub unsafe extern "C" fn vkSubmitDebugUtilsMessageEXT(
     instance: VkInstance,
     messageSeverity: VkDebugUtilsMessageSeverityFlagBitsEXT,
     messageTypes: VkDebugUtilsMessageTypeFlagsEXT,
-    pCallbackData: Option<std::ptr::NonNull<VkDebugUtilsMessengerCallbackDataEXT>>,
+    pCallbackData: Option<NonNull<VkDebugUtilsMessengerCallbackDataEXT>>,
 ) {
     unimplemented!(
         "vkSubmitDebugUtilsMessageEXT(instance, messageSeverity, messageTypes, pCallbackData"
@@ -6419,7 +6421,7 @@ pub unsafe extern "C" fn vkCmdSetPolygonModeEXT(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginRenderPass(
     commandBuffer: VkCommandBuffer,
-    pRenderPassBegin: Option<std::ptr::NonNull<VkRenderPassBeginInfo>>,
+    pRenderPassBegin: Option<NonNull<VkRenderPassBeginInfo>>,
     contents: VkSubpassContents,
 ) {
     unimplemented!("vkCmdBeginRenderPass(commandBuffer, pRenderPassBegin, contents")
@@ -6428,7 +6430,7 @@ pub unsafe extern "C" fn vkCmdBeginRenderPass(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdCopyAccelerationStructureKHR(
     commandBuffer: VkCommandBuffer,
-    pInfo: Option<std::ptr::NonNull<VkCopyAccelerationStructureInfoKHR>>,
+    pInfo: Option<NonNull<VkCopyAccelerationStructureInfoKHR>>,
 ) {
     unimplemented!("vkCmdCopyAccelerationStructureKHR(commandBuffer, pInfo")
 }
@@ -6436,7 +6438,7 @@ pub unsafe extern "C" fn vkCmdCopyAccelerationStructureKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdBeginConditionalRenderingEXT(
     commandBuffer: VkCommandBuffer,
-    pConditionalRenderingBegin: Option<std::ptr::NonNull<VkConditionalRenderingBeginInfoEXT>>,
+    pConditionalRenderingBegin: Option<NonNull<VkConditionalRenderingBeginInfoEXT>>,
 ) {
     unimplemented!("vkCmdBeginConditionalRenderingEXT(commandBuffer, pConditionalRenderingBegin")
 }
@@ -6454,9 +6456,9 @@ pub unsafe extern "C" fn vkResetQueryPool(
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateImage(
     device: VkDevice,
-    pCreateInfo: Option<std::ptr::NonNull<VkImageCreateInfo>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pImage: Option<std::ptr::NonNull<VkImage>>,
+    pCreateInfo: Option<NonNull<VkImageCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pImage: Option<NonNull<VkImage>>,
 ) -> VkResult {
     unimplemented!("vkCreateImage(device, pCreateInfo, pAllocator, pImage")
 }
@@ -6465,10 +6467,10 @@ pub unsafe extern "C" fn vkCreateImage(
 pub unsafe extern "C" fn vkWriteMicromapsPropertiesEXT(
     device: VkDevice,
     micromapCount: u32,
-    pMicromaps: Option<std::ptr::NonNull<VkMicromapEXT>>,
+    pMicromaps: Option<NonNull<VkMicromapEXT>>,
     queryType: VkQueryType,
     dataSize: isize,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
     stride: isize,
 ) -> VkResult {
     unimplemented!(
@@ -6488,9 +6490,9 @@ pub unsafe extern "C" fn vkWriteMicromapsPropertiesEXT(
 pub unsafe extern "C" fn vkCreateDisplayModeKHR(
     physicalDevice: VkPhysicalDevice,
     display: VkDisplayKHR,
-    pCreateInfo: Option<std::ptr::NonNull<VkDisplayModeCreateInfoKHR>>,
-    pAllocator: Option<std::ptr::NonNull<VkAllocationCallbacks>>,
-    pMode: Option<std::ptr::NonNull<VkDisplayModeKHR>>,
+    pCreateInfo: Option<NonNull<VkDisplayModeCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pMode: Option<NonNull<VkDisplayModeKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateDisplayModeKHR(physicalDevice, display, pCreateInfo, pAllocator, pMode")
 }
@@ -6498,8 +6500,8 @@ pub unsafe extern "C" fn vkCreateDisplayModeKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT(
     device: VkDevice,
-    pInfo: Option<std::ptr::NonNull<VkAccelerationStructureCaptureDescriptorDataInfoEXT>>,
-    pData: Option<std::ptr::NonNull<std::ffi::c_void>>,
+    pInfo: Option<NonNull<VkAccelerationStructureCaptureDescriptorDataInfoEXT>>,
+    pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
 }

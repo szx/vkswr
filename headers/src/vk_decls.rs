@@ -4,22 +4,22 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
-use std::ops::Deref;
+pub use std::ptr::NonNull;
 
-pub(crate) type VkDispatchableHandle = Option<std::ptr::NonNull<std::ffi::c_void>>;
+pub(crate) type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
 pub unsafe fn set_dispatchable_handle<T>(
-    handle: std::ptr::NonNull<VkDispatchableHandle>,
+    handle: NonNull<VkDispatchableHandle>,
     value: &T,
 ) {
     *handle.as_ptr() = std::mem::transmute(value);
 }
 
 pub unsafe fn get_dispatchable_handle_ref<'a, T>(
-    handle: VkDispatchableHandle,
+    handle: NonNull<std::ffi::c_void>,
 ) -> &'a T
 {
-    std::mem::transmute::<_, std::ptr::NonNull<T>>(handle.unwrap().as_ptr()).as_ref()
+    std::mem::transmute::<_, NonNull<T>>(handle.as_ptr()).as_ref()
 }
 
 pub(crate) type VkNonDispatchableHandle = u64;

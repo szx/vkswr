@@ -31,7 +31,7 @@ lazy_static! {
 
 pub fn create_instance(
     create_info: &VkInstanceCreateInfo,
-    p_instance: std::ptr::NonNull<VkInstance>,
+    p_instance: NonNull<VkInstance>,
 ) -> VkResult {
     let _ = create_info;
     println!("Hello from runtime::create_instance()!");
