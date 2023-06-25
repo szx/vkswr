@@ -1,17 +1,46 @@
 use headers::vk_decls::*;
+use lazy_static::lazy_static;
 
-/// # Safety
-///
-/// TODO: This function should be rewritten - move all unsafe stuff to impls.rs.
-pub unsafe fn create_instance(
-    p_create_info: *const VkInstanceCreateInfo,
-    p_allocator: *const VkAllocationCallbacks,
-    p_instance: *mut VkInstance,
+#[derive(Debug)]
+struct Instance {
+    driver_name: &'static str,
+}
+
+impl Instance {
+    const fn new() -> Self {
+        Self {
+            driver_name: "vulkan_software_rasterizer",
+        }
+    }
+}
+
+lazy_static! {
+    static ref INSTANCE: Instance = Instance::new();
+}
+
+pub fn create_instance(
+    create_info: &VkInstanceCreateInfo,
+    p_instance: std::ptr::NonNull<VkInstance>,
 ) -> VkResult {
-    let _ = p_create_info;
-    let _ = p_allocator;
-    println!("Hello from runtime::vkCreateInstance()!");
-    *p_instance = std::ptr::null_mut();
-    // TODO: Create and register internal VkInstance.
+    let _ = create_info;
+    println!("Hello from runtime::create_instance()!");
+    unsafe { set_dispatchable_handle(p_instance, &*INSTANCE) };
+
     VkResult::VK_SUCCESS
 }
+
+pub fn enumerate_physical_devices(
+    instance: VkInstance,
+) -> VkResult {
+    println!("Hello from runtime::enumerate_physical_devices()!");
+    unsafe {
+        let instance : &Instance = get_dispatchable_handle_ref(instance);
+
+        println!("instance: {:?}", instance);
+        println!("driver_name: {:?}", instance.driver_name);
+        assert_eq!(instance.driver_name, (*INSTANCE).driver_name);
+    }
+
+    VkResult::VK_SUCCESS
+}
+

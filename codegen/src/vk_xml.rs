@@ -713,10 +713,8 @@ impl VkFFIType {
         if let Some(array_index) = array_index {
             type_ = format!("[{type_}; {array_index} as usize]");
         }
-        if is_const_ptr {
-            type_ = format!("*const {type_}");
-        } else if is_mut_ptr {
-            type_ = format!("*mut {type_}");
+        if is_const_ptr || is_mut_ptr {
+            type_ = format!("Option<std::ptr::NonNull<{type_}>>");
         }
 
         Self(type_)

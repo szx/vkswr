@@ -42,11 +42,13 @@ impl VkXml {
     /// # Errors
     ///
     /// Will return `Err` if writing to `f` fails.
-    pub fn write_impls(&self, f: &mut impl std::io::Write) -> Result<(), WriteVkXmlError> {
+    pub fn write_defs(&self, f: &mut impl std::io::Write) -> Result<(), WriteVkXmlError> {
+        writeln!(f, "#[macro_export] macro_rules! include_commands {{ () => {{")?;
         for x in &self.commands {
             let tokens = x.into_token_stream();
             writeln!(f, "{tokens}")?;
         }
+        writeln!(f, "}}}}")?;
 
         Ok(())
     }
@@ -71,6 +73,7 @@ impl ToTokens for VkEnums {
                     .iter()
                     .filter(|x| matches!(x, VkEnumsMember::Member { .. }));
                 tokens.extend(quote! {
+                    #[derive(Debug, Eq, PartialEq)]
                     #[repr(C)]
                     pub enum #name {
                         #(#enumerators)*
@@ -140,6 +143,7 @@ impl ToTokens for VkStruct {
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {
                     #[repr(C)]
+                    #[derive(Debug)]
                     pub struct #name {
                         #(#members)*
                     }
@@ -151,6 +155,12 @@ impl ToTokens for VkStruct {
                     #[repr(C)]
                     pub union #name {
                         #(#members)*
+                    }
+                    impl std::fmt::Debug for #name {
+                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                            f.debug_struct("#name")
+                                .finish()
+                        }
                     }
                 });
             }
@@ -208,8 +218,7 @@ impl ToTokens for VkTypeExtern {
         match self {
             Self::Extern { name } => {
                 let name = format_ident!("{}", name.as_ref());
-                // TODO: Smarter unusable types.
-                tokens.extend(quote! {pub(self) type #name = Box<[u8]>;});
+                tokens.extend(quote! {pub type #name = VkUnsupportedType;});
             }
             Self::FuncPointer {
                 type_,
@@ -262,7 +271,7 @@ impl ToTokens for VkCommand {
                 name,
                 members,
             } => {
-                let command = format_ident!("impl_{}", name.as_ref());
+                let command = format_ident!("icd_{}", name.as_ref());
                 let args = members
                     .iter()
                     .map(VkFuncDeclMember::to_arg)
@@ -270,10 +279,10 @@ impl ToTokens for VkCommand {
                 let name = format_ident!("{}", name.as_ref());
                 if let Some(type_) = type_ {
                     let type_ = type_.0.parse::<TokenStream>().expect("Rust type");
-                    tokens.extend(quote! {#[no_mangle] pub extern "C" fn #name(#(#members)*) -> #type_ {#command(#(#args,)*)}});
+                    tokens.extend(quote! {#[no_mangle] pub unsafe  extern "C" fn #name(#(#members)*) -> #type_ {#command(#(#args,)*)}});
                 } else {
                     tokens.extend(
-                        quote! {#[no_mangle] pub extern "C" fn #name(#(#members)*) {#command(#(#args,)*)}},
+                        quote! {#[no_mangle] pub unsafe extern "C" fn #name(#(#members)*) {#command(#(#args,)*)}},
                     );
                 }
             }
@@ -293,5 +302,6 @@ mod tests {
         let vk_xml_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/vk.xml"));
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         vk_xml.write_decls(&mut io::sink()).expect("write succeeds");
+        vk_xml.write_defs(&mut io::stdout()).expect("write succeeds");
     }
 }
