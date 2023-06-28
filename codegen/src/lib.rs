@@ -73,7 +73,7 @@ impl ToTokens for VkEnums {
                     .iter()
                     .filter(|x| matches!(x, VkEnumsMember::Member { .. }));
                 tokens.extend(quote! {
-                    #[derive(Debug, Eq, PartialEq)]
+                    #[derive(Debug, Eq, PartialEq, Copy, Clone)]
                     #[repr(C)]
                     pub enum #name {
                         #(#enumerators)*
@@ -143,7 +143,7 @@ impl ToTokens for VkStruct {
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {
                     #[repr(C)]
-                    #[derive(Debug)]
+                    #[derive(Debug, Copy, Clone)]
                     pub struct #name {
                         #(#members)*
                     }
@@ -153,6 +153,7 @@ impl ToTokens for VkStruct {
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {
                     #[repr(C)]
+                    #[derive(Copy, Clone)]
                     pub union #name {
                         #(#members)*
                     }
