@@ -46,7 +46,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
     let Some(instance) = get_dispatchable_handle_ref::<Instance>(instance) else { unreachable!() };
 
     // VUID-vkEnumeratePhysicalDevices-pPhysicalDeviceCount-parameter
-    let Some(mut pPhysicalDeviceCount) = pPhysicalDeviceCount else { unreachable!() };
+    let Some(pPhysicalDeviceCount) = pPhysicalDeviceCount else { unreachable!() };
 
     // VUID-vkEnumeratePhysicalDevices-pPhysicalDevices-parameter
     pPhysicalDevices.map_or_else(
@@ -95,11 +95,27 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceProperties-pProperties-parameter
-    let Some(mut pProperties) = pProperties else { unreachable!() };
+    let Some(pProperties) = pProperties else { unreachable!() };
 
     // SPEC: "Returns properties of a physical device"
     *pProperties.as_ptr() = physicalDevice.properties();
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
+    physicalDevice: VkPhysicalDevice,
+    pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
+) {
+    // VUID-vkGetPhysicalDeviceMemoryProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceMemoryProperties-pMemoryProperties-parameter
+    let Some(pMemoryProperties) = pMemoryProperties else { unreachable!() };
+
+    // SPEC: "Reports memory information for the specified physical device"
+    *pMemoryProperties.as_ptr() = physicalDevice.memory_properties();
+}
+
 
 /* unimplemented */
 
@@ -3164,14 +3180,6 @@ pub unsafe extern "C" fn vkCmdPushConstants(
 #[no_mangle]
 pub unsafe extern "C" fn vkCmdDebugMarkerEndEXT(commandBuffer: VkCommandBuffer) {
     unimplemented!("vkCmdDebugMarkerEndEXT(commandBuffer")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
-    physicalDevice: VkPhysicalDevice,
-    pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
-) {
-    unimplemented!("vkGetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties")
 }
 
 #[no_mangle]

@@ -194,6 +194,29 @@ impl PhysicalDevice {
             },
         }
     }
+
+    pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
+        lazy_static! {
+            static ref MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
+                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
+                    [VkMemoryType {propertyFlags: 0, heapIndex: 0}; VK_MAX_MEMORY_TYPES as usize];
+                // TODO: Fill in memory types.
+                m
+            };
+            static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
+                let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
+                    [VkMemoryHeap {size: 0, flags: 0}; VK_MAX_MEMORY_HEAPS as usize];
+                // TODO: Fill in memory heaps.
+                m
+            };
+        }
+        VkPhysicalDeviceMemoryProperties {
+            memoryTypeCount: 0,
+            memoryTypes: *MEMORY_TYPES,
+            memoryHeapCount: 0,
+            memoryHeaps: *MEMORY_HEAPS,
+        }
+    }
 }
 
 impl PhysicalDevice {
