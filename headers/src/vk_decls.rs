@@ -8,18 +8,14 @@ pub use std::ptr::NonNull;
 
 pub(crate) type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
-pub unsafe fn set_dispatchable_handle<T>(
-    handle: NonNull<VkDispatchableHandle>,
-    value: &T,
-) {
+pub unsafe fn set_dispatchable_handle<T>(handle: NonNull<VkDispatchableHandle>, value: &T) {
     *handle.as_ptr() = std::mem::transmute(value);
 }
 
 pub unsafe fn get_dispatchable_handle_ref<'a, T>(
-    handle: NonNull<std::ffi::c_void>,
-) -> &'a T
-{
-    std::mem::transmute::<_, NonNull<T>>(handle.as_ptr()).as_ref()
+    handle: Option<NonNull<std::ffi::c_void>>,
+) -> Option<&'a T> {
+    handle.map(|handle| std::mem::transmute::<_, NonNull<T>>(handle.as_ptr()).as_ref())
 }
 
 pub(crate) type VkNonDispatchableHandle = u64;

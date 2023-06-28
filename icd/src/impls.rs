@@ -8,6 +8,102 @@ use headers::vk_defs::*;
 use runtime::*;
 
 #[no_mangle]
+pub unsafe extern "C" fn vkCreateInstance(
+    pCreateInfo: Option<NonNull<VkInstanceCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pInstance: Option<NonNull<VkInstance>>,
+) -> VkResult {
+    println!("Hello from vkCreateInstance()!");
+
+    // VUID-vkCreateInstance-pCreateInfo-parameter
+    let Some(pCreateInfo) = pCreateInfo else { unreachable!() };
+    let create_info = pCreateInfo.as_ref();
+    // TODO: Automate valid VkInstanceCreateInfo structure asserts.
+    assert_eq!(
+        create_info.sType,
+        VkStructureType::VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+    );
+
+    // VUID-vkCreateInstance-pAllocator-parameter
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    // VUID-vkCreateInstance-pInstance-parameter
+    let Some(mut pInstance) = pInstance else { unreachable!() };
+
+    runtime::create_instance(create_info, pInstance)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
+    instance: VkInstance,
+    pPhysicalDeviceCount: Option<NonNull<u32>>,
+    pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
+) -> VkResult {
+    // VUID-vkEnumeratePhysicalDevices-instance-parameter
+    let Some(instance) = get_dispatchable_handle_ref::<Instance>(instance) else { unreachable!() };
+
+    // VUID-vkEnumeratePhysicalDevices-pPhysicalDeviceCount-parameter
+    let Some(mut pPhysicalDeviceCount) = pPhysicalDeviceCount else { unreachable!() };
+
+    // VUID-vkEnumeratePhysicalDevices-pPhysicalDevices-parameter
+    pPhysicalDevices.map_or_else(
+        || {
+            *pPhysicalDeviceCount.as_ptr() = runtime::PhysicalDevice::count(instance);
+            VkResult::VK_SUCCESS
+        },
+        |pPhysicalDevices| {
+            set_dispatchable_handle(pPhysicalDevices, instance.physical_device());
+            VkResult::VK_SUCCESS
+        },
+    )
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
+    physicalDevice: VkPhysicalDevice,
+    pLayerName: Option<NonNull<std::ffi::c_char>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkExtensionProperties>>,
+) -> VkResult {
+    // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
+    let Some(pPropertyCount) = pPropertyCount else { unreachable!() };
+
+    // VUID-vkEnumerateDeviceExtensionProperties-pLayerName-parameter
+    if pLayerName.is_none() {
+        // TODO: SPEC: "only extensions provided by the Vulkan implementation or by implicitly enabled layers are returned"
+        *pPropertyCount.as_ptr() = 0;
+    } else {
+        let Some(pLayerName) = pLayerName else { unreachable!() };
+        let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
+        todo!("the device extensions provided by {layerName} layer are returned");
+    }
+    VkResult::VK_SUCCESS
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
+    physicalDevice: VkPhysicalDevice,
+    pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
+) {
+    // VUID-vkGetPhysicalDeviceProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceProperties-pProperties-parameter
+    let Some(mut pProperties) = pProperties else { unreachable!() };
+
+    // SPEC: "Returns properties of a physical device"
+    *pProperties.as_ptr() = physicalDevice.properties();
+}
+
+/* unimplemented */
+
+#[no_mangle]
 pub unsafe extern "C" fn vkCmdBuildAccelerationStructureNV(
     commandBuffer: VkCommandBuffer,
     pInfo: Option<NonNull<VkAccelerationStructureInfoNV>>,
@@ -98,9 +194,7 @@ pub unsafe extern "C" fn vkGetPipelineExecutableInternalRepresentationsKHR(
     device: VkDevice,
     pExecutableInfo: Option<NonNull<VkPipelineExecutableInfoKHR>>,
     pInternalRepresentationCount: Option<NonNull<u32>>,
-    pInternalRepresentations: Option<
-        NonNull<VkPipelineExecutableInternalRepresentationKHR>,
-    >,
+    pInternalRepresentations: Option<NonNull<VkPipelineExecutableInternalRepresentationKHR>>,
 ) -> VkResult {
     unimplemented!(
         "vkGetPipelineExecutableInternalRepresentationsKHR(
@@ -484,9 +578,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
 #[no_mangle]
 pub unsafe extern "C" fn vkGetEncodedVideoSessionParametersKHR(
     device: VkDevice,
-    pVideoSessionParametersInfo: Option<
-        NonNull<VkVideoEncodeSessionParametersGetInfoKHR>,
-    >,
+    pVideoSessionParametersInfo: Option<NonNull<VkVideoEncodeSessionParametersGetInfoKHR>>,
     pFeedbackInfo: Option<NonNull<VkVideoEncodeSessionParametersFeedbackInfoKHR>>,
     pDataSize: Option<NonNull<isize>>,
     pData: Option<NonNull<std::ffi::c_void>>,
@@ -1417,9 +1509,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn vkEnumerateInstanceVersion(
-    pApiVersion: Option<NonNull<u32>>,
-) -> VkResult {
+pub unsafe extern "C" fn vkEnumerateInstanceVersion(pApiVersion: Option<NonNull<u32>>) -> VkResult {
     unimplemented!("vkEnumerateInstanceVersion(pApiVersion")
 }
 
@@ -1597,86 +1687,6 @@ pub unsafe extern "C" fn vkQueueBeginDebugUtilsLabelEXT(
     pLabelInfo: Option<NonNull<VkDebugUtilsLabelEXT>>,
 ) {
     unimplemented!("vkQueueBeginDebugUtilsLabelEXT(queue, pLabelInfo")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkCreateInstance(
-    pCreateInfo: Option<NonNull<VkInstanceCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pInstance: Option<NonNull<VkInstance>>,
-) -> VkResult {
-    println!("Hello from vkCreateInstance()!");
-
-    // VUID-vkCreateInstance-pCreateInfo-parameter
-    let Some(pCreateInfo) = pCreateInfo else { unreachable!() };
-    let create_info = pCreateInfo.as_ref();
-    // TODO: Automate valid VkInstanceCreateInfo structure asserts.
-    assert_eq!(
-        create_info.sType,
-        VkStructureType::VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-    );
-
-    // VUID-vkCreateInstance-pAllocator-parameter
-    if let Some(pAllocator) = pAllocator {
-        let pAllocator = pAllocator.as_ptr();
-        // TODO: Use callbacks for memory allocation.
-    }
-
-    // VUID-vkCreateInstance-pInstance-parameter
-    let Some(mut pInstance) = pInstance else { unreachable!() };
-
-    runtime::create_instance(create_info, pInstance)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
-    instance: VkInstance,
-    pPhysicalDeviceCount: Option<NonNull<u32>>,
-    pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
-) -> VkResult {
-    // VUID-vkEnumeratePhysicalDevices-instance-parameter
-    let Some(instance) = instance else { unreachable!() };
-    let instance: &Instance = get_dispatchable_handle_ref(instance);
-
-    // VUID-vkEnumeratePhysicalDevices-pPhysicalDeviceCount-parameter
-    let Some(mut pPhysicalDeviceCount) = pPhysicalDeviceCount else { unreachable!() };
-
-    // VUID-vkEnumeratePhysicalDevices-pPhysicalDevices-parameter
-    pPhysicalDevices.map_or_else(
-        || {
-            *pPhysicalDeviceCount.as_ptr() = runtime::PhysicalDevice::count(instance);
-            VkResult::VK_SUCCESS
-        },
-        |pPhysicalDevices| {
-            set_dispatchable_handle(pPhysicalDevices, instance.physical_device());
-            VkResult::VK_SUCCESS
-        },
-    )
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
-    physicalDevice: VkPhysicalDevice,
-    pLayerName: Option<NonNull<std::ffi::c_char>>,
-    pPropertyCount: Option<NonNull<u32>>,
-    pProperties: Option<NonNull<VkExtensionProperties>>,
-) -> VkResult {
-    // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
-    let Some(physicalDevice) = physicalDevice else { unreachable!() };
-    let physicalDevice: &PhysicalDevice = get_dispatchable_handle_ref(physicalDevice);
-
-    // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
-    let Some(pPropertyCount) = pPropertyCount else { unreachable!() };
-
-    // VUID-vkEnumerateDeviceExtensionProperties-pLayerName-parameter
-    if pLayerName.is_none() {
-        todo!("only extensions provided by the Vulkan implementation or by implicitly enabled layers are returned");
-    } else {
-        let Some(pLayerName) = pLayerName else { unreachable!() };
-        let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
-        todo!("the device extensions provided by {layerName} layer are returned");
-    }
-    VkResult::VK_SUCCESS
 }
 
 #[no_mangle]
@@ -3899,9 +3909,7 @@ pub unsafe extern "C" fn vkDestroyImageView(
 #[no_mangle]
 pub unsafe extern "C" fn vkImportSemaphoreZirconHandleFUCHSIA(
     device: VkDevice,
-    pImportSemaphoreZirconHandleInfo: Option<
-        NonNull<VkImportSemaphoreZirconHandleInfoFUCHSIA>,
-    >,
+    pImportSemaphoreZirconHandleInfo: Option<NonNull<VkImportSemaphoreZirconHandleInfoFUCHSIA>>,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreZirconHandleFUCHSIA(device, pImportSemaphoreZirconHandleInfo")
 }
@@ -4156,14 +4164,6 @@ pub unsafe extern "C" fn vkCmdCopyMemoryIndirectNV(
     stride: u32,
 ) {
     unimplemented!("vkCmdCopyMemoryIndirectNV(commandBuffer, copyBufferAddress, copyCount, stride")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
-    physicalDevice: VkPhysicalDevice,
-    pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
-) {
-    unimplemented!("vkGetPhysicalDeviceProperties(physicalDevice, pProperties")
 }
 
 #[no_mangle]
