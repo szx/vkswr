@@ -131,6 +131,33 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     *pFeatures.as_ptr() = physicalDevice.features();
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
+    physicalDevice: VkPhysicalDevice,
+    pQueueFamilyPropertyCount: Option<NonNull<u32>>,
+    pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
+) {
+    // VUID-vkGetPhysicalDeviceQueueFamilyProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceQueueFamilyProperties-pQueueFamilyPropertyCount-parameter
+    let Some(pQueueFamilyPropertyCount) = pQueueFamilyPropertyCount else { unreachable!() };
+
+    // SPEC: "Reports properties of the queues of the specified physical device"
+    if pQueueFamilyProperties.is_none() {
+        // VUID-vkGetPhysicalDeviceQueueFamilyProperties-pQueueFamilyProperties-parameter
+        *pQueueFamilyPropertyCount.as_ptr() = physicalDevice.queue_family_properties().len() as u32;
+    } else {
+        // VUID-vkGetPhysicalDeviceQueueFamilyProperties-pQueueFamilyProperties-parameter
+        let Some(pQueueFamilyProperties) = pQueueFamilyProperties else { unreachable!() };
+        let queue_family_properties = physicalDevice.queue_family_properties();
+        pQueueFamilyProperties.as_ptr().copy_from(
+            queue_family_properties.as_ptr(),
+            queue_family_properties.len(),
+        );
+    }
+}
+
 /* unimplemented */
 
 #[no_mangle]
@@ -509,13 +536,11 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
 ) -> VkResult {
     println!("Hello from vkEnumerateInstanceExtensionProperties()!");
     assert_eq!(pLayerName, None);
-    unsafe {
-        println!("*pPropertyCount = {:?}", pPropertyCount);
-        println!("*pProperties = {:?}", pProperties);
-        if pProperties.is_none() {
-            if let Some(pPropertyCount) = pPropertyCount {
-                *pPropertyCount.as_ptr() = 0;
-            }
+    println!("*pPropertyCount = {:?}", pPropertyCount);
+    println!("*pProperties = {:?}", pProperties);
+    if pProperties.is_none() {
+        if let Some(pPropertyCount) = pPropertyCount {
+            *pPropertyCount.as_ptr() = 0;
         }
     }
     VkResult::VK_SUCCESS
@@ -4768,21 +4793,6 @@ pub unsafe extern "C" fn vkCreateAccelerationStructureKHR(
 ) -> VkResult {
     unimplemented!(
         "vkCreateAccelerationStructureKHR(device, pCreateInfo, pAllocator, pAccelerationStructure"
-    )
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
-    physicalDevice: VkPhysicalDevice,
-    pQueueFamilyPropertyCount: Option<NonNull<u32>>,
-    pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
-) {
-    unimplemented!(
-        "vkGetPhysicalDeviceQueueFamilyProperties(
-        physicalDevice,
-        pQueueFamilyPropertyCount,
-        pQueueFamilyProperties,
-    "
     )
 }
 

@@ -1,6 +1,7 @@
+use headers::vk_decls::VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
-use std::ffi::{c_char};
+use std::ffi::c_char;
 
 /* Instance */
 
@@ -276,6 +277,20 @@ impl PhysicalDevice {
             variableMultisampleRate: VK_FALSE,
             inheritedQueries: VK_FALSE,
         }
+    }
+
+    pub const fn queue_family_properties(&self) -> [VkQueueFamilyProperties; 1] {
+        let graphics_queue_family_properties = VkQueueFamilyProperties {
+            queueFlags: VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT as VkFlags,
+            queueCount: 1,
+            timestampValidBits: 0,
+            minImageTransferGranularity: VkExtent3D {
+                width: 0,
+                height: 0,
+                depth: 0,
+            },
+        };
+        [graphics_queue_family_properties]
     }
 }
 
