@@ -116,6 +116,20 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     *pMemoryProperties.as_ptr() = physicalDevice.memory_properties();
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
+    physicalDevice: VkPhysicalDevice,
+    pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
+) {
+    // VUID-vkGetPhysicalDeviceFeatures-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle_ref::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceFeatures-pFeatures-parameter
+    let Some(pFeatures) = pFeatures else { unreachable!() };
+
+    // SPEC: "Reports capabilities of a physical device"
+    *pFeatures.as_ptr() = physicalDevice.features();
+}
 
 /* unimplemented */
 
@@ -4699,14 +4713,6 @@ pub unsafe extern "C" fn vkGetAccelerationStructureDeviceAddressKHR(
     pInfo: Option<NonNull<VkAccelerationStructureDeviceAddressInfoKHR>>,
 ) -> VkDeviceAddress {
     unimplemented!("vkGetAccelerationStructureDeviceAddressKHR(device, pInfo")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
-    physicalDevice: VkPhysicalDevice,
-    pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
-) {
-    unimplemented!("vkGetPhysicalDeviceFeatures(physicalDevice, pFeatures")
 }
 
 #[no_mangle]
