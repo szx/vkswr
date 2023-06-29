@@ -186,7 +186,9 @@ pub unsafe extern "C" fn vkCreateDevice(
     // VUID-vkCreateDevice-pDevice-parameter
     let Some(pDevice) = pDevice else { unreachable!() };
 
-    runtime::create_logical_device(create_info, pDevice)
+    set_dispatchable_handle(pDevice, LogicalDevice::new(create_info));
+
+    VkResult::VK_SUCCESS
 }
 
 /* unimplemented */

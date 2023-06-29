@@ -1,9 +1,8 @@
-use headers::vk_decls::VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
 use std::ffi::c_char;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 
 /* Context */
 
@@ -11,6 +10,7 @@ use std::sync::{Arc, RwLock, Weak};
 pub struct Context {
     instances: Vec<Arc<Instance>>,
     physical_devices: Vec<Arc<PhysicalDevice>>,
+    logical_devices: Vec<Arc<LogicalDevice>>,
 }
 
 impl Context {
@@ -18,6 +18,7 @@ impl Context {
         Self {
             instances: vec![],
             physical_devices: vec![],
+            logical_devices: vec![],
         }
     }
 }
@@ -217,13 +218,13 @@ impl PhysicalDevice {
     pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
         lazy_static! {
             static ref MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
-                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
+                let m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
                     [VkMemoryType {propertyFlags: 0, heapIndex: 0}; VK_MAX_MEMORY_TYPES as usize];
                 // TODO: Fill in memory types.
                 m
             };
             static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
-                let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
+                let m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
                     [VkMemoryHeap {size: 0, flags: 0}; VK_MAX_MEMORY_HEAPS as usize];
                 // TODO: Fill in memory heaps.
                 m
@@ -321,21 +322,15 @@ pub struct LogicalDevice {
 }
 
 impl LogicalDevice {
-    const fn new() -> Self {
-        Self {
+    pub fn new(create_info: &VkDeviceCreateInfo) -> Arc<Self> {
+        let _ = create_info;
+        let logical_device = Self {
             driver_name: "vulkan_software_rasterizer",
-        }
-    }
-}
+        };
+        let logical_device = Arc::new(logical_device);
 
-pub fn create_logical_device(
-    create_info: &VkDeviceCreateInfo,
-    p_device: NonNull<VkDevice>,
-) -> VkResult {
-    // HIRO: create_logical_device
-    let _ = create_info;
-    println!("Hello from runtime::create_logical_device()!");
-    //unsafe { set_dispatchable_handle(p_instance, &*INSTANCE) };
-    todo!("create_logical_device");
-    VkResult::VK_SUCCESS
+        let mut context = CONTEXT.write().unwrap();
+        context.logical_devices.push(logical_device.clone());
+        logical_device
+    }
 }
