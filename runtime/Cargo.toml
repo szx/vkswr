@@ -9,4 +9,4 @@ crate-type = ["lib"]
 [dependencies]
 headers = { path = "../headers" }
 lazy_static = { workspace = true }
-
+log = { workspace = true }

@@ -24,6 +24,7 @@ fn run_vulkaninfo() -> common::TestResult {
     let out = Command::new("vulkaninfo")
         .env("VK_ICD_FILENAMES", icd_json_path)
         .env("VK_LOADER_DEBUG", "error,warn,debug,driver") // error,warn,info,debug,layer,driver
+        .env("RUST_LOG", "trace") // error,warn,info,debug,layer,driver
         //.env("ICD_WAIT_FOR_DEBUGGER", "true")
         .output()?;
     assert!(

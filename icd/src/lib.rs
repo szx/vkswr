@@ -8,9 +8,12 @@ use impls::*;
 fn wait_for_debugger() {
     static mut DEBUG: bool = true;
     unsafe {
-        if DEBUG && std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
-            DEBUG = false;
-        };
+        if DEBUG {
+            env_logger::init();
+            if std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
+                DEBUG = false;
+            }
+        }
         while DEBUG {}
         DEBUG = false;
     }
@@ -27,7 +30,6 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     pName: *const std::ffi::c_char,
 ) -> PFN_vkVoidFunction {
     let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else { return None; };
-    println!("vk_icdGetInstanceProcAddr: {:?} {:?}", instance, pName);
     wait_for_debugger();
     match pName {
         "vkCreateInstance" => unsafe { std::mem::transmute(vkCreateInstance as *const ()) },

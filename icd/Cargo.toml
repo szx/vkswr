@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 headers = { path = "../headers" }
 runtime = { path = "../runtime" }
+env_logger = { workspace = true }
 
 [dev-dependencies]
 libloading = "0.8.0"

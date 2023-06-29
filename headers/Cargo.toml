@@ -6,5 +6,8 @@ edition = "2021"
 [lib]
 crate-type = ["lib"]
 
+[dependencies]
+log = { workspace = true }
+
 [build-dependencies]
 codegen = { path = "../codegen" }
