@@ -1,7 +1,30 @@
 use headers::vk_decls::VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
+use log::*;
 use std::ffi::c_char;
+use std::sync::{Arc, RwLock, Weak};
+
+/* Context */
+
+#[derive(Debug)]
+pub struct Context {
+    instances: Vec<Arc<Instance>>,
+    physical_devices: Vec<Arc<PhysicalDevice>>,
+}
+
+impl Context {
+    pub const fn new() -> Self {
+        Self {
+            instances: vec![],
+            physical_devices: vec![],
+        }
+    }
+}
+
+lazy_static! {
+    static ref CONTEXT: RwLock<Context> = RwLock::new(Context::new());
+}
 
 /* Instance */
 
@@ -9,37 +32,19 @@ use std::ffi::c_char;
 #[derive(Debug)]
 pub struct Instance {
     driver_name: &'static str,
-    physical_device: PhysicalDevice,
 }
 
 impl Instance {
-    pub const fn physical_device(&self) -> &PhysicalDevice {
-        &self.physical_device
-    }
-}
-
-impl Instance {
-    const fn new() -> Self {
-        Self {
+    pub fn new() -> Arc<Self> {
+        let instance = Self {
             driver_name: "vulkan_software_rasterizer",
-            physical_device: PhysicalDevice::new(),
-        }
+        };
+        let instance = Arc::new(instance);
+
+        let mut context = CONTEXT.write().unwrap();
+        context.instances.push(instance.clone());
+        instance
     }
-}
-
-lazy_static! {
-    static ref INSTANCE: Instance = Instance::new();
-}
-
-pub fn create_instance(
-    create_info: &VkInstanceCreateInfo,
-    p_instance: NonNull<VkInstance>,
-) -> VkResult {
-    let _ = create_info;
-    println!("Hello from runtime::create_instance()!");
-    unsafe { set_dispatchable_handle(p_instance, &*INSTANCE) };
-
-    VkResult::VK_SUCCESS
 }
 
 /* PhysicalDevice */
@@ -47,12 +52,25 @@ pub fn create_instance(
 /// Performs rendering operations.
 #[derive(Debug)]
 pub struct PhysicalDevice {
-    name: &'static str,
+    instance: Arc<Instance>,
 }
 
 impl PhysicalDevice {
-    /// Instance currently supports 1 `PhysicalDevice`.
-    pub const fn count(_: &Instance) -> u32 {
+    pub fn get(instance: &Arc<Instance>) -> Arc<Self> {
+        info!("new PhysicalDevice");
+        let mut context = CONTEXT.write().unwrap();
+        if context.physical_devices.len() < Self::physical_device_count() {
+            let instance = instance.clone();
+            let physical_device = Self { instance };
+            let physical_device = Arc::new(physical_device);
+
+            context.physical_devices.push(physical_device.clone());
+        }
+        let arc = context.physical_devices.last().unwrap().clone();
+        arc
+    }
+
+    pub const fn physical_device_count() -> usize {
         1
     }
 
@@ -294,14 +312,6 @@ impl PhysicalDevice {
     }
 }
 
-impl PhysicalDevice {
-    const fn new() -> Self {
-        Self {
-            name: "PhysicalDevice",
-        }
-    }
-}
-
 /* LogicalDevice */
 
 /// Identifier used to associate functions with a `PhysicalDevice`.
@@ -316,4 +326,16 @@ impl LogicalDevice {
             driver_name: "vulkan_software_rasterizer",
         }
     }
+}
+
+pub fn create_logical_device(
+    create_info: &VkDeviceCreateInfo,
+    p_device: NonNull<VkDevice>,
+) -> VkResult {
+    // HIRO: create_logical_device
+    let _ = create_info;
+    println!("Hello from runtime::create_logical_device()!");
+    //unsafe { set_dispatchable_handle(p_instance, &*INSTANCE) };
+    todo!("create_logical_device");
+    VkResult::VK_SUCCESS
 }

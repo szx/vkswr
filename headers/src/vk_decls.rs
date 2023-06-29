@@ -5,17 +5,44 @@
 #![allow(clippy::pedantic)]
 
 pub use std::ptr::NonNull;
+use std::sync::Arc;
+use log::*;
 
 pub(crate) type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
-pub unsafe fn set_dispatchable_handle<T>(handle: NonNull<VkDispatchableHandle>, value: &T) {
+pub unsafe fn set_dispatchable_handle<T>(
+    handle: NonNull<VkDispatchableHandle>,
+    value: Arc<T>,
+) {
+    trace!(
+        "set_dispatchable_handle {} arc: {} {}",
+        std::any::type_name::<T>(),
+        Arc::strong_count(&value),
+        Arc::weak_count(&value)
+    );
+    let value = Arc::into_raw(value);
+    Arc::decrement_strong_count(value);
     *handle.as_ptr() = std::mem::transmute(value);
 }
 
-pub unsafe fn get_dispatchable_handle_ref<'a, T>(
+pub unsafe fn get_dispatchable_handle<T>(
     handle: Option<NonNull<std::ffi::c_void>>,
-) -> Option<&'a T> {
-    handle.map(|handle| std::mem::transmute::<_, NonNull<T>>(handle.as_ptr()).as_ref())
+) -> Option<Arc<T>> {
+    handle.map_or_else(
+        || None,
+        |handle| {
+            let ptr = std::mem::transmute::<_, *const T>(handle);
+            Arc::increment_strong_count(ptr);
+            let arc = Arc::from_raw(ptr);
+            trace!(
+                "get_dispatchable_handle {} arc: {} {}",
+                std::any::type_name::<T>(),
+                Arc::strong_count(&arc),
+                Arc::weak_count(&arc)
+            );
+            Some(arc)
+        },
+    )
 }
 
 pub(crate) type VkNonDispatchableHandle = u64;
