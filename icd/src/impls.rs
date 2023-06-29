@@ -82,7 +82,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     } else {
         let Some(pLayerName) = pLayerName else { unreachable!() };
         let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
-        todo!("the device extensions provided by {layerName} layer are returned");
+        todo!("the device extensions provided by {layerName} layer are returned")
     }
     VkResult::VK_SUCCESS
 }
@@ -189,6 +189,148 @@ pub unsafe extern "C" fn vkCreateDevice(
     set_dispatchable_handle(pDevice, LogicalDevice::new(create_info));
 
     VkResult::VK_SUCCESS
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkGetDeviceProcAddr(
+    device: VkDevice,
+    pName: Option<NonNull<std::ffi::c_char>>,
+) -> PFN_vkVoidFunction {
+    // VUID-vkGetDeviceProcAddr-device-parameter
+    let Some(device) = get_dispatchable_handle::<LogicalDevice>(device) else { unreachable!() };
+
+    // VUID-vkGetDeviceProcAddr-pName-parameter
+    let Some(pName) = pName else { unreachable!() };
+    let Ok(pName) = std::ffi::CStr::from_ptr(pName.as_ptr()).to_str() else { unreachable!() };
+
+    // SPEC: The overhead of the internal dispatch for VkDevice objects can be avoided by obtaining
+    // device-specific function pointers for any commands that use a device or device-child object
+    // as their dispatchable object.
+
+    match pName {
+        /* Vulkan Core 1.0 device commands. */
+        "vkDestroyDevice" => unsafe { std::mem::transmute( vkDestroyDevice as *const ()) },
+        "vkGetDeviceQueue" => unsafe { std::mem::transmute( vkGetDeviceQueue as *const ()) },
+        "vkQueueSubmit" => unsafe { std::mem::transmute( vkQueueSubmit as *const ()) },
+        "vkQueueWaitIdle" => unsafe { std::mem::transmute( vkQueueWaitIdle as *const ()) },
+        "vkDeviceWaitIdle" => unsafe { std::mem::transmute( vkDeviceWaitIdle as *const ()) },
+        "vkAllocateMemory" => unsafe { std::mem::transmute( vkAllocateMemory as *const ()) },
+        "vkFreeMemory" => unsafe { std::mem::transmute( vkFreeMemory as *const ()) },
+        "vkMapMemory" => unsafe { std::mem::transmute( vkMapMemory as *const ()) },
+        "vkUnmapMemory" => unsafe { std::mem::transmute( vkUnmapMemory as *const ()) },
+        "vkFlushMappedMemoryRanges" => unsafe { std::mem::transmute( vkFlushMappedMemoryRanges as *const ()) },
+        "vkInvalidateMappedMemoryRanges" => unsafe { std::mem::transmute( vkInvalidateMappedMemoryRanges as *const ()) },
+        "vkGetDeviceMemoryCommitment" => unsafe { std::mem::transmute( vkGetDeviceMemoryCommitment as *const ()) },
+        "vkBindBufferMemory" => unsafe { std::mem::transmute( vkBindBufferMemory as *const ()) },
+        "vkBindImageMemory" => unsafe { std::mem::transmute( vkBindImageMemory as *const ()) },
+        "vkGetBufferMemoryRequirements" => unsafe { std::mem::transmute( vkGetBufferMemoryRequirements as *const ()) },
+        "vkGetImageMemoryRequirements" => unsafe { std::mem::transmute( vkGetImageMemoryRequirements as *const ()) },
+        "vkGetImageSparseMemoryRequirements" => unsafe { std::mem::transmute( vkGetImageSparseMemoryRequirements as *const ()) },
+        "vkQueueBindSparse" => unsafe { std::mem::transmute( vkQueueBindSparse as *const ()) },
+        "vkCreateFence" => unsafe { std::mem::transmute( vkCreateFence as *const ()) },
+        "vkDestroyFence" => unsafe { std::mem::transmute( vkDestroyFence as *const ()) },
+        "vkResetFences" => unsafe { std::mem::transmute( vkResetFences as *const ()) },
+        "vkGetFenceStatus" => unsafe { std::mem::transmute( vkGetFenceStatus as *const ()) },
+        "vkWaitForFences" => unsafe { std::mem::transmute( vkWaitForFences as *const ()) },
+        "vkCreateSemaphore" => unsafe { std::mem::transmute( vkCreateSemaphore as *const ()) },
+        "vkDestroySemaphore" => unsafe { std::mem::transmute( vkDestroySemaphore as *const ()) },
+        "vkCreateEvent" => unsafe { std::mem::transmute( vkCreateEvent as *const ()) },
+        "vkDestroyEvent" => unsafe { std::mem::transmute( vkDestroyEvent as *const ()) },
+        "vkGetEventStatus" => unsafe { std::mem::transmute( vkGetEventStatus as *const ()) },
+        "vkSetEvent" => unsafe { std::mem::transmute( vkSetEvent as *const ()) },
+        "vkResetEvent" => unsafe { std::mem::transmute( vkResetEvent as *const ()) },
+        "vkCreateQueryPool" => unsafe { std::mem::transmute( vkCreateQueryPool as *const ()) },
+        "vkDestroyQueryPool" => unsafe { std::mem::transmute( vkDestroyQueryPool as *const ()) },
+        "vkGetQueryPoolResults" => unsafe { std::mem::transmute( vkGetQueryPoolResults as *const ()) },
+        "vkCreateBuffer" => unsafe { std::mem::transmute( vkCreateBuffer as *const ()) },
+        "vkDestroyBuffer" => unsafe { std::mem::transmute( vkDestroyBuffer as *const ()) },
+        "vkCreateBufferView" => unsafe { std::mem::transmute( vkCreateBufferView as *const ()) },
+        "vkDestroyBufferView" => unsafe { std::mem::transmute( vkDestroyBufferView as *const ()) },
+        "vkCreateImage" => unsafe { std::mem::transmute( vkCreateImage as *const ()) },
+        "vkDestroyImage" => unsafe { std::mem::transmute( vkDestroyImage as *const ()) },
+        "vkGetImageSubresourceLayout" => unsafe { std::mem::transmute( vkGetImageSubresourceLayout as *const ()) },
+        "vkCreateImageView" => unsafe { std::mem::transmute( vkCreateImageView as *const ()) },
+        "vkDestroyImageView" => unsafe { std::mem::transmute( vkDestroyImageView as *const ()) },
+        "vkCreateShaderModule" => unsafe { std::mem::transmute( vkCreateShaderModule as *const ()) },
+        "vkDestroyShaderModule" => unsafe { std::mem::transmute( vkDestroyShaderModule as *const ()) },
+        "vkCreatePipelineCache" => unsafe { std::mem::transmute( vkCreatePipelineCache as *const ()) },
+        "vkDestroyPipelineCache" => unsafe { std::mem::transmute( vkDestroyPipelineCache as *const ()) },
+        "vkGetPipelineCacheData" => unsafe { std::mem::transmute( vkGetPipelineCacheData as *const ()) },
+        "vkMergePipelineCaches" => unsafe { std::mem::transmute( vkMergePipelineCaches as *const ()) },
+        "vkCreateGraphicsPipelines" => unsafe { std::mem::transmute( vkCreateGraphicsPipelines as *const ()) },
+        "vkCreateComputePipelines" => unsafe { std::mem::transmute( vkCreateComputePipelines as *const ()) },
+        "vkDestroyPipeline" => unsafe { std::mem::transmute( vkDestroyPipeline as *const ()) },
+        "vkCreatePipelineLayout" => unsafe { std::mem::transmute( vkCreatePipelineLayout as *const ()) },
+        "vkDestroyPipelineLayout" => unsafe { std::mem::transmute( vkDestroyPipelineLayout as *const ()) },
+        "vkCreateSampler" => unsafe { std::mem::transmute( vkCreateSampler as *const ()) },
+        "vkDestroySampler" => unsafe { std::mem::transmute( vkDestroySampler as *const ()) },
+        "vkCreateDescriptorSetLayout" => unsafe { std::mem::transmute( vkCreateDescriptorSetLayout as *const ()) },
+        "vkDestroyDescriptorSetLayout" => unsafe { std::mem::transmute( vkDestroyDescriptorSetLayout as *const ()) },
+        "vkCreateDescriptorPool" => unsafe { std::mem::transmute( vkCreateDescriptorPool as *const ()) },
+        "vkDestroyDescriptorPool" => unsafe { std::mem::transmute( vkDestroyDescriptorPool as *const ()) },
+        "vkResetDescriptorPool" => unsafe { std::mem::transmute( vkResetDescriptorPool as *const ()) },
+        "vkAllocateDescriptorSets" => unsafe { std::mem::transmute( vkAllocateDescriptorSets as *const ()) },
+        "vkFreeDescriptorSets" => unsafe { std::mem::transmute( vkFreeDescriptorSets as *const ()) },
+        "vkUpdateDescriptorSets" => unsafe { std::mem::transmute( vkUpdateDescriptorSets as *const ()) },
+        "vkCreateFramebuffer" => unsafe { std::mem::transmute( vkCreateFramebuffer as *const ()) },
+        "vkDestroyFramebuffer" => unsafe { std::mem::transmute( vkDestroyFramebuffer as *const ()) },
+        "vkCreateRenderPass" => unsafe { std::mem::transmute( vkCreateRenderPass as *const ()) },
+        "vkDestroyRenderPass" => unsafe { std::mem::transmute( vkDestroyRenderPass as *const ()) },
+        "vkGetRenderAreaGranularity" => unsafe { std::mem::transmute( vkGetRenderAreaGranularity as *const ()) },
+        "vkCreateCommandPool" => unsafe { std::mem::transmute( vkCreateCommandPool as *const ()) },
+        "vkDestroyCommandPool" => unsafe { std::mem::transmute( vkDestroyCommandPool as *const ()) },
+        "vkResetCommandPool" => unsafe { std::mem::transmute( vkResetCommandPool as *const ()) },
+        "vkAllocateCommandBuffers" => unsafe { std::mem::transmute( vkAllocateCommandBuffers as *const ()) },
+        "vkFreeCommandBuffers" => unsafe { std::mem::transmute( vkFreeCommandBuffers as *const ()) },
+        "vkBeginCommandBuffer" => unsafe { std::mem::transmute( vkBeginCommandBuffer as *const ()) },
+        "vkEndCommandBuffer" => unsafe { std::mem::transmute( vkEndCommandBuffer as *const ()) },
+        "vkResetCommandBuffer" => unsafe { std::mem::transmute( vkResetCommandBuffer as *const ()) },
+        "vkCmdBindPipeline" => unsafe { std::mem::transmute( vkCmdBindPipeline as *const ()) },
+        "vkCmdSetViewport" => unsafe { std::mem::transmute( vkCmdSetViewport as *const ()) },
+        "vkCmdSetScissor" => unsafe { std::mem::transmute( vkCmdSetScissor as *const ()) },
+        "vkCmdSetLineWidth" => unsafe { std::mem::transmute( vkCmdSetLineWidth as *const ()) },
+        "vkCmdSetDepthBias" => unsafe { std::mem::transmute( vkCmdSetDepthBias as *const ()) },
+        "vkCmdSetBlendConstants" => unsafe { std::mem::transmute( vkCmdSetBlendConstants as *const ()) },
+        "vkCmdSetDepthBounds" => unsafe { std::mem::transmute( vkCmdSetDepthBounds as *const ()) },
+        "vkCmdSetStencilCompareMask" => unsafe { std::mem::transmute( vkCmdSetStencilCompareMask as *const ()) },
+        "vkCmdSetStencilWriteMask" => unsafe { std::mem::transmute( vkCmdSetStencilWriteMask as *const ()) },
+        "vkCmdSetStencilReference" => unsafe { std::mem::transmute( vkCmdSetStencilReference as *const ()) },
+        "vkCmdBindDescriptorSets" => unsafe { std::mem::transmute( vkCmdBindDescriptorSets as *const ()) },
+        "vkCmdBindIndexBuffer" => unsafe { std::mem::transmute( vkCmdBindIndexBuffer as *const ()) },
+        "vkCmdBindVertexBuffers" => unsafe { std::mem::transmute( vkCmdBindVertexBuffers as *const ()) },
+        "vkCmdDraw" => unsafe { std::mem::transmute( vkCmdDraw as *const ()) },
+        "vkCmdDrawIndexed" => unsafe { std::mem::transmute( vkCmdDrawIndexed as *const ()) },
+        "vkCmdDrawIndirect" => unsafe { std::mem::transmute( vkCmdDrawIndirect as *const ()) },
+        "vkCmdDrawIndexedIndirect" => unsafe { std::mem::transmute( vkCmdDrawIndexedIndirect as *const ()) },
+        "vkCmdDispatch" => unsafe { std::mem::transmute( vkCmdDispatch as *const ()) },
+        "vkCmdDispatchIndirect" => unsafe { std::mem::transmute( vkCmdDispatchIndirect as *const ()) },
+        "vkCmdCopyBuffer" => unsafe { std::mem::transmute( vkCmdCopyBuffer as *const ()) },
+        "vkCmdCopyImage" => unsafe { std::mem::transmute( vkCmdCopyImage as *const ()) },
+        "vkCmdBlitImage" => unsafe { std::mem::transmute( vkCmdBlitImage as *const ()) },
+        "vkCmdCopyBufferToImage" => unsafe { std::mem::transmute( vkCmdCopyBufferToImage as *const ()) },
+        "vkCmdCopyImageToBuffer" => unsafe { std::mem::transmute( vkCmdCopyImageToBuffer as *const ()) },
+        "vkCmdUpdateBuffer" => unsafe { std::mem::transmute( vkCmdUpdateBuffer as *const ()) },
+        "vkCmdFillBuffer" => unsafe { std::mem::transmute( vkCmdFillBuffer as *const ()) },
+        "vkCmdClearColorImage" => unsafe { std::mem::transmute( vkCmdClearColorImage as *const ()) },
+        "vkCmdClearDepthStencilImage" => unsafe { std::mem::transmute( vkCmdClearDepthStencilImage as *const ()) },
+        "vkCmdClearAttachments" => unsafe { std::mem::transmute( vkCmdClearAttachments as *const ()) },
+        "vkCmdResolveImage" => unsafe { std::mem::transmute( vkCmdResolveImage as *const ()) },
+        "vkCmdSetEvent" => unsafe { std::mem::transmute( vkCmdSetEvent as *const ()) },
+        "vkCmdResetEvent" => unsafe { std::mem::transmute( vkCmdResetEvent as *const ()) },
+        "vkCmdWaitEvents" => unsafe { std::mem::transmute( vkCmdWaitEvents as *const ()) },
+        "vkCmdPipelineBarrier" => unsafe { std::mem::transmute( vkCmdPipelineBarrier as *const ()) },
+        "vkCmdBeginQuery" => unsafe { std::mem::transmute( vkCmdBeginQuery as *const ()) },
+        "vkCmdEndQuery" => unsafe { std::mem::transmute( vkCmdEndQuery as *const ()) },
+        "vkCmdResetQueryPool" => unsafe { std::mem::transmute( vkCmdResetQueryPool as *const ()) },
+        "vkCmdWriteTimestamp" => unsafe { std::mem::transmute( vkCmdWriteTimestamp as *const ()) },
+        "vkCmdCopyQueryPoolResults" => unsafe { std::mem::transmute( vkCmdCopyQueryPoolResults as *const ()) },
+        "vkCmdPushConstants" => unsafe { std::mem::transmute( vkCmdPushConstants as *const ()) },
+        "vkCmdBeginRenderPass" => unsafe { std::mem::transmute( vkCmdBeginRenderPass as *const ()) },
+        "vkCmdNextSubpass" => unsafe { std::mem::transmute( vkCmdNextSubpass as *const ()) },
+        "vkCmdEndRenderPass" => unsafe { std::mem::transmute( vkCmdEndRenderPass as *const ()) },
+        "vkCmdExecuteCommands" => unsafe { std::mem::transmute( vkCmdExecuteCommands as *const ()) },
+        &_ => None, // unreachable!("pName: {}", pName) TODO: Vulkan 1.1 Core commands.
+    }
 }
 
 /* unimplemented */
@@ -6102,14 +6244,6 @@ pub unsafe extern "C" fn vkDestroyPrivateDataSlot(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroyPrivateDataSlot(device, privateDataSlot, pAllocator")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetDeviceProcAddr(
-    device: VkDevice,
-    pName: Option<NonNull<std::ffi::c_char>>,
-) -> PFN_vkVoidFunction {
-    unimplemented!("vkGetDeviceProcAddr(device, pName")
 }
 
 #[no_mangle]
