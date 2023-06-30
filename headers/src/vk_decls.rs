@@ -45,6 +45,19 @@ pub unsafe fn get_dispatchable_handle<T>(
     )
 }
 
+pub trait RegisterDispatchable {
+    fn register(self: Arc<Self>) -> Arc<Self>;
+    fn unregister(self: &Arc<Self>);
+}
+
+pub fn drop_dispatchable_handle(handle: Arc<impl RegisterDispatchable>) {
+    println!("vkDestroyDevice: {} {}", Arc::strong_count(&handle), Arc::weak_count(&handle));
+    handle.unregister();
+    println!("vkDestroyDevice: {} {}", Arc::strong_count(&handle), Arc::weak_count(&handle));
+    drop(handle);
+}
+
+
 pub(crate) type VkNonDispatchableHandle = u64;
 
 // TODO: Smarter handling of unsupported FFI types.

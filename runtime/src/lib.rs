@@ -531,9 +531,20 @@ impl LogicalDevice {
             physical_device,
         };
         let logical_device = Arc::new(logical_device);
+        logical_device.register()
+    }
+}
 
+impl RegisterDispatchable for LogicalDevice {
+    fn register(self: Arc<Self>) -> Arc<Self> {
         let mut context = CONTEXT.write().unwrap();
-        context.logical_devices.push(logical_device.clone());
-        logical_device
+        context.logical_devices.push(self.clone());
+        self
+    }
+
+    fn unregister(self: &Arc<Self>) {
+        let mut context = CONTEXT.write().unwrap();
+        let index = context.logical_devices.iter().position(|x| Arc::ptr_eq(x, self)).unwrap();
+        context.logical_devices.remove(index);
     }
 }

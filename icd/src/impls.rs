@@ -349,6 +349,24 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     *pFormatProperties.as_ptr() = physicalDevice.format_properties(format);
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn vkDestroyDevice(
+    device: VkDevice,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    // VUID-vkDestroyDevice-device-00378
+    let Some(device) = get_dispatchable_handle::<LogicalDevice>(device) else { unreachable!() };
+
+    // VUID-vkDestroyDevice-device-00379
+    // VUID-vkDestroyDevice-device-00380
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    drop_dispatchable_handle(device);
+}
+
 /* unimplemented */
 
 #[no_mangle]
@@ -4287,14 +4305,6 @@ pub unsafe extern "C" fn vkCreateEvent(
     pEvent: Option<NonNull<VkEvent>>,
 ) -> VkResult {
     unimplemented!("vkCreateEvent(device, pCreateInfo, pAllocator, pEvent")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkDestroyDevice(
-    device: VkDevice,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyDevice(device, pAllocator")
 }
 
 #[no_mangle]
