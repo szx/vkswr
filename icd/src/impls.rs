@@ -186,7 +186,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     // VUID-vkCreateDevice-pDevice-parameter
     let Some(pDevice) = pDevice else { unreachable!() };
 
-    set_dispatchable_handle(pDevice, LogicalDevice::new(create_info));
+    set_dispatchable_handle(pDevice, LogicalDevice::new(&physicalDevice, create_info));
 
     VkResult::VK_SUCCESS
 }
@@ -331,6 +331,22 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
         "vkCmdExecuteCommands" => unsafe { std::mem::transmute( vkCmdExecuteCommands as *const ()) },
         &_ => None, // unreachable!("pName: {}", pName) TODO: Vulkan 1.1 Core commands.
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
+    physicalDevice: VkPhysicalDevice,
+    format: VkFormat,
+    pFormatProperties: Option<NonNull<VkFormatProperties>>,
+) {
+    // VUID-vkGetPhysicalDeviceFormatProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceFormatProperties-pFormatProperties-parameter
+    let Some(pFormatProperties) = pFormatProperties else { unreachable!() };
+
+    // SPEC: "Reports capabilities of a physical device"
+    *pFormatProperties.as_ptr() = physicalDevice.format_properties(format);
 }
 
 /* unimplemented */
@@ -1724,15 +1740,6 @@ pub unsafe extern "C" fn vkCreateSwapchainKHR(
     pSwapchain: Option<NonNull<VkSwapchainKHR>>,
 ) -> VkResult {
     unimplemented!("vkCreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
-    physicalDevice: VkPhysicalDevice,
-    format: VkFormat,
-    pFormatProperties: Option<NonNull<VkFormatProperties>>,
-) {
-    unimplemented!("vkGetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties")
 }
 
 #[no_mangle]
