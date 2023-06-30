@@ -43,6 +43,10 @@ impl Instance {
         let instance = Arc::new(instance);
         instance.register()
     }
+
+    pub const fn extension_count() -> usize {
+        1
+    }
 }
 
 impl RegisterDispatchable for Instance {
