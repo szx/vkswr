@@ -41,10 +41,25 @@ impl Instance {
             driver_name: "vulkan_software_rasterizer",
         };
         let instance = Arc::new(instance);
+        instance.register()
+    }
+}
 
+impl RegisterDispatchable for Instance {
+    fn register(self: Arc<Self>) -> Arc<Self> {
         let mut context = CONTEXT.write().unwrap();
-        context.instances.push(instance.clone());
-        instance
+        context.instances.push(self.clone());
+        self
+    }
+
+    fn unregister(self: &Arc<Self>) {
+        let mut context = CONTEXT.write().unwrap();
+        let index = context
+            .instances
+            .iter()
+            .position(|x| Arc::ptr_eq(x, self))
+            .unwrap();
+        context.instances.remove(index);
     }
 }
 
@@ -53,16 +68,17 @@ impl Instance {
 /// Performs rendering operations.
 #[derive(Debug)]
 pub struct PhysicalDevice {
-    instance: Arc<Instance>,
+    physical_device_name: &'static str,
 }
 
 impl PhysicalDevice {
-    pub fn get(instance: &Arc<Instance>) -> Arc<Self> {
+    pub fn get() -> Arc<Self> {
         info!("new PhysicalDevice");
         let mut context = CONTEXT.write().unwrap();
         if context.physical_devices.len() < Self::physical_device_count() {
-            let instance = instance.clone();
-            let physical_device = Self { instance };
+            let physical_device = Self {
+                physical_device_name: "vulkan_software_rasterizer physical device",
+            };
             let physical_device = Arc::new(physical_device);
 
             context.physical_devices.push(physical_device.clone());
@@ -544,7 +560,11 @@ impl RegisterDispatchable for LogicalDevice {
 
     fn unregister(self: &Arc<Self>) {
         let mut context = CONTEXT.write().unwrap();
-        let index = context.logical_devices.iter().position(|x| Arc::ptr_eq(x, self)).unwrap();
+        let index = context
+            .logical_devices
+            .iter()
+            .position(|x| Arc::ptr_eq(x, self))
+            .unwrap();
         context.logical_devices.remove(index);
     }
 }

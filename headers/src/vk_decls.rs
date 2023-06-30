@@ -51,9 +51,8 @@ pub trait RegisterDispatchable {
 }
 
 pub fn drop_dispatchable_handle(handle: Arc<impl RegisterDispatchable>) {
-    println!("vkDestroyDevice: {} {}", Arc::strong_count(&handle), Arc::weak_count(&handle));
     handle.unregister();
-    println!("vkDestroyDevice: {} {}", Arc::strong_count(&handle), Arc::weak_count(&handle));
+    assert_eq!(Arc::strong_count(&handle), 1);
     drop(handle);
 }
 

@@ -56,7 +56,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            set_dispatchable_handle(pPhysicalDevices, PhysicalDevice::get(&instance));
+            set_dispatchable_handle(pPhysicalDevices, PhysicalDevice::get());
             VkResult::VK_SUCCESS
         },
     )
@@ -365,6 +365,24 @@ pub unsafe extern "C" fn vkDestroyDevice(
     }
 
     drop_dispatchable_handle(device);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkDestroyInstance(
+    instance: VkInstance,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    // VUID-vkDestroyInstance-instance-00629
+    let Some(instance) = get_dispatchable_handle::<Instance>(instance) else { unreachable!() };
+
+    // VUID-vkDestroyInstance-instance-00630
+    // VUID-vkDestroyInstance-instance-00631
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    drop_dispatchable_handle(instance);
 }
 
 /* unimplemented */
@@ -4487,14 +4505,6 @@ pub unsafe extern "C" fn vkCreateImageView(
     pView: Option<NonNull<VkImageView>>,
 ) -> VkResult {
     unimplemented!("vkCreateImageView(device, pCreateInfo, pAllocator, pView")
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn vkDestroyInstance(
-    instance: VkInstance,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyInstance(instance, pAllocator")
 }
 
 #[no_mangle]
