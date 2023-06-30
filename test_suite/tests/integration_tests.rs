@@ -35,3 +35,22 @@ fn run_vulkaninfo() -> common::TestResult {
     );
     Ok(())
 }
+
+
+#[test]
+fn run_vkcube() -> common::TestResult {
+    let icd_json_path = common::get_icd_json_path();
+    let out = Command::new("vkcube")
+        .env("VK_ICD_FILENAMES", icd_json_path)
+        .env("VK_LOADER_DEBUG", "error,warn,debug,driver") // error,warn,info,debug,layer,driver
+        .env("RUST_LOG", "trace") // error,warn,info,debug,layer,driver
+        //.env("ICD_WAIT_FOR_DEBUGGER", "true")
+        .output()?;
+    assert!(
+        out.status.success(),
+        "stdout: {},\nstderr: {}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr),
+    );
+    Ok(())
+}
