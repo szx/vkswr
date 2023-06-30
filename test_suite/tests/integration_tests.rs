@@ -1,18 +1,32 @@
-
 use std::process::Command;
 
 mod common;
 
 #[test]
-fn load_cdylib() -> common::TestResult {
-
+fn check_exported_symbols() -> common::TestResult {
     let cdylib_path = common::get_cdylib_path();
 
     unsafe {
         let cdylib = libloading::Library::new(cdylib_path)?;
-        let lib_test: libloading::Symbol<unsafe extern "C" fn() -> u32> =
-            cdylib.get(b"lib_test")?;
-        assert_eq!(lib_test(), 1);
+        {
+            type FnPtr = unsafe extern "C" fn(
+                *const std::ffi::c_void,
+                *const std::ffi::c_char,
+            ) -> *const std::ffi::c_void;
+            assert!(cdylib
+                .get::<libloading::Symbol<FnPtr>>(b"vk_icdGetInstanceProcAddr")
+                .is_ok());
+        }
+        {
+            type FnPtr = unsafe extern "C" fn(
+                *const std::ffi::c_void,
+                *const std::ffi::c_void,
+                *const std::ffi::c_void,
+            ) -> *const std::ffi::c_void;
+            assert!(cdylib
+                .get::<libloading::Symbol<FnPtr>>(b"vkCreateInstance")
+                .is_err());
+        }
     }
 
     Ok(())
@@ -35,7 +49,6 @@ fn run_vulkaninfo() -> common::TestResult {
     );
     Ok(())
 }
-
 
 #[test]
 fn run_vkcube() -> common::TestResult {

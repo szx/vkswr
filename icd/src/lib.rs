@@ -70,9 +70,3 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         &_ => None,
     }
 }
-
-#[no_mangle]
-pub extern "C" fn lib_test() -> u32 {
-    println!("Hello from the library!");
-    1
-}
