@@ -88,3 +88,21 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         &_ => None,
     }
 }
+
+/// # Safety
+///
+/// Use of null `pName` in an undefined behavior.
+#[no_mangle]
+pub unsafe extern "C" fn vk_icdNegotiateLoaderICDInterfaceVersion(
+    pSupportedVersion: Option<NonNull<std::ffi::c_uint>>,
+) -> VkResult {
+    let Some(pSupportedVersion) = pSupportedVersion else { return VkResult::VK_ERROR_INCOMPATIBLE_DRIVER };
+    let supported_version = 3;
+    let demanded_version = *pSupportedVersion.as_ptr();
+    if demanded_version < supported_version {
+        VkResult::VK_ERROR_INCOMPATIBLE_DRIVER
+    } else {
+        *pSupportedVersion.as_ptr() = std::cmp::min(demanded_version, supported_version);
+        VkResult::VK_SUCCESS
+    }
+}
