@@ -434,6 +434,27 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
         "vkCmdNextSubpass" => unsafe { std::mem::transmute(vkCmdNextSubpass as *const ()) },
         "vkCmdEndRenderPass" => unsafe { std::mem::transmute(vkCmdEndRenderPass as *const ()) },
         "vkCmdExecuteCommands" => unsafe { std::mem::transmute(vkCmdExecuteCommands as *const ()) },
+        /* VK_KHR_swapchain extension device commands */
+        "vkCreateSwapchainKHR" => unsafe { std::mem::transmute(vkCreateSwapchainKHR as *const ()) },
+        "vkDestroySwapchainKHR" => unsafe {
+            std::mem::transmute(vkDestroySwapchainKHR as *const ())
+        },
+        "vkGetSwapchainImagesKHR" => unsafe {
+            std::mem::transmute(vkGetSwapchainImagesKHR as *const ())
+        },
+        "vkAcquireNextImageKHR" => unsafe {
+            std::mem::transmute(vkAcquireNextImageKHR as *const ())
+        },
+        "vkQueuePresentKHR" => unsafe { std::mem::transmute(vkQueuePresentKHR as *const ()) },
+        "vkGetDeviceGroupPresentCapabilitiesKHR" => unsafe {
+            std::mem::transmute(vkGetDeviceGroupPresentCapabilitiesKHR as *const ())
+        },
+        "vkGetDeviceGroupSurfacePresentModesKHR" => unsafe {
+            std::mem::transmute(vkGetDeviceGroupSurfacePresentModesKHR as *const ())
+        },
+        "vkAcquireNextImage2KHR" => unsafe {
+            std::mem::transmute(vkAcquireNextImage2KHR as *const ())
+        },
         &_ => None, // unreachable!("pName: {}", pName) TODO: Vulkan 1.1 Core commands.
     }
 }
@@ -487,7 +508,18 @@ pub unsafe extern "C" fn vkDestroyInstance(
     drop_dispatchable_handle(instance);
 }
 
-/* VK_KHR_surface extension commands */
+/* Vulkan Core 1.0 device commands  */
+
+pub unsafe extern "C" fn vkGetDeviceQueue(
+    device: VkDevice,
+    queueFamilyIndex: u32,
+    queueIndex: u32,
+    pQueue: Option<NonNull<VkQueue>>,
+) {
+    todo!("vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue")
+}
+
+/* VK_KHR_surface extension instance commands */
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     physicalDevice: VkPhysicalDevice,
@@ -519,16 +551,19 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     let Some(pPresentModeCount) = pPresentModeCount else {unreachable!() };
 
     // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModes-parameter
-    pPresentModes.map_or_else(|| {
-        *pPresentModeCount.as_ptr() = physicalDevice.present_modes().len() as u32;
-    }, |pPresentModes| {
-        let present_modes = physicalDevice.present_modes();
-        std::ptr::copy_nonoverlapping(
-            present_modes.as_ptr(),
-            pPresentModes.as_ptr(),
-            *pPresentModeCount.as_ptr() as usize,
-        );
-    });
+    pPresentModes.map_or_else(
+        || {
+            *pPresentModeCount.as_ptr() = physicalDevice.present_modes().len() as u32;
+        },
+        |pPresentModes| {
+            let present_modes = physicalDevice.present_modes();
+            std::ptr::copy_nonoverlapping(
+                present_modes.as_ptr(),
+                pPresentModes.as_ptr(),
+                *pPresentModeCount.as_ptr() as usize,
+            );
+        },
+    );
 
     VkResult::VK_SUCCESS
 }
@@ -545,19 +580,47 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
     // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModeCount-parameter
     let Some(pSurfaceFormatCount) = pSurfaceFormatCount else {unreachable!() };
 
-    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModes-parameter
-    pSurfaceFormats.map_or_else(|| {
-        *pSurfaceFormatCount.as_ptr() = physicalDevice.surface_formats().len() as u32;
-    }, |pSurfaceFormats| {
-        let surface_formats = physicalDevice.surface_formats();
-        std::ptr::copy_nonoverlapping(
-            surface_formats.as_ptr(),
-            pSurfaceFormats.as_ptr(),
-            *pSurfaceFormatCount.as_ptr() as usize,
-        );
-    });
+    pSurfaceFormats.map_or_else(
+        || {
+            *pSurfaceFormatCount.as_ptr() = physicalDevice.surface_formats().len() as u32;
+        },
+        |pSurfaceFormats| {
+            let surface_formats = physicalDevice.surface_formats();
+            std::ptr::copy_nonoverlapping(
+                surface_formats.as_ptr(),
+                pSurfaceFormats.as_ptr(),
+                *pSurfaceFormatCount.as_ptr() as usize,
+            );
+        },
+    );
 
     VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+    physicalDevice: VkPhysicalDevice,
+    surface: VkSurfaceKHR,
+    pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
+) -> VkResult {
+    // VUID-vkGetPhysicalDeviceSurfaceCapabilitiesKHR-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfaceCapabilitiesKHR-pSurfaceCapabilities-parameter
+    let Some(pSurfaceCapabilities) = pSurfaceCapabilities else {unreachable!() };
+
+    *pSurfaceCapabilities.as_ptr() = physicalDevice.surface_capabilities();
+
+    VkResult::VK_SUCCESS
+}
+
+/* VK_KHR_swapchain extension device commands */
+
+pub unsafe extern "C" fn vkDestroySwapchainKHR(
+    device: VkDevice,
+    swapchain: VkSwapchainKHR,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    todo!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
 }
 
 /* unimplemented */
@@ -4019,15 +4082,6 @@ pub unsafe extern "C" fn vkGetPipelineCacheData(
     unimplemented!("vkGetPipelineCacheData(device, pipelineCache, pDataSize, pData")
 }
 
-pub unsafe extern "C" fn vkGetDeviceQueue(
-    device: VkDevice,
-    queueFamilyIndex: u32,
-    queueIndex: u32,
-    pQueue: Option<NonNull<VkQueue>>,
-) {
-    unimplemented!("vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue")
-}
-
 pub unsafe extern "C" fn vkGetFenceSciSyncFenceNV(
     device: VkDevice,
     pGetSciSyncHandleInfo: Option<NonNull<VkFenceGetSciSyncInfoNV>>,
@@ -5396,16 +5450,6 @@ pub unsafe extern "C" fn vkCmdBuildAccelerationStructuresKHR(
     )
 }
 
-pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-    physicalDevice: VkPhysicalDevice,
-    surface: VkSurfaceKHR,
-    pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
-) -> VkResult {
-    unimplemented!(
-        "vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, pSurfaceCapabilities"
-    )
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceExternalFenceProperties(
     physicalDevice: VkPhysicalDevice,
     pExternalFenceInfo: Option<NonNull<VkPhysicalDeviceExternalFenceInfo>>,
@@ -5425,14 +5469,6 @@ pub unsafe extern "C" fn vkCmdSetCoverageToColorEnableNV(
     coverageToColorEnable: VkBool32,
 ) {
     unimplemented!("vkCmdSetCoverageToColorEnableNV(commandBuffer, coverageToColorEnable")
-}
-
-pub unsafe extern "C" fn vkDestroySwapchainKHR(
-    device: VkDevice,
-    swapchain: VkSwapchainKHR,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
 }
 
 pub unsafe extern "C" fn vkGetDeviceGroupPeerMemoryFeatures(

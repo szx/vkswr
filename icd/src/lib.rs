@@ -26,7 +26,7 @@ fn wait_for_debugger() {
 /// Use of null `pName` in an undefined behavior.
 #[no_mangle]
 pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
-    instance: VkInstance,
+    _instance: VkInstance,
     pName: *const std::ffi::c_char,
 ) -> PFN_vkVoidFunction {
     let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else { return None; };
@@ -36,7 +36,7 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         "vkEnumerateInstanceExtensionProperties" => unsafe {
             std::mem::transmute(vkEnumerateInstanceExtensionProperties as *const ())
         },
-        /* Vulkan Core 1.0 functions required by loader_icd_init_entries(). */
+        /* Vulkan Core 1.0 instance commands required by loader_icd_init_entries(). */
         "vkDestroyInstance" => unsafe { std::mem::transmute(vkDestroyInstance as *const ()) },
         "vkEnumeratePhysicalDevices" => unsafe {
             std::mem::transmute(vkEnumeratePhysicalDevices as *const ())
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         "vkGetPhysicalDeviceSparseImageFormatProperties" => unsafe {
             std::mem::transmute(vkGetPhysicalDeviceSparseImageFormatProperties as *const ())
         },
-        /* VK_KHR_surface extension commands */
+        /* VK_KHR_surface extension instance commands */
         "vkDestroySurfaceKHR" => unsafe { std::mem::transmute(vkDestroySurfaceKHR as *const ()) },
         "vkGetPhysicalDeviceSurfaceSupportKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDeviceSurfaceSupportKHR as *const ())
@@ -81,11 +81,10 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         "vkGetPhysicalDeviceSurfacePresentModesKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDeviceSurfacePresentModesKHR as *const ())
         },
-        /* VK_KHR_swapchain extension commands */
+        /* VK_KHR_swapchain extension instance commands */
         "vkGetPhysicalDevicePresentRectanglesKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDevicePresentRectanglesKHR as *const ())
         },
-
         &_ => None,
     }
 }

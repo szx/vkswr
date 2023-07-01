@@ -566,7 +566,7 @@ impl PhysicalDevice {
         [graphics_queue_family_properties]
     }
 
-    pub const fn surface_support(&self, queue_family_index: u32, surface: VkSurfaceKHR) -> bool {
+    pub const fn surface_support(&self, queue_family_index: u32, _surface: VkSurfaceKHR) -> bool {
         queue_family_index == 0
     }
 
@@ -585,6 +585,21 @@ impl PhysicalDevice {
                 colorSpace: VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
             },
         ]
+    }
+
+    pub const fn surface_capabilities(&self) -> VkSurfaceCapabilitiesKHR {
+        VkSurfaceCapabilitiesKHR {
+            minImageCount: 1,
+            maxImageCount: 2,
+            currentExtent: VkExtent2D { width: 0xFFFFFFFF, height: 0xFFFFFFFF },
+            minImageExtent: VkExtent2D { width: 0, height: 0 },
+            maxImageExtent: VkExtent2D { width: 0, height: 0 },
+            maxImageArrayLayers: 1,
+            supportedTransforms: VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR as VkFlags,
+            currentTransform: VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+            supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR as VkFlags,
+            supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as VkFlags,
+        }
     }
 }
 
