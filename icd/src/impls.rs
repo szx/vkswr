@@ -74,6 +74,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     // VUID-vkEnumerateDeviceExtensionProperties-pLayerName-parameter
     if pLayerName.is_none() {
         // TODO: SPEC: "only extensions provided by the Vulkan implementation or by implicitly enabled layers are returned"
+        // TODO: VK_KHR_swapchain
         *pPropertyCount.as_ptr() = 0;
     } else {
         let Some(pLayerName) = pLayerName else { unreachable!() };
@@ -798,10 +799,21 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     assert_eq!(pLayerName, None);
     if pProperties.is_none() {
         if let Some(pPropertyCount) = pPropertyCount {
+            // VUID-vkEnumerateInstanceExtensionProperties-pPropertyCount-parameter
             *pPropertyCount.as_ptr() = Instance::extension_count() as u32;
         }
     } else {
-        todo!("fill in pProperties");
+        // VUID-vkEnumerateInstanceExtensionProperties-pProperties-parameter
+        let Some(pProperties) = pProperties else { unreachable!() };
+
+        pLayerName.map_or_else(|| {
+            let properties = Instance::extension_properties();
+            std::ptr::copy_nonoverlapping( properties.as_ptr(), pProperties.as_ptr(), properties.len());
+        }, |pLayerName| {
+            // VUID-vkEnumerateInstanceExtensionProperties-pLayerName-parameter
+            let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
+            todo!("layerName: {layerName}");
+        });
     }
     VkResult::VK_SUCCESS
 }

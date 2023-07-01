@@ -1,3 +1,4 @@
+use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
@@ -34,7 +35,6 @@ lazy_static! {
 pub struct Instance {
     driver_name: &'static str,
 }
-
 impl Instance {
     pub fn new() -> Arc<Self> {
         let instance = Self {
@@ -44,8 +44,31 @@ impl Instance {
         instance.register()
     }
 
-    pub const fn extension_count() -> usize {
-        1
+    pub fn extension_count() -> usize {
+        Self::extension_properties().len()
+    }
+
+    pub fn extension_properties() -> [VkExtensionProperties; 2] {
+        c_char_array!(
+            VK_KHR_SURFACE_EXTENSION_NAME,
+            VK_MAX_EXTENSION_NAME_SIZE,
+            "VK_KHR_surface"
+        );
+        c_char_array!(
+            VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+            VK_MAX_EXTENSION_NAME_SIZE,
+            "VK_KHR_xcb_surface"
+        );
+        [
+            VkExtensionProperties {
+                extensionName: *VK_KHR_SURFACE_EXTENSION_NAME,
+                specVersion: 25,
+            },
+            VkExtensionProperties {
+                extensionName: *VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+                specVersion: 6,
+            },
+        ]
     }
 }
 
@@ -96,15 +119,11 @@ impl PhysicalDevice {
     }
 
     pub fn properties(&self) -> VkPhysicalDeviceProperties {
-        lazy_static! {
-            static ref DEVICE_NAME: [c_char; VK_MAX_PHYSICAL_DEVICE_NAME_SIZE as usize] = {
-                let mut s: [u8; VK_MAX_PHYSICAL_DEVICE_NAME_SIZE as usize] =
-                    [0; VK_MAX_PHYSICAL_DEVICE_NAME_SIZE as usize];
-                let device_name = "vulkan_software_rasterizer physical device";
-                s[..device_name.len()].copy_from_slice(device_name.as_bytes());
-                unsafe { std::mem::transmute(s) }
-            };
-        }
+        c_char_array!(
+            DEVICE_NAME,
+            VK_MAX_PHYSICAL_DEVICE_NAME_SIZE,
+            "vulkan_software_rasterizer physical device"
+        );
 
         VkPhysicalDeviceProperties {
             apiVersion: 0,

@@ -4,16 +4,13 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
+use log::*;
 pub use std::ptr::NonNull;
 use std::sync::Arc;
-use log::*;
 
 pub(crate) type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
-pub unsafe fn set_dispatchable_handle<T>(
-    handle: NonNull<VkDispatchableHandle>,
-    value: Arc<T>,
-) {
+pub unsafe fn set_dispatchable_handle<T>(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
     trace!(
         "set_dispatchable_handle {} arc: {} {}",
         std::any::type_name::<T>(),
@@ -56,10 +53,23 @@ pub fn drop_dispatchable_handle(handle: Arc<impl RegisterDispatchable>) {
     drop(handle);
 }
 
-
 pub(crate) type VkNonDispatchableHandle = u64;
 
 // TODO: Smarter handling of unsupported FFI types.
 pub(crate) type VkUnsupportedType = *const std::ffi::c_void;
 
 include!(concat!(env!("OUT_DIR"), "/codegen_vk_decls.rs"));
+
+#[macro_export]
+macro_rules! c_char_array {
+    ($const_name:ident, $len_name:ident, $str:literal) => {
+        lazy_static! {
+            static ref $const_name: [c_char; $len_name as usize] = {
+                let mut s: [u8; $len_name as usize] = [0; $len_name as usize];
+                let str = $str;
+                s[..str.len()].copy_from_slice(str.as_bytes());
+                unsafe { std::mem::transmute(s) }
+            };
+        }
+    };
+}
