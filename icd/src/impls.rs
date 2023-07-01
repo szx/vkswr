@@ -127,6 +127,68 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     }
 }
 
+
+pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
+    pLayerName: Option<NonNull<std::ffi::c_char>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkExtensionProperties>>,
+) -> VkResult {
+    assert_eq!(pLayerName, None);
+    if pProperties.is_none() {
+        if let Some(pPropertyCount) = pPropertyCount {
+            // VUID-vkEnumerateInstanceExtensionProperties-pPropertyCount-parameter
+            *pPropertyCount.as_ptr() = Instance::extension_count() as u32;
+        }
+    } else {
+        // VUID-vkEnumerateInstanceExtensionProperties-pProperties-parameter
+        let Some(pProperties) = pProperties else { unreachable!() };
+
+        pLayerName.map_or_else(|| {
+            let properties = Instance::extension_properties();
+            std::ptr::copy_nonoverlapping( properties.as_ptr(), pProperties.as_ptr(), properties.len());
+        }, |pLayerName| {
+            // VUID-vkEnumerateInstanceExtensionProperties-pLayerName-parameter
+            let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
+            todo!("layerName: {layerName}");
+        });
+    }
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
+    physicalDevice: VkPhysicalDevice,
+    pLayerName: Option<NonNull<std::ffi::c_char>>,
+    pPropertyCount: Option<NonNull<u32>>,
+    pProperties: Option<NonNull<VkExtensionProperties>>,
+) -> VkResult {
+    // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
+    let Some(pPropertyCount) = pPropertyCount else { unreachable!() };
+
+    if pLayerName.is_none() {
+        if pProperties.is_none() {
+            // VUID-vkEnumerateDeviceExtensionProperties-pLayerName-parameter
+            *pPropertyCount.as_ptr() = PhysicalDevice::extension_count() as u32;
+        } else {
+            // VUID-vkEnumerateDeviceExtensionProperties-pProperties-parameter
+            let Some(pProperties) = pProperties else { unreachable!() };
+            let properties = PhysicalDevice::extension_properties();
+            std::ptr::copy_nonoverlapping(
+                properties.as_ptr(),
+                pProperties.as_ptr(),
+                properties.len(),
+            );
+        }
+    } else {
+        let Some(pLayerName) = pLayerName else { unreachable!() };
+        let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
+        todo!("the device extensions provided by {layerName} layer are returned")
+    }
+    VkResult::VK_SUCCESS
+}
+
 pub unsafe extern "C" fn vkCreateDevice(
     physicalDevice: VkPhysicalDevice,
     pCreateInfo: Option<NonNull<VkDeviceCreateInfo>>,
@@ -424,6 +486,17 @@ pub unsafe extern "C" fn vkDestroyInstance(
     }
 
     drop_dispatchable_handle(instance);
+}
+
+/* VK_KHR_surface extension commands */
+
+pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
+    physicalDevice: VkPhysicalDevice,
+    queueFamilyIndex: u32,
+    surface: VkSurfaceKHR,
+    pSupported: Option<NonNull<VkBool32>>,
+) -> VkResult {
+    unimplemented!("vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, pSupported")
 }
 
 /* unimplemented */
@@ -764,67 +837,6 @@ pub unsafe extern "C" fn vkDestroySampler(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySampler(device, sampler, pAllocator")
-}
-
-pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
-    pLayerName: Option<NonNull<std::ffi::c_char>>,
-    pPropertyCount: Option<NonNull<u32>>,
-    pProperties: Option<NonNull<VkExtensionProperties>>,
-) -> VkResult {
-    assert_eq!(pLayerName, None);
-    if pProperties.is_none() {
-        if let Some(pPropertyCount) = pPropertyCount {
-            // VUID-vkEnumerateInstanceExtensionProperties-pPropertyCount-parameter
-            *pPropertyCount.as_ptr() = Instance::extension_count() as u32;
-        }
-    } else {
-        // VUID-vkEnumerateInstanceExtensionProperties-pProperties-parameter
-        let Some(pProperties) = pProperties else { unreachable!() };
-
-        pLayerName.map_or_else(|| {
-            let properties = Instance::extension_properties();
-            std::ptr::copy_nonoverlapping( properties.as_ptr(), pProperties.as_ptr(), properties.len());
-        }, |pLayerName| {
-            // VUID-vkEnumerateInstanceExtensionProperties-pLayerName-parameter
-            let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
-            todo!("layerName: {layerName}");
-        });
-    }
-    VkResult::VK_SUCCESS
-}
-
-pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
-    physicalDevice: VkPhysicalDevice,
-    pLayerName: Option<NonNull<std::ffi::c_char>>,
-    pPropertyCount: Option<NonNull<u32>>,
-    pProperties: Option<NonNull<VkExtensionProperties>>,
-) -> VkResult {
-    // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
-
-    // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
-    let Some(pPropertyCount) = pPropertyCount else { unreachable!() };
-
-    if pLayerName.is_none() {
-        if pProperties.is_none() {
-            // VUID-vkEnumerateDeviceExtensionProperties-pLayerName-parameter
-            *pPropertyCount.as_ptr() = PhysicalDevice::extension_count() as u32;
-        } else {
-            // VUID-vkEnumerateDeviceExtensionProperties-pProperties-parameter
-            let Some(pProperties) = pProperties else { unreachable!() };
-            let properties = PhysicalDevice::extension_properties();
-            std::ptr::copy_nonoverlapping(
-                properties.as_ptr(),
-                pProperties.as_ptr(),
-                properties.len(),
-            );
-        }
-    } else {
-        let Some(pLayerName) = pLayerName else { unreachable!() };
-        let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else { unreachable!() };
-        todo!("the device extensions provided by {layerName} layer are returned")
-    }
-    VkResult::VK_SUCCESS
 }
 
 pub unsafe extern "C" fn vkGetQueueCheckpointDataNV(
@@ -5280,15 +5292,6 @@ pub unsafe extern "C" fn vkCmdDrawMeshTasksIndirectCountNV(
         stride,
     "
     )
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    surface: VkSurfaceKHR,
-    pSupported: Option<NonNull<VkBool32>>,
-) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, pSupported")
 }
 
 pub unsafe extern "C" fn vkDestroyValidationCacheEXT(

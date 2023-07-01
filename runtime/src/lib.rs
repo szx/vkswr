@@ -128,12 +128,10 @@ impl PhysicalDevice {
             VK_MAX_EXTENSION_NAME_SIZE,
             "VK_KHR_swapchain"
         );
-        [
-            VkExtensionProperties {
-                extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                specVersion: 70,
-            },
-        ]
+        [VkExtensionProperties {
+            extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            specVersion: 70,
+        }]
     }
 
     pub fn properties(&self) -> VkPhysicalDeviceProperties {
@@ -551,8 +549,12 @@ impl PhysicalDevice {
     }
 
     pub const fn queue_family_properties(&self) -> [VkQueueFamilyProperties; 1] {
+        // SPEC: If an implementation exposes any queue family that supports graphics operations,
+        // at least one queue family of at least one physical device exposed by the implementation
+        // must support both graphics and compute operations.
         let graphics_queue_family_properties = VkQueueFamilyProperties {
-            queueFlags: VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT as VkFlags,
+            queueFlags: VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT as VkFlags
+                | VkQueueFlagBits::VK_QUEUE_COMPUTE_BIT as VkFlags,
             queueCount: 1,
             timestampValidBits: 0,
             minImageTransferGranularity: VkExtent3D {
