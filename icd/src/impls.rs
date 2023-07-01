@@ -127,7 +127,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     }
 }
 
-
 pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     pLayerName: Option<NonNull<std::ffi::c_char>>,
     pPropertyCount: Option<NonNull<u32>>,
@@ -496,7 +495,31 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     surface: VkSurfaceKHR,
     pSupported: Option<NonNull<VkBool32>>,
 ) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, pSupported")
+    // VUID-vkGetPhysicalDeviceSurfaceSupportKHR-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfaceSupportKHR-pSupported-parameter
+    let Some(pSupported) = pSupported else {unreachable!() };
+
+    *pSupported.as_ptr() = physicalDevice.surface_support(queueFamilyIndex, surface) as VkBool32;
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
+    physicalDevice: VkPhysicalDevice,
+    surface: VkSurfaceKHR,
+    pPresentModeCount: Option<NonNull<u32>>,
+    pPresentModes: Option<NonNull<VkPresentModeKHR>>,
+) -> VkResult {
+    todo!(
+        "vkGetPhysicalDeviceSurfacePresentModesKHR(
+        physicalDevice,
+        surface,
+        pPresentModeCount,
+        pPresentModes,
+    "
+    )
 }
 
 /* unimplemented */
@@ -3078,22 +3101,6 @@ pub unsafe extern "C" fn vkCreateSampler(
     pSampler: Option<NonNull<VkSampler>>,
 ) -> VkResult {
     unimplemented!("vkCreateSampler(device, pCreateInfo, pAllocator, pSampler")
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
-    physicalDevice: VkPhysicalDevice,
-    surface: VkSurfaceKHR,
-    pPresentModeCount: Option<NonNull<u32>>,
-    pPresentModes: Option<NonNull<VkPresentModeKHR>>,
-) -> VkResult {
-    unimplemented!(
-        "vkGetPhysicalDeviceSurfacePresentModesKHR(
-        physicalDevice,
-        surface,
-        pPresentModeCount,
-        pPresentModes,
-    "
-    )
 }
 
 pub unsafe extern "C" fn vkCmdBindVertexBuffers2(

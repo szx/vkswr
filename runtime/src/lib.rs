@@ -565,6 +565,10 @@ impl PhysicalDevice {
         };
         [graphics_queue_family_properties]
     }
+
+    pub const fn surface_support(&self, queue_family_index: u32, surface: VkSurfaceKHR) -> bool {
+        queue_family_index == 0
+    }
 }
 
 /* LogicalDevice */
