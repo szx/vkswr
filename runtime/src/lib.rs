@@ -573,6 +573,19 @@ impl PhysicalDevice {
     pub const fn present_modes(&self) -> [VkPresentModeKHR; 1] {
         [VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR]
     }
+
+    pub const fn surface_formats(&self) -> [VkSurfaceFormatKHR; 2] {
+        [
+            VkSurfaceFormatKHR {
+                format: VkFormat::VK_FORMAT_R8G8B8A8_UNORM,
+                colorSpace: VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+            },
+            VkSurfaceFormatKHR {
+                format: VkFormat::VK_FORMAT_R8G8B8A8_SRGB,
+                colorSpace: VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+            },
+        ]
+    }
 }
 
 /* LogicalDevice */

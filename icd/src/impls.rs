@@ -533,6 +533,33 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
+    physicalDevice: VkPhysicalDevice,
+    surface: VkSurfaceKHR,
+    pSurfaceFormatCount: Option<NonNull<u32>>,
+    pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
+) -> VkResult {
+    // VUID-vkGetPhysicalDeviceSurfaceFormatsKHR-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModeCount-parameter
+    let Some(pSurfaceFormatCount) = pSurfaceFormatCount else {unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModes-parameter
+    pSurfaceFormats.map_or_else(|| {
+        *pSurfaceFormatCount.as_ptr() = physicalDevice.surface_formats().len() as u32;
+    }, |pSurfaceFormats| {
+        let surface_formats = physicalDevice.surface_formats();
+        std::ptr::copy_nonoverlapping(
+            surface_formats.as_ptr(),
+            pSurfaceFormats.as_ptr(),
+            *pSurfaceFormatCount.as_ptr() as usize,
+        );
+    });
+
+    VkResult::VK_SUCCESS
+}
+
 /* unimplemented */
 
 pub unsafe extern "C" fn vkCmdBuildAccelerationStructureNV(
@@ -4697,22 +4724,6 @@ pub unsafe extern "C" fn vkCmdBuildMicromapsEXT(
     pInfos: Option<NonNull<VkMicromapBuildInfoEXT>>,
 ) {
     unimplemented!("vkCmdBuildMicromapsEXT(commandBuffer, infoCount, pInfos")
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
-    physicalDevice: VkPhysicalDevice,
-    surface: VkSurfaceKHR,
-    pSurfaceFormatCount: Option<NonNull<u32>>,
-    pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
-) -> VkResult {
-    unimplemented!(
-        "vkGetPhysicalDeviceSurfaceFormatsKHR(
-        physicalDevice,
-        surface,
-        pSurfaceFormatCount,
-        pSurfaceFormats,
-    "
-    )
 }
 
 pub unsafe extern "C" fn vkGetFenceSciSyncObjNV(
