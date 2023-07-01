@@ -512,14 +512,25 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     pPresentModeCount: Option<NonNull<u32>>,
     pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
-    todo!(
-        "vkGetPhysicalDeviceSurfacePresentModesKHR(
-        physicalDevice,
-        surface,
-        pPresentModeCount,
-        pPresentModes,
-    "
-    )
+    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-physicalDevice-parameter
+    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModeCount-parameter
+    let Some(pPresentModeCount) = pPresentModeCount else {unreachable!() };
+
+    // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModes-parameter
+    pPresentModes.map_or_else(|| {
+        *pPresentModeCount.as_ptr() = physicalDevice.present_modes().len() as u32;
+    }, |pPresentModes| {
+        let present_modes = physicalDevice.present_modes();
+        std::ptr::copy_nonoverlapping(
+            present_modes.as_ptr(),
+            pPresentModes.as_ptr(),
+            *pPresentModeCount.as_ptr() as usize,
+        );
+    });
+
+    VkResult::VK_SUCCESS
 }
 
 /* unimplemented */

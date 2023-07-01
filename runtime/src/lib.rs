@@ -569,6 +569,10 @@ impl PhysicalDevice {
     pub const fn surface_support(&self, queue_family_index: u32, surface: VkSurfaceKHR) -> bool {
         queue_family_index == 0
     }
+
+    pub const fn present_modes(&self) -> [VkPresentModeKHR; 1] {
+        [VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR]
+    }
 }
 
 /* LogicalDevice */
