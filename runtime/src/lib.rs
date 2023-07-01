@@ -118,6 +118,24 @@ impl PhysicalDevice {
         1
     }
 
+    pub fn extension_count() -> usize {
+        Self::extension_properties().len()
+    }
+
+    pub fn extension_properties() -> [VkExtensionProperties; 1] {
+        c_char_array!(
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_MAX_EXTENSION_NAME_SIZE,
+            "VK_KHR_swapchain"
+        );
+        [
+            VkExtensionProperties {
+                extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                specVersion: 70,
+            },
+        ]
+    }
+
     pub fn properties(&self) -> VkPhysicalDeviceProperties {
         c_char_array!(
             DEVICE_NAME,
