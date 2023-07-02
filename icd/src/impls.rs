@@ -30,7 +30,7 @@ pub unsafe extern "C" fn vkCreateInstance(
     // VUID-vkCreateInstance-pInstance-parameter
     let Some(mut pInstance) = pInstance else { unreachable!() };
 
-    set_dispatchable_handle(pInstance, Instance::new());
+    Instance::set_handle(pInstance, Instance::new());
 
     VkResult::VK_SUCCESS
 }
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
     pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
 ) -> VkResult {
     // VUID-vkEnumeratePhysicalDevices-instance-parameter
-    let Some(instance) = get_dispatchable_handle::<Instance>(instance) else { unreachable!() };
+    let Some(instance) = Instance::get_handle(instance) else { unreachable!() };
 
     // VUID-vkEnumeratePhysicalDevices-pPhysicalDeviceCount-parameter
     let Some(pPhysicalDeviceCount) = pPhysicalDeviceCount else { unreachable!() };
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            set_dispatchable_handle(pPhysicalDevices, PhysicalDevice::get());
+            PhysicalDevice::set_handle(pPhysicalDevices, PhysicalDevice::get());
             VkResult::VK_SUCCESS
         },
     )
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
 ) {
     // VUID-vkGetPhysicalDeviceProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceProperties-pProperties-parameter
     let Some(pProperties) = pProperties else { unreachable!() };
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
 ) {
     // VUID-vkGetPhysicalDeviceMemoryProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceMemoryProperties-pMemoryProperties-parameter
     let Some(pMemoryProperties) = pMemoryProperties else { unreachable!() };
@@ -92,7 +92,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
 ) {
     // VUID-vkGetPhysicalDeviceFeatures-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceFeatures-pFeatures-parameter
     let Some(pFeatures) = pFeatures else { unreachable!() };
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
 ) {
     // VUID-vkGetPhysicalDeviceQueueFamilyProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceQueueFamilyProperties-pQueueFamilyPropertyCount-parameter
     let Some(pQueueFamilyPropertyCount) = pQueueFamilyPropertyCount else { unreachable!() };
@@ -161,7 +161,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
     // VUID-vkEnumerateDeviceExtensionProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkEnumerateDeviceExtensionProperties-pPropertyCount-parameter
     let Some(pPropertyCount) = pPropertyCount else { unreachable!() };
@@ -195,7 +195,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     pDevice: Option<NonNull<VkDevice>>,
 ) -> VkResult {
     // VUID-vkCreateDevice-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkCreateDevice-pCreateInfo-parameter
     let Some(pCreateInfo) = pCreateInfo else { unreachable!() };
@@ -214,7 +214,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     // VUID-vkCreateDevice-pDevice-parameter
     let Some(pDevice) = pDevice else { unreachable!() };
 
-    set_dispatchable_handle(pDevice, LogicalDevice::new(&physicalDevice, create_info));
+    LogicalDevice::set_handle(pDevice, LogicalDevice::new(&physicalDevice, create_info));
 
     VkResult::VK_SUCCESS
 }
@@ -224,7 +224,7 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
     pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
     // VUID-vkGetDeviceProcAddr-device-parameter
-    let Some(device) = get_dispatchable_handle::<LogicalDevice>(device) else { unreachable!() };
+    let Some(device) = LogicalDevice::get_handle(device) else { unreachable!() };
 
     // VUID-vkGetDeviceProcAddr-pName-parameter
     let Some(pName) = pName else { unreachable!() };
@@ -465,7 +465,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     pFormatProperties: Option<NonNull<VkFormatProperties>>,
 ) {
     // VUID-vkGetPhysicalDeviceFormatProperties-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceFormatProperties-pFormatProperties-parameter
     let Some(pFormatProperties) = pFormatProperties else { unreachable!() };
@@ -479,7 +479,7 @@ pub unsafe extern "C" fn vkDestroyDevice(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     // VUID-vkDestroyDevice-device-00378
-    let Some(device) = get_dispatchable_handle::<LogicalDevice>(device) else { unreachable!() };
+    let Some(device) = LogicalDevice::get_handle(device) else { unreachable!() };
 
     // VUID-vkDestroyDevice-device-00379
     // VUID-vkDestroyDevice-device-00380
@@ -496,7 +496,7 @@ pub unsafe extern "C" fn vkDestroyInstance(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     // VUID-vkDestroyInstance-instance-00629
-    let Some(instance) = get_dispatchable_handle::<Instance>(instance) else { unreachable!() };
+    let Some(instance) = Instance::get_handle(instance) else { unreachable!() };
 
     // VUID-vkDestroyInstance-instance-00630
     // VUID-vkDestroyInstance-instance-00631
@@ -516,7 +516,13 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     queueIndex: u32,
     pQueue: Option<NonNull<VkQueue>>,
 ) {
-    todo!("vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue")
+    // VUID-vkGetDeviceQueue-device-parameter
+    let Some(device) = LogicalDevice::get_handle(device) else { unreachable!() };
+
+    // VUID-vkGetDeviceQueue-pQueue-parameter
+    let Some(pQueue) = pQueue else { unreachable!() };
+
+    todo!("create and return queue from VkDevice")
 }
 
 /* VK_KHR_surface extension instance commands */
@@ -528,7 +534,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     pSupported: Option<NonNull<VkBool32>>,
 ) -> VkResult {
     // VUID-vkGetPhysicalDeviceSurfaceSupportKHR-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceSurfaceSupportKHR-pSupported-parameter
     let Some(pSupported) = pSupported else {unreachable!() };
@@ -545,7 +551,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
     // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModeCount-parameter
     let Some(pPresentModeCount) = pPresentModeCount else {unreachable!() };
@@ -575,7 +581,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
     pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
 ) -> VkResult {
     // VUID-vkGetPhysicalDeviceSurfaceFormatsKHR-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceSurfacePresentModesKHR-pPresentModeCount-parameter
     let Some(pSurfaceFormatCount) = pSurfaceFormatCount else {unreachable!() };
@@ -603,7 +609,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
 ) -> VkResult {
     // VUID-vkGetPhysicalDeviceSurfaceCapabilitiesKHR-physicalDevice-parameter
-    let Some(physicalDevice) = get_dispatchable_handle::<PhysicalDevice>(physicalDevice) else { unreachable!() };
+    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else { unreachable!() };
 
     // VUID-vkGetPhysicalDeviceSurfaceCapabilitiesKHR-pSurfaceCapabilities-parameter
     let Some(pSurfaceCapabilities) = pSurfaceCapabilities else {unreachable!() };

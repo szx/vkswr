@@ -11,7 +11,7 @@ This file, vk.xml, is the Vulkan API Registry. It is a critically important
 and normative part of the Vulkan Specification, including a canonical
 machine-readable definition of the API, parameter and member validation
 language incorporated into the Specification and reference pages, and other
-material which is registered by Khronos, such as tags used by extension and
+material which is register_handleed by Khronos, such as tags used by extension and
 layer authors. The authoritative public version of vk.xml is maintained in
 the default branch (currently named main) of the Khronos Vulkan GitHub
 project. The authoritative private version is maintained in the default

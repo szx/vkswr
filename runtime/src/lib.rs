@@ -41,7 +41,7 @@ impl Instance {
             driver_name: "vulkan_software_rasterizer",
         };
         let instance = Arc::new(instance);
-        instance.register()
+        instance.register_handle()
     }
 
     pub fn extension_count() -> usize {
@@ -72,14 +72,14 @@ impl Instance {
     }
 }
 
-impl RegisterDispatchable for Instance {
-    fn register(self: Arc<Self>) -> Arc<Self> {
+impl DispatchableHandle for Instance {
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
         let mut context = CONTEXT.write().unwrap();
         context.instances.push(self.clone());
         self
     }
 
-    fn unregister(self: &Arc<Self>) {
+    fn unregister_handle(self: &Arc<Self>) {
         let mut context = CONTEXT.write().unwrap();
         let index = context
             .instances
@@ -591,15 +591,47 @@ impl PhysicalDevice {
         VkSurfaceCapabilitiesKHR {
             minImageCount: 1,
             maxImageCount: 2,
-            currentExtent: VkExtent2D { width: 0xFFFFFFFF, height: 0xFFFFFFFF },
-            minImageExtent: VkExtent2D { width: 0, height: 0 },
-            maxImageExtent: VkExtent2D { width: 0, height: 0 },
+            currentExtent: VkExtent2D {
+                width: 0xFFFFFFFF,
+                height: 0xFFFFFFFF,
+            },
+            minImageExtent: VkExtent2D {
+                width: 0,
+                height: 0,
+            },
+            maxImageExtent: VkExtent2D {
+                width: 0,
+                height: 0,
+            },
             maxImageArrayLayers: 1,
-            supportedTransforms: VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR as VkFlags,
+            supportedTransforms:
+                VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR as VkFlags,
             currentTransform: VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
-            supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR as VkFlags,
-            supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as VkFlags,
+            supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+                as VkFlags,
+            supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                as VkFlags,
         }
+    }
+}
+
+impl DispatchableHandle for PhysicalDevice {
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
+        // let mut context = CONTEXT.write().unwrap();
+        // context.physical_devices.push(self.clone());
+        self
+    }
+
+    fn unregister_handle(self: &Arc<Self>) {
+        /*
+        let mut context = CONTEXT.write().unwrap();
+        let index = context
+            .physical_devices
+            .iter()
+            .position(|x| Arc::ptr_eq(x, self))
+            .unwrap();
+        context.physical_devices.remove(index);
+        */
     }
 }
 
@@ -626,18 +658,18 @@ impl LogicalDevice {
             physical_device,
         };
         let logical_device = Arc::new(logical_device);
-        logical_device.register()
+        logical_device.register_handle()
     }
 }
 
-impl RegisterDispatchable for LogicalDevice {
-    fn register(self: Arc<Self>) -> Arc<Self> {
+impl DispatchableHandle for LogicalDevice {
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
         let mut context = CONTEXT.write().unwrap();
         context.logical_devices.push(self.clone());
         self
     }
 
-    fn unregister(self: &Arc<Self>) {
+    fn unregister_handle(self: &Arc<Self>) {
         let mut context = CONTEXT.write().unwrap();
         let index = context
             .logical_devices
