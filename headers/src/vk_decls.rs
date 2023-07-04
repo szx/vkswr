@@ -44,13 +44,14 @@ pub trait DispatchableHandle<T = Self> {
             },
         )
     }
+
+    fn drop_handle(self: Arc<Self>) {
+        self.unregister_handle();
+        assert_eq!(Arc::strong_count(&self), 1);
+        drop(self);
+    }
 }
 
-pub fn drop_dispatchable_handle(handle: Arc<impl DispatchableHandle>) {
-    handle.unregister_handle();
-    assert_eq!(Arc::strong_count(&handle), 1);
-    drop(handle);
-}
 
 pub(crate) type VkNonDispatchableHandle = u64;
 

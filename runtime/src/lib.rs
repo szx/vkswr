@@ -12,6 +12,7 @@ pub struct Context {
     instances: Vec<Arc<Instance>>,
     physical_devices: Vec<Arc<PhysicalDevice>>,
     logical_devices: Vec<Arc<LogicalDevice>>,
+    queues: Vec<Arc<Queue>>,
 }
 
 impl Context {
@@ -20,6 +21,7 @@ impl Context {
             instances: vec![],
             physical_devices: vec![],
             logical_devices: vec![],
+            queues: vec![],
         }
     }
 }
@@ -642,20 +644,23 @@ impl DispatchableHandle for PhysicalDevice {
 pub struct LogicalDevice {
     driver_name: &'static str,
     physical_device: Arc<PhysicalDevice>,
+    queue: Arc<Queue>,
 }
 
 impl LogicalDevice {
     pub fn new(
         physical_device: &Arc<PhysicalDevice>,
-        create_info: &VkDeviceCreateInfo,
+        queue_create_info: &VkDeviceQueueCreateInfo,
     ) -> Arc<Self> {
         info!("new LogicalDevice");
-        let _ = create_info;
         let physical_device = physical_device.clone();
+
+        let queue = Queue::new(physical_device.clone(), queue_create_info);
 
         let logical_device = Self {
             driver_name: "vulkan_software_rasterizer",
             physical_device,
+            queue,
         };
         let logical_device = Arc::new(logical_device);
         logical_device.register_handle()
@@ -677,5 +682,54 @@ impl DispatchableHandle for LogicalDevice {
             .position(|x| Arc::ptr_eq(x, self))
             .unwrap();
         context.logical_devices.remove(index);
+    }
+}
+
+impl LogicalDevice {
+    pub fn queue(&self, queue_family_index: u32, queue_index: u32) -> Arc<Queue> {
+        let _ = queue_family_index;
+        let _ = queue_index;
+        self.queue.clone()
+    }
+}
+
+/* LogicalDevice */
+
+/// Queue associated with `LogicalDevice`.
+#[derive(Debug)]
+pub struct Queue {
+    physical_device: Arc<PhysicalDevice>,
+    flags: VkDeviceQueueCreateFlags,
+}
+
+impl Queue {
+    pub fn new(
+        physical_device: Arc<PhysicalDevice>,
+        create_info: &VkDeviceQueueCreateInfo,
+    ) -> Arc<Self> {
+        info!("new Queue");
+        let flags = create_info.flags;
+
+        let queue = Self { physical_device, flags };
+        let queue = Arc::new(queue);
+        queue.register_handle()
+    }
+}
+
+impl DispatchableHandle for Queue {
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
+        let mut context = CONTEXT.write().unwrap();
+        context.queues.push(self.clone());
+        self
+    }
+
+    fn unregister_handle(self: &Arc<Self>) {
+        let mut context = CONTEXT.write().unwrap();
+        let index = context
+            .queues
+            .iter()
+            .position(|x| Arc::ptr_eq(x, self))
+            .unwrap();
+        context.queues.remove(index);
     }
 }
