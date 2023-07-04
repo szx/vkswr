@@ -600,6 +600,44 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     Queue::set_handle(pQueue, queue);
 }
 
+pub unsafe extern "C" fn vkCreateFence(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkFenceCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFence: Option<NonNull<VkFence>>,
+) -> VkResult {
+    // VUID-vkCreateFence-device-parameter
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    // VUID-vkCreateFence-pCreateInfo-parameter
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    // TODO: Automate valid VkInstanceCreateInfo structure asserts.
+    assert_eq!(
+        create_info.sType,
+        VkStructureType::VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    );
+
+    // VUID-vkCreateFence-pAllocator-parameter
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    // VUID-vkCreateFence-pFence-parameter
+    let Some(mut pFence) = pFence else {
+        unreachable!()
+    };
+
+    Fence::set_handle(pFence, Fence::new(create_info));
+
+    VkResult::VK_SUCCESS
+}
+
 /* VK_KHR_surface extension instance commands */
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -966,15 +1004,6 @@ pub unsafe extern "C" fn vkGetAccelerationStructureBuildSizesKHR(
         pSizeInfo,
     "
     )
-}
-
-pub unsafe extern "C" fn vkCreateFence(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkFenceCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pFence: Option<NonNull<VkFence>>,
-) -> VkResult {
-    unimplemented!("vkCreateFence(device, pCreateInfo, pAllocator, pFence")
 }
 
 pub unsafe extern "C" fn vkCmdSetDepthClampEnableEXT(

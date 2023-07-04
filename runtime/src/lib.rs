@@ -2,8 +2,10 @@ use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
+use std::collections::HashMap;
 use std::ffi::c_char;
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /* Context */
 
@@ -13,15 +15,17 @@ pub struct Context {
     physical_devices: Vec<Arc<PhysicalDevice>>,
     logical_devices: Vec<Arc<LogicalDevice>>,
     queues: Vec<Arc<Queue>>,
+    fences: HashMap<VkNonDispatchableHandle, Arc<Fence>>,
 }
 
 impl Context {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             instances: vec![],
             physical_devices: vec![],
             logical_devices: vec![],
             queues: vec![],
+            fences: HashMap::new(),
         }
     }
 }
@@ -78,6 +82,63 @@ pub trait DispatchableHandle<T = Self> {
                 Some(arc)
             },
         )
+    }
+
+    fn drop_handle(self: Arc<Self>) {
+        self.unregister_handle();
+        assert_eq!(Arc::strong_count(&self), 1);
+        drop(self);
+    }
+}
+
+static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+pub trait NonDispatchableHandle<T = Self> {
+    fn get_hash<'a>(
+        context: &'a RwLockReadGuard<Context>,
+    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>>;
+
+    fn get_hash_mut<'a>(
+        context: &'a mut RwLockWriteGuard<Context>,
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>>;
+
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
+        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write().unwrap();
+        let context = &mut context;
+        let id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        Self::get_hash_mut(context).insert(id, self.clone());
+        self
+    }
+
+    fn unregister_handle(self: &Arc<Self>) {
+        let mut context = CONTEXT.write().unwrap();
+        // TODO: Refactor NonDispatchableHandle - store id in struct.
+        Self::get_hash_mut(&mut context).retain(|_, v| !Arc::ptr_eq(v, self));
+    }
+
+    unsafe fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: Arc<Self>) {
+        let mut context = CONTEXT.read().unwrap();
+        let value = Self::get_hash(&context)
+            .iter()
+            .find_map(|(k, v)| {
+                if Arc::ptr_eq(&value, v) {
+                    Some(k)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        trace!(
+            "{}::set_handle value: {}",
+            std::any::type_name::<T>(),
+            value
+        );
+        *handle.as_ptr() = std::mem::transmute(*value);
+    }
+
+    unsafe fn get_handle(handle: VkNonDispatchableHandle) -> Option<Arc<Self>> {
+        let mut context = CONTEXT.read().unwrap();
+        Self::get_hash(&context).get(&handle).map(|x| x.clone())
     }
 
     fn drop_handle(self: Arc<Self>) {
@@ -712,7 +773,7 @@ impl LogicalDevice {
     }
 }
 
-/* LogicalDevice */
+/* Queue */
 
 /// Queue associated with `LogicalDevice`.
 #[derive(Debug)]
@@ -741,5 +802,38 @@ impl Queue {
 impl DispatchableHandle for Queue {
     fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
         context.queues.as_mut()
+    }
+}
+
+/* Fence */
+
+/// Synchronization primitive that can be used to insert a dependency from a queue to the host.
+#[derive(Debug)]
+pub struct Fence {
+    flags: VkDeviceQueueCreateFlags,
+}
+
+impl Fence {
+    pub fn new(create_info: &VkFenceCreateInfo) -> Arc<Self> {
+        info!("new Fence");
+        let flags = create_info.flags;
+
+        let fence = Self { flags };
+        let fence = Arc::new(fence);
+        fence.register_handle()
+    }
+}
+
+impl NonDispatchableHandle for Fence {
+    fn get_hash<'a>(
+        context: &'a RwLockReadGuard<Context>,
+    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        &context.fences
+    }
+
+    fn get_hash_mut<'a>(
+        context: &'a mut RwLockWriteGuard<Context>,
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        &mut context.fences
     }
 }
