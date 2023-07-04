@@ -638,6 +638,44 @@ pub unsafe extern "C" fn vkCreateFence(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkCreateSemaphore(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkSemaphoreCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSemaphore: Option<NonNull<VkSemaphore>>,
+) -> VkResult {
+    // VUID-vkCreateSemaphore-device-parameter
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    // VUID-vkCreateSemaphore-pCreateInfo-parameter
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    // TODO: Automate valid VkInstanceCreateInfo structure asserts.
+    assert_eq!(
+        create_info.sType,
+        VkStructureType::VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    );
+
+    // VUID-vkCreateSemaphore-pAllocator-parameter
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    // VUID-vkCreateSemaphore-pSemaphore-parameter
+    let Some(mut pSemaphore) = pSemaphore else {
+        unreachable!()
+    };
+
+    Semaphore::set_handle(pSemaphore, Semaphore::new(create_info));
+
+    VkResult::VK_SUCCESS
+}
+
 /* VK_KHR_surface extension instance commands */
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -5621,15 +5659,6 @@ pub unsafe extern "C" fn vkCopyAccelerationStructureToMemoryKHR(
     pInfo: Option<NonNull<VkCopyAccelerationStructureToMemoryInfoKHR>>,
 ) -> VkResult {
     unimplemented!("vkCopyAccelerationStructureToMemoryKHR(device, deferredOperation, pInfo")
-}
-
-pub unsafe extern "C" fn vkCreateSemaphore(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkSemaphoreCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSemaphore: Option<NonNull<VkSemaphore>>,
-) -> VkResult {
-    unimplemented!("vkCreateSemaphore(device, pCreateInfo, pAllocator, pSemaphore")
 }
 
 pub unsafe extern "C" fn vkWaitSemaphores(

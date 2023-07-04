@@ -16,6 +16,7 @@ pub struct Context {
     logical_devices: Vec<Arc<LogicalDevice>>,
     queues: Vec<Arc<Queue>>,
     fences: HashMap<VkNonDispatchableHandle, Arc<Fence>>,
+    semaphores: HashMap<VkNonDispatchableHandle, Arc<Semaphore>>,
 }
 
 impl Context {
@@ -26,6 +27,7 @@ impl Context {
             logical_devices: vec![],
             queues: vec![],
             fences: HashMap::new(),
+            semaphores: HashMap::new(),
         }
     }
 }
@@ -116,8 +118,8 @@ pub trait NonDispatchableHandle<T = Self> {
         Self::get_hash_mut(&mut context).retain(|_, v| !Arc::ptr_eq(v, self));
     }
 
-    unsafe fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: Arc<Self>) {
-        let mut context = CONTEXT.read().unwrap();
+    fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: Arc<Self>) {
+        let context = CONTEXT.read().unwrap();
         let value = Self::get_hash(&context)
             .iter()
             .find_map(|(k, v)| {
@@ -133,12 +135,14 @@ pub trait NonDispatchableHandle<T = Self> {
             std::any::type_name::<T>(),
             value
         );
-        *handle.as_ptr() = std::mem::transmute(*value);
+        unsafe {
+            *handle.as_ptr() = std::mem::transmute(*value);
+        }
     }
 
-    unsafe fn get_handle(handle: VkNonDispatchableHandle) -> Option<Arc<Self>> {
-        let mut context = CONTEXT.read().unwrap();
-        Self::get_hash(&context).get(&handle).map(|x| x.clone())
+    fn get_handle(handle: VkNonDispatchableHandle) -> Option<Arc<Self>> {
+        let context = CONTEXT.read().unwrap();
+        Self::get_hash(&context).get(&handle).cloned()
     }
 
     fn drop_handle(self: Arc<Self>) {
@@ -810,7 +814,7 @@ impl DispatchableHandle for Queue {
 /// Synchronization primitive that can be used to insert a dependency from a queue to the host.
 #[derive(Debug)]
 pub struct Fence {
-    flags: VkDeviceQueueCreateFlags,
+    flags: VkFenceCreateFlags,
 }
 
 impl Fence {
@@ -835,5 +839,38 @@ impl NonDispatchableHandle for Fence {
         context: &'a mut RwLockWriteGuard<Context>,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>> {
         &mut context.fences
+    }
+}
+
+/* Semaphore */
+
+/// Synchronization primitive that can be used to insert a dependency between queue operations or
+/// between a queue operation and the host.
+#[derive(Debug)]
+pub struct Semaphore {
+    flags: VkSemaphoreCreateFlags,
+}
+
+impl Semaphore {
+    pub fn new(create_info: &VkSemaphoreCreateInfo) -> Arc<Self> {
+        info!("new Semaphore");
+        let flags = create_info.flags;
+
+        let semaphore = Arc::new(Self { flags });
+        semaphore.register_handle()
+    }
+}
+
+impl NonDispatchableHandle for Semaphore {
+    fn get_hash<'a>(
+        context: &'a RwLockReadGuard<Context>,
+    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        &context.semaphores
+    }
+
+    fn get_hash_mut<'a>(
+        context: &'a mut RwLockWriteGuard<Context>,
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        &mut context.semaphores
     }
 }
