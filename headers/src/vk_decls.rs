@@ -8,52 +8,9 @@ use log::*;
 pub use std::ptr::NonNull;
 use std::sync::Arc;
 
-pub(crate) type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
+pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
-pub trait DispatchableHandle<T = Self> {
-    fn register_handle(self: Arc<Self>) -> Arc<Self>;
-
-    fn unregister_handle(self: &Arc<Self>);
-
-    unsafe fn set_handle(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
-        trace!(
-            "{}::set_handle arc: {} {}",
-            std::any::type_name::<T>(),
-            Arc::strong_count(&value),
-            Arc::weak_count(&value)
-        );
-        let value = Arc::into_raw(value);
-        Arc::decrement_strong_count(value);
-        *handle.as_ptr() = std::mem::transmute(value);
-    }
-
-    unsafe fn get_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {
-        handle.map_or_else(
-            || None,
-            |handle| {
-                let ptr = std::mem::transmute::<_, *const T>(handle);
-                Arc::increment_strong_count(ptr);
-                let arc = Arc::from_raw(ptr);
-                trace!(
-                    "{}::get_handle arc: {} {}",
-                    std::any::type_name::<T>(),
-                    Arc::strong_count(&arc),
-                    Arc::weak_count(&arc)
-                );
-                Some(arc)
-            },
-        )
-    }
-
-    fn drop_handle(self: Arc<Self>) {
-        self.unregister_handle();
-        assert_eq!(Arc::strong_count(&self), 1);
-        drop(self);
-    }
-}
-
-
-pub(crate) type VkNonDispatchableHandle = u64;
+pub type VkNonDispatchableHandle = u64;
 
 // TODO: Smarter handling of unsupported FFI types.
 pub(crate) type VkUnsupportedType = *const std::ffi::c_void;

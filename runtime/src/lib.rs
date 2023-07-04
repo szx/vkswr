@@ -3,7 +3,7 @@ use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
 use std::ffi::c_char;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 /* Context */
 
@@ -28,6 +28,63 @@ impl Context {
 
 lazy_static! {
     static ref CONTEXT: RwLock<Context> = RwLock::new(Context::new());
+}
+
+pub trait DispatchableHandle<T = Self> {
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>>;
+
+    fn register_handle(self: Arc<Self>) -> Arc<Self> {
+        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write().unwrap();
+        let context = &mut context;
+        self.get_vec(context).push(self.clone());
+        self
+    }
+
+    fn unregister_handle(self: &Arc<Self>) {
+        let mut context = CONTEXT.write().unwrap();
+        let index = self
+            .get_vec(&mut context)
+            .iter()
+            .position(|x| Arc::ptr_eq(x, self))
+            .unwrap();
+        self.get_vec(&mut context).remove(index);
+    }
+
+    unsafe fn set_handle(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
+        trace!(
+            "{}::set_handle arc: {} {}",
+            std::any::type_name::<T>(),
+            Arc::strong_count(&value),
+            Arc::weak_count(&value)
+        );
+        let value = Arc::into_raw(value);
+        Arc::decrement_strong_count(value);
+        *handle.as_ptr() = std::mem::transmute(value);
+    }
+
+    unsafe fn get_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {
+        handle.map_or_else(
+            || None,
+            |handle| {
+                let ptr = std::mem::transmute::<_, *const T>(handle);
+                Arc::increment_strong_count(ptr);
+                let arc = Arc::from_raw(ptr);
+                trace!(
+                    "{}::get_handle arc: {} {}",
+                    std::any::type_name::<Self>(),
+                    Arc::strong_count(&arc),
+                    Arc::weak_count(&arc)
+                );
+                Some(arc)
+            },
+        )
+    }
+
+    fn drop_handle(self: Arc<Self>) {
+        self.unregister_handle();
+        assert_eq!(Arc::strong_count(&self), 1);
+        drop(self);
+    }
 }
 
 /* Instance */
@@ -75,20 +132,8 @@ impl Instance {
 }
 
 impl DispatchableHandle for Instance {
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        let mut context = CONTEXT.write().unwrap();
-        context.instances.push(self.clone());
-        self
-    }
-
-    fn unregister_handle(self: &Arc<Self>) {
-        let mut context = CONTEXT.write().unwrap();
-        let index = context
-            .instances
-            .iter()
-            .position(|x| Arc::ptr_eq(x, self))
-            .unwrap();
-        context.instances.remove(index);
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
+        context.instances.as_mut()
     }
 }
 
@@ -618,22 +663,8 @@ impl PhysicalDevice {
 }
 
 impl DispatchableHandle for PhysicalDevice {
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        // let mut context = CONTEXT.write().unwrap();
-        // context.physical_devices.push(self.clone());
-        self
-    }
-
-    fn unregister_handle(self: &Arc<Self>) {
-        /*
-        let mut context = CONTEXT.write().unwrap();
-        let index = context
-            .physical_devices
-            .iter()
-            .position(|x| Arc::ptr_eq(x, self))
-            .unwrap();
-        context.physical_devices.remove(index);
-        */
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
+        context.physical_devices.as_mut()
     }
 }
 
@@ -668,20 +699,8 @@ impl LogicalDevice {
 }
 
 impl DispatchableHandle for LogicalDevice {
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        let mut context = CONTEXT.write().unwrap();
-        context.logical_devices.push(self.clone());
-        self
-    }
-
-    fn unregister_handle(self: &Arc<Self>) {
-        let mut context = CONTEXT.write().unwrap();
-        let index = context
-            .logical_devices
-            .iter()
-            .position(|x| Arc::ptr_eq(x, self))
-            .unwrap();
-        context.logical_devices.remove(index);
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
+        context.logical_devices.as_mut()
     }
 }
 
@@ -710,26 +729,17 @@ impl Queue {
         info!("new Queue");
         let flags = create_info.flags;
 
-        let queue = Self { physical_device, flags };
+        let queue = Self {
+            physical_device,
+            flags,
+        };
         let queue = Arc::new(queue);
         queue.register_handle()
     }
 }
 
 impl DispatchableHandle for Queue {
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        let mut context = CONTEXT.write().unwrap();
-        context.queues.push(self.clone());
-        self
-    }
-
-    fn unregister_handle(self: &Arc<Self>) {
-        let mut context = CONTEXT.write().unwrap();
-        let index = context
-            .queues
-            .iter()
-            .position(|x| Arc::ptr_eq(x, self))
-            .unwrap();
-        context.queues.remove(index);
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
+        context.queues.as_mut()
     }
 }
