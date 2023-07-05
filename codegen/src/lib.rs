@@ -43,7 +43,10 @@ impl VkXml {
     ///
     /// Will return `Err` if writing to `f` fails.
     pub fn write_defs(&self, f: &mut impl std::io::Write) -> Result<(), WriteVkXmlError> {
-        writeln!(f, "#[macro_export] macro_rules! include_commands {{ () => {{")?;
+        writeln!(
+            f,
+            "#[macro_export] macro_rules! include_commands {{ () => {{"
+        )?;
         for x in &self.commands {
             let tokens = x.into_token_stream();
             writeln!(f, "{tokens}")?;
@@ -69,9 +72,10 @@ impl ToTokens for VkEnums {
             }
             Self::Enum { name, members } => {
                 let name = format_ident!("{}", name.as_ref());
-                let enumerators = members
-                    .iter()
-                    .filter(|x| matches!(x, VkEnumsMember::Member { .. }));
+                let enumerators = members.iter().filter(|x| {
+                    matches!(x, VkEnumsMember::MemberValue { .. })
+                        || matches!(x, VkEnumsMember::MemberBitpos { .. })
+                });
                 tokens.extend(quote! {
                     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
                     #[repr(C)]
@@ -113,7 +117,7 @@ impl ToTokens for VkEnumsMember {
                 let alias = format_ident!("{}", alias.as_ref());
                 tokens.extend(quote!(pub const #name : #type_name = #alias;).to_token_stream());
             }
-            Self::Member { name, value } => {
+            Self::MemberValue { name, value } => {
                 let name = format_ident!("{}", name.as_ref());
                 if let Some(value) = value {
                     let value = Literal::isize_suffixed(parse_int::parse(value).expect("integer"));
@@ -121,6 +125,11 @@ impl ToTokens for VkEnumsMember {
                 } else {
                     tokens.extend(quote! { #name,});
                 }
+            }
+            Self::MemberBitpos { name, bitpos } => {
+                let name = format_ident!("{}", name.as_ref());
+                let bitpos = Literal::isize_suffixed(parse_int::parse(bitpos).expect("integer"));
+                tokens.extend(dbg!(quote! { #name = (1 << #bitpos), }));
             }
             Self::Alias { name, alias, .. } => {
                 let name = format_ident!("{}", name.as_ref());
@@ -303,6 +312,8 @@ mod tests {
         let vk_xml_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/vk.xml"));
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         vk_xml.write_decls(&mut io::sink()).expect("write succeeds");
-        vk_xml.write_defs(&mut io::stdout()).expect("write succeeds");
+        vk_xml
+            .write_defs(&mut io::stdout())
+            .expect("write succeeds");
     }
 }

@@ -225,6 +225,9 @@ struct VkXmlEnumsMemberSerde {
     #[serde(rename = "@value")]
     value: Option<Arc<str>>,
 
+    #[serde(rename = "@bitpos")]
+    bitpos: Option<Arc<str>>,
+
     #[serde(rename = "@type")]
     type_: Option<Arc<str>>,
 
@@ -234,9 +237,13 @@ struct VkXmlEnumsMemberSerde {
 
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum VkEnumsMember {
-    Member {
+    MemberValue {
         name: Arc<str>,
         value: Option<Arc<str>>,
+    },
+    MemberBitpos {
+        name: Arc<str>,
+        bitpos: Arc<str>,
     },
     Alias {
         name: Arc<str>,
@@ -274,8 +281,13 @@ impl VkXmlEnumsMemberSerde {
                 alias: alias.clone(),
                 enum_name,
             }
+        } else if let Some(bitpos) = &self.bitpos {
+            VkEnumsMember::MemberBitpos {
+                name: self.name.clone(),
+                bitpos: bitpos.clone(),
+            }
         } else {
-            VkEnumsMember::Member {
+            VkEnumsMember::MemberValue {
                 name: self.name.clone(),
                 value: self.value.clone(),
             }
@@ -575,10 +587,14 @@ impl VkCommand {
                 regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").expect("regex");
         }
 
-        let Some(cap) = RE_PROTO.captures(str.as_ref()) else { return None };
+        let Some(cap) = RE_PROTO.captures(str.as_ref()) else {
+            return None;
+        };
         let proto = cap.get(1).expect("capture").as_str();
 
-        let Some(cap) = RE_NAME.captures(proto) else { return None };
+        let Some(cap) = RE_NAME.captures(proto) else {
+            return None;
+        };
         let name = cap.get(1).expect("capture").as_str().into();
 
         let proto = RE_NAME.replace_all(proto, " ");
@@ -598,7 +614,9 @@ impl VkCommand {
                 continue;
             }
 
-            let Some(cap_name) = RE_NAME.captures(&cap[0]) else { unreachable!("{:?}", &cap[0]) };
+            let Some(cap_name) = RE_NAME.captures(&cap[0]) else {
+                unreachable!("{:?}", &cap[0])
+            };
             let mut name = cap_name.get(1).expect("capture").as_str().into();
             if name == "type" {
                 name = "type_".into();
@@ -642,7 +660,9 @@ impl VkFuncDeclMember {
 
         let str = RE_ALL_TAGS.replace_all(str, " ");
         let str = RE_ALL_SPACES.replace_all(&str, " ");
-        let Some(cap) = RE_TYPE_NAME_MEMBERS.captures(str.as_ref()) else { return None };
+        let Some(cap) = RE_TYPE_NAME_MEMBERS.captures(str.as_ref()) else {
+            return None;
+        };
 
         let type_ = cap.get(1).expect("capture").as_str();
         let type_ = if type_ == "void" {
@@ -857,11 +877,12 @@ mod tests {
                             enum_name: _,
                         } => continue,
                         VkEnumsMember::ApiConstantAlias { name: _, alias: _ } => {}
-                        VkEnumsMember::Member { name: _, value } => {
+                        VkEnumsMember::MemberValue { name: _, value } => {
                             if let Some(value) = value {
                                 assert!(parse_int::parse::<isize>(value).is_ok());
                             }
                         }
+                        VkEnumsMember::MemberBitpos { .. } => continue,
                     }
                 }
             }
@@ -894,6 +915,5 @@ mod tests {
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         assert!(!vk_xml.typedefs.is_empty());
         assert!(!vk_xml.type_externs.is_empty());
-        dbg!(&vk_xml.type_externs);
     }
 }
