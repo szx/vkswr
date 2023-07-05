@@ -633,7 +633,7 @@ pub unsafe extern "C" fn vkCreateFence(
         unreachable!()
     };
 
-    Fence::set_handle(pFence, Fence::new(create_info));
+    Fence::set_handle(pFence, Fence::create(device, create_info));
 
     VkResult::VK_SUCCESS
 }
@@ -671,8 +671,68 @@ pub unsafe extern "C" fn vkCreateSemaphore(
         unreachable!()
     };
 
-    Semaphore::set_handle(pSemaphore, Semaphore::new(create_info));
+    Semaphore::set_handle(pSemaphore, Semaphore::create(create_info));
 
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkWaitForFences(
+    device: VkDevice,
+    fenceCount: u32,
+    pFences: Option<NonNull<VkFence>>,
+    waitAll: VkBool32,
+    timeout: u64,
+) -> VkResult {
+    // VUID-vkWaitForFences-device-parameter
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    // VUID-vkWaitForFences-fenceCount-arraylength
+    if fenceCount == 0 {
+        return VkResult::VK_SUCCESS;
+    }
+
+    // VUID-vkWaitForFences-pFences-parameter
+    let Some(mut pFences) = pFences else {
+        unreachable!()
+    };
+    let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
+    let fences = pFences
+        .iter()
+        .map(|&handle| Fence::get_handle_mut(handle))
+        .collect::<Vec<_>>();
+
+    device.wait_for_fences(fences, waitAll != 0, timeout);
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkResetFences(
+    device: VkDevice,
+    fenceCount: u32,
+    pFences: Option<NonNull<VkFence>>,
+) -> VkResult {
+    // VUID-vkResetFences-device-parameter
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    // VUID-vkResetFences-fenceCount-arraylength
+    if fenceCount == 0 {
+        return VkResult::VK_SUCCESS;
+    }
+
+    // VUID-vkResetFences-pFences-parameter
+    let Some(mut pFences) = pFences else {
+        unreachable!()
+    };
+    let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
+    let mut fences = pFences
+        .iter()
+        .map(|&handle| Fence::get_handle_mut(handle))
+        .collect::<Vec<_>>();
+
+    device.reset_fences(fences);
     VkResult::VK_SUCCESS
 }
 
@@ -2320,14 +2380,6 @@ pub unsafe extern "C" fn vkCmdWaitEvents(
         pImageMemoryBarriers,
     "
     )
-}
-
-pub unsafe extern "C" fn vkResetFences(
-    device: VkDevice,
-    fenceCount: u32,
-    pFences: Option<NonNull<VkFence>>,
-) -> VkResult {
-    unimplemented!("vkResetFences(device, fenceCount, pFences")
 }
 
 pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements(
@@ -4354,16 +4406,6 @@ pub unsafe extern "C" fn vkGetAccelerationStructureHandleNV(
     unimplemented!(
         "vkGetAccelerationStructureHandleNV(device, accelerationStructure, dataSize, pData"
     )
-}
-
-pub unsafe extern "C" fn vkWaitForFences(
-    device: VkDevice,
-    fenceCount: u32,
-    pFences: Option<NonNull<VkFence>>,
-    waitAll: VkBool32,
-    timeout: u64,
-) -> VkResult {
-    unimplemented!("vkWaitForFences(device, fenceCount, pFences, waitAll, timeout")
 }
 
 pub unsafe extern "C" fn vkCmdEndConditionalRenderingEXT(commandBuffer: VkCommandBuffer) {

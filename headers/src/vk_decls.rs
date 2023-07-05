@@ -4,13 +4,13 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
-use log::*;
 pub use std::ptr::NonNull;
-use std::sync::Arc;
 
 pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
-pub type VkNonDispatchableHandle = u64;
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[repr(transparent)]
+pub struct VkNonDispatchableHandle(pub u64);
 
 // TODO: Smarter handling of unsupported FFI types.
 pub(crate) type VkUnsupportedType = *const std::ffi::c_void;

@@ -2,10 +2,14 @@ use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
+use parking_lot::{
+    MappedRwLockReadGuard, MappedRwLockWriteGuard, RawRwLock, RwLock, RwLockReadGuard,
+    RwLockWriteGuard,
+};
 use std::collections::HashMap;
 use std::ffi::c_char;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::Arc;
 
 /* Context */
 
@@ -15,8 +19,8 @@ pub struct Context {
     physical_devices: Vec<Arc<PhysicalDevice>>,
     logical_devices: Vec<Arc<LogicalDevice>>,
     queues: Vec<Arc<Queue>>,
-    fences: HashMap<VkNonDispatchableHandle, Arc<Fence>>,
-    semaphores: HashMap<VkNonDispatchableHandle, Arc<Semaphore>>,
+    fences: HashMap<VkNonDispatchableHandle, Fence>,
+    semaphores: HashMap<VkNonDispatchableHandle, Semaphore>,
 }
 
 impl Context {
@@ -40,14 +44,14 @@ pub trait DispatchableHandle<T = Self> {
     fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>>;
 
     fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write().unwrap();
+        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
         self.get_vec(context).push(self.clone());
         self
     }
 
     fn unregister_handle(self: &Arc<Self>) {
-        let mut context = CONTEXT.write().unwrap();
+        let mut context = CONTEXT.write();
         let index = self
             .get_vec(&mut context)
             .iter()
@@ -95,60 +99,58 @@ pub trait DispatchableHandle<T = Self> {
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
-pub trait NonDispatchableHandle<T = Self> {
-    fn get_hash<'a>(
-        context: &'a RwLockReadGuard<Context>,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>>;
+pub trait NonDispatchableHandle<T = Self>
+where
+    Self: Sized,
+{
+    fn get_hash<'a>(context: &'a Context) -> &'a HashMap<VkNonDispatchableHandle, Self>;
 
-    fn get_hash_mut<'a>(
-        context: &'a mut RwLockWriteGuard<Context>,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>>;
+    fn get_hash_mut<'a>(context: &'a mut Context)
+        -> &'a mut HashMap<VkNonDispatchableHandle, Self>;
 
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
-        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write().unwrap();
+    fn register_handle(self) -> VkNonDispatchableHandle {
+        let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
-        let id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-        Self::get_hash_mut(context).insert(id, self.clone());
-        self
+        let id = VkNonDispatchableHandle(ID_COUNTER.fetch_add(1, Ordering::Relaxed));
+        Self::get_hash_mut(context).insert(id, self);
+        id
     }
 
-    fn unregister_handle(self: &Arc<Self>) {
-        let mut context = CONTEXT.write().unwrap();
+    fn unregister_handle(&self) {
+        let mut context = CONTEXT.write();
         // TODO: Refactor NonDispatchableHandle - store id in struct.
-        Self::get_hash_mut(&mut context).retain(|_, v| !Arc::ptr_eq(v, self));
+        Self::get_hash_mut(&mut context).retain(|_, v| v as *const _ != self as *const _);
     }
 
-    fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: Arc<Self>) {
-        let context = CONTEXT.read().unwrap();
-        let value = Self::get_hash(&context)
-            .iter()
-            .find_map(|(k, v)| {
-                if Arc::ptr_eq(&value, v) {
-                    Some(k)
-                } else {
-                    None
-                }
-            })
-            .unwrap();
+    fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: VkNonDispatchableHandle) {
+        let context = CONTEXT.read();
         trace!(
             "{}::set_handle value: {}",
             std::any::type_name::<T>(),
-            value
+            value.0
         );
         unsafe {
-            *handle.as_ptr() = std::mem::transmute(*value);
+            *handle.as_ptr() = std::mem::transmute(value);
         }
     }
 
-    fn get_handle(handle: VkNonDispatchableHandle) -> Option<Arc<Self>> {
-        let context = CONTEXT.read().unwrap();
-        Self::get_hash(&context).get(&handle).cloned()
+    fn get_handle(handle: VkNonDispatchableHandle) -> MappedRwLockReadGuard<'static, Self> {
+        let guard = RwLockReadGuard::map(CONTEXT.read(), |context| {
+            Self::get_hash(context).get(&handle).unwrap()
+        });
+        guard
+    }
+
+    fn get_handle_mut(handle: VkNonDispatchableHandle) -> MappedRwLockWriteGuard<'static, Self> {
+        let guard = RwLockWriteGuard::map(CONTEXT.write(), |context| {
+            Self::get_hash_mut(context).get_mut(&handle).unwrap()
+        });
+        guard
     }
 
     fn drop_handle(self: Arc<Self>) {
         self.unregister_handle();
-        assert_eq!(Arc::strong_count(&self), 1);
-        drop(self);
+        unimplemented!("drop_handle")
     }
 }
 
@@ -213,7 +215,7 @@ pub struct PhysicalDevice {
 impl PhysicalDevice {
     pub fn get() -> Arc<Self> {
         info!("new PhysicalDevice");
-        let mut context = CONTEXT.write().unwrap();
+        let mut context = CONTEXT.write();
         if context.physical_devices.len() < Self::physical_device_count() {
             let physical_device = Self {
                 physical_device_name: "vulkan_software_rasterizer physical device",
@@ -775,6 +777,29 @@ impl LogicalDevice {
         let _ = queue_index;
         self.queue.clone()
     }
+
+    pub fn wait_for_fences(
+        &self,
+        fences: Vec<MappedRwLockWriteGuard<Fence>>,
+        wait_all: bool,
+        timeout: u64,
+    ) {
+        let _ = wait_all;
+        let _ = timeout;
+        for fence in fences {
+            if fence.logical_device.as_ref() as *const _ != self as *const _ {
+                continue;
+            }
+            // TODO: Wait for one or more fences to become signaled.
+        }
+    }
+
+    pub fn reset_fences(&self, fences: Vec<MappedRwLockWriteGuard<Fence>>) {
+        for mut fence in fences {
+            // TODO: VUID-vkResetFences-pFences-01123
+            fence.reset();
+        }
+    }
 }
 
 /* Queue */
@@ -814,30 +839,47 @@ impl DispatchableHandle for Queue {
 /// Synchronization primitive that can be used to insert a dependency from a queue to the host.
 #[derive(Debug)]
 pub struct Fence {
+    logical_device: Arc<LogicalDevice>,
     flags: VkFenceCreateFlags,
+    signaled: bool,
 }
 
 impl Fence {
-    pub fn new(create_info: &VkFenceCreateInfo) -> Arc<Self> {
+    pub fn create(
+        logical_device: Arc<LogicalDevice>,
+        create_info: &VkFenceCreateInfo,
+    ) -> VkNonDispatchableHandle {
         info!("new Fence");
         let flags = create_info.flags;
-
-        let fence = Self { flags };
-        let fence = Arc::new(fence);
+        let signaled =
+            (flags & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT as VkFlags) != 0;
+        let fence = Self {
+            logical_device,
+            flags,
+            signaled,
+        };
         fence.register_handle()
+    }
+
+    pub fn signal(&mut self) {
+        trace!("fence {} signal", self.signaled);
+        self.signaled = true;
+    }
+
+    pub fn reset(&mut self) {
+        trace!("fence {} reset", self.signaled);
+        self.signaled = false;
     }
 }
 
 impl NonDispatchableHandle for Fence {
-    fn get_hash<'a>(
-        context: &'a RwLockReadGuard<Context>,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>> {
+    fn get_hash<'a>(context: &'a Context) -> &'a HashMap<VkNonDispatchableHandle, Self> {
         &context.fences
     }
 
     fn get_hash_mut<'a>(
-        context: &'a mut RwLockWriteGuard<Context>,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        context: &'a mut Context,
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Self> {
         &mut context.fences
     }
 }
@@ -852,25 +894,23 @@ pub struct Semaphore {
 }
 
 impl Semaphore {
-    pub fn new(create_info: &VkSemaphoreCreateInfo) -> Arc<Self> {
+    pub fn create(create_info: &VkSemaphoreCreateInfo) -> VkNonDispatchableHandle {
         info!("new Semaphore");
         let flags = create_info.flags;
 
-        let semaphore = Arc::new(Self { flags });
+        let semaphore = Self { flags };
         semaphore.register_handle()
     }
 }
 
 impl NonDispatchableHandle for Semaphore {
-    fn get_hash<'a>(
-        context: &'a RwLockReadGuard<Context>,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Self>> {
+    fn get_hash<'a>(context: &'a Context) -> &'a HashMap<VkNonDispatchableHandle, Self> {
         &context.semaphores
     }
 
     fn get_hash_mut<'a>(
-        context: &'a mut RwLockWriteGuard<Context>,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Self>> {
+        context: &'a mut Context,
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Self> {
         &mut context.semaphores
     }
 }

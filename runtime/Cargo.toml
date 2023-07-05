@@ -10,3 +10,4 @@ crate-type = ["lib"]
 headers = { path = "../headers" }
 lazy_static = { workspace = true }
 log = { workspace = true }
+parking_lot = { workspace = true }

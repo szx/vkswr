@@ -14,8 +14,10 @@ fn wait_for_debugger() {
                 DEBUG = false;
             }
         }
-        while DEBUG {}
-        DEBUG = false;
+        if DEBUG {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+            DEBUG = false;
+        }
     }
 }
 
@@ -29,7 +31,9 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     _instance: VkInstance,
     pName: *const std::ffi::c_char,
 ) -> PFN_vkVoidFunction {
-    let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else { return None; };
+    let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else {
+        return None;
+    };
     wait_for_debugger();
     match pName {
         "vkCreateInstance" => unsafe { std::mem::transmute(vkCreateInstance as *const ()) },
@@ -96,7 +100,9 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
 pub unsafe extern "C" fn vk_icdNegotiateLoaderICDInterfaceVersion(
     pSupportedVersion: Option<NonNull<std::ffi::c_uint>>,
 ) -> VkResult {
-    let Some(pSupportedVersion) = pSupportedVersion else { return VkResult::VK_ERROR_INCOMPATIBLE_DRIVER };
+    let Some(pSupportedVersion) = pSupportedVersion else {
+        return VkResult::VK_ERROR_INCOMPATIBLE_DRIVER;
+    };
     let supported_version = 3;
     let demanded_version = *pSupportedVersion.as_ptr();
     if demanded_version < supported_version {
