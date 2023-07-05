@@ -85,6 +85,14 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         "vkGetPhysicalDeviceSurfacePresentModesKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDeviceSurfacePresentModesKHR as *const ())
         },
+        /* VK_KHR_xcb_surface extension instance commands */
+        "vkCreateXcbSurfaceKHR" => unsafe {
+            std::mem::transmute(vkCreateXcbSurfaceKHR as *const ())
+        },
+        "vkGetPhysicalDeviceXcbPresentationSupportKHR" => unsafe {
+            std::mem::transmute(vkGetPhysicalDeviceXcbPresentationSupportKHR as *const ())
+        },
+
         /* VK_KHR_swapchain extension instance commands */
         "vkGetPhysicalDevicePresentRectanglesKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDevicePresentRectanglesKHR as *const ())

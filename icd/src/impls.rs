@@ -846,6 +846,33 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     VkResult::VK_SUCCESS
 }
 
+/* VK_KHR_xcb_surface extension instance commands */
+
+pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
+    instance: VkInstance,
+    pCreateInfo: Option<NonNull<VkXcbSurfaceCreateInfoKHR>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pSurface: Option<NonNull<VkSurfaceKHR>>,
+) -> VkResult {
+    todo!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
+}
+
+pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
+    physicalDevice: VkPhysicalDevice,
+    queueFamilyIndex: u32,
+    connection: Option<NonNull<xcb_connection_t>>,
+    visual_id: xcb_visualid_t,
+) -> VkBool32 {
+    todo!(
+        "vkGetPhysicalDeviceXcbPresentationSupportKHR(
+        physicalDevice,
+        queueFamilyIndex,
+        connection,
+        visual_id,
+    "
+    )
+}
+
 /* VK_KHR_swapchain extension device commands */
 
 pub unsafe extern "C" fn vkDestroySwapchainKHR(
@@ -854,6 +881,17 @@ pub unsafe extern "C" fn vkDestroySwapchainKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     todo!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
+}
+
+pub unsafe extern "C" fn vkAcquireNextImageKHR(
+    device: VkDevice,
+    swapchain: VkSwapchainKHR,
+    timeout: u64,
+    semaphore: VkSemaphore,
+    fence: VkFence,
+    pImageIndex: Option<NonNull<u32>>,
+) -> VkResult {
+    todo!("vkAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex")
 }
 
 /* unimplemented */
@@ -1860,22 +1898,6 @@ pub unsafe extern "C" fn vkCmdDrawIndirectByteCountEXT(
         counterBufferOffset,
         counterOffset,
         vertexStride,
-    "
-    )
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    connection: Option<NonNull<xcb_connection_t>>,
-    visual_id: xcb_visualid_t,
-) -> VkBool32 {
-    unimplemented!(
-        "vkGetPhysicalDeviceXcbPresentationSupportKHR(
-        physicalDevice,
-        queueFamilyIndex,
-        connection,
-        visual_id,
     "
     )
 }
@@ -4720,19 +4742,6 @@ pub unsafe extern "C" fn vkCmdEndRendering(commandBuffer: VkCommandBuffer) {
     unimplemented!("vkCmdEndRendering(commandBuffer")
 }
 
-pub unsafe extern "C" fn vkAcquireNextImageKHR(
-    device: VkDevice,
-    swapchain: VkSwapchainKHR,
-    timeout: u64,
-    semaphore: VkSemaphore,
-    fence: VkFence,
-    pImageIndex: Option<NonNull<u32>>,
-) -> VkResult {
-    unimplemented!(
-        "vkAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex"
-    )
-}
-
 pub unsafe extern "C" fn vkGetPerformanceParameterINTEL(
     device: VkDevice,
     parameter: VkPerformanceParameterTypeINTEL,
@@ -5171,15 +5180,6 @@ pub unsafe extern "C" fn vkCmdSetDepthClipEnableEXT(
     depthClipEnable: VkBool32,
 ) {
     unimplemented!("vkCmdSetDepthClipEnableEXT(commandBuffer, depthClipEnable")
-}
-
-pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
-    instance: VkInstance,
-    pCreateInfo: Option<NonNull<VkXcbSurfaceCreateInfoKHR>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<NonNull<VkSurfaceKHR>>,
-) -> VkResult {
-    unimplemented!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
 }
 
 pub unsafe extern "C" fn vkCmdSetLogicOpEnableEXT(
