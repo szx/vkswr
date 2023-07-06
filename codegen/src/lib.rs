@@ -1,7 +1,9 @@
 mod vk_xml;
 
+use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 pub use vk_xml::*;
 
@@ -34,6 +36,12 @@ impl VkXml {
             let tokens = x.into_token_stream();
             writeln!(f, "{tokens}")?;
         }
+
+        for x in &self.extensions {
+            let tokens = x.into_token_stream();
+            writeln!(f, "{tokens}")?;
+        }
+
         writeln!(f, "{}", quote! {pub type int = i32;})?;
 
         Ok(())
@@ -63,6 +71,13 @@ pub enum WriteVkXmlError {
     IO(#[from] std::io::Error),
 }
 
+fn enum_type_from_name(name: &Arc<str>) -> &'static str {
+    if name.ends_with('2') {
+        "u64"
+    } else {
+        "u32"
+    }
+}
 impl ToTokens for VkEnums {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
@@ -71,18 +86,51 @@ impl ToTokens for VkEnums {
                 tokens.extend(quote!(#(#aliases)*).to_token_stream());
             }
             Self::Enum { name, members } => {
+                let type_ = format_ident!("{}", enum_type_from_name(name));
                 let name = format_ident!("{}", name.as_ref());
-                let enumerators = members.iter().filter(|x| {
+                let mut enumerators = members.iter().filter(|x| {
                     matches!(x, VkEnumsMember::MemberValue { .. })
                         || matches!(x, VkEnumsMember::MemberBitpos { .. })
                 });
+
                 tokens.extend(quote! {
                     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-                    #[repr(C)]
-                    pub enum #name {
+                    #[repr(transparent)]
+                    pub struct #name(pub #type_);
+                    impl #name {
                         #(#enumerators)*
                     }
+                    impl std::ops::BitOr for #name {
+                        type Output = Self;
+                        #[inline]
+                        fn bitor(self, rhs: Self) -> Self::Output {
+                            Self(self.0 | rhs.0)
+                        }
+                    }
+                    impl std::ops::BitAnd for #name {
+                        type Output = Self;
+                        #[inline]
+                        fn bitand(self, rhs: Self) -> Self::Output {
+                            Self(self.0 & rhs.0)
+                        }
+                    }
+                    impl PartialEq<#type_> for #name {
+                        fn eq(&self, other: &#type_) -> bool { self.0 == *other }
+                    }
+                    impl std::convert::From<#name> for #type_ {
+                        #[inline]
+                        fn from(value: #name) -> Self {
+                            value.0
+                        }
+                    }
+                    impl std::convert::From<#type_> for #name {
+                        #[inline]
+                        fn from(value: #type_) -> Self {
+                            Self(value)
+                        }
+                    }
                 });
+
                 let aliases = members
                     .iter()
                     .filter(|x| matches!(x, VkEnumsMember::Alias { .. }));
@@ -91,10 +139,6 @@ impl ToTokens for VkEnums {
                         #(pub const #aliases;)*
                     }
                 });
-            }
-            Self::Bitmask { name } => {
-                let name = format_ident!("{}", name.as_ref());
-                tokens.extend(quote! {pub type #name = VkFlags ;});
             }
         }
     }
@@ -117,19 +161,34 @@ impl ToTokens for VkEnumsMember {
                 let alias = format_ident!("{}", alias.as_ref());
                 tokens.extend(quote!(pub const #name : #type_name = #alias;).to_token_stream());
             }
-            Self::MemberValue { name, value } => {
+            Self::MemberValue {
+                name,
+                value,
+                enum_name,
+            } => {
                 let name = format_ident!("{}", name.as_ref());
                 if let Some(value) = value {
-                    let value = Literal::isize_suffixed(parse_int::parse(value).expect("integer"));
-                    tokens.extend(quote! { #name = #value, });
+                    let value = if enum_type_from_name(enum_name) == "u64" {
+                        Literal::i64_suffixed(parse_int::parse(value).expect("integer"))
+                    } else {
+                        Literal::i32_suffixed(parse_int::parse(value).expect("integer"))
+                    };
+                    tokens.extend(
+                        // TODO: use bytemuck instead of transmute
+                        quote! { pub const #name : Self = Self(unsafe { std::mem::transmute(#value) }); },
+                    );
                 } else {
                     tokens.extend(quote! { #name,});
                 }
             }
-            Self::MemberBitpos { name, bitpos } => {
+            Self::MemberBitpos {
+                name,
+                bitpos,
+                enum_name,
+            } => {
                 let name = format_ident!("{}", name.as_ref());
-                let bitpos = Literal::isize_suffixed(parse_int::parse(bitpos).expect("integer"));
-                tokens.extend(dbg!(quote! { #name = (1 << #bitpos), }));
+                let bitpos = Literal::isize_unsuffixed(parse_int::parse(bitpos).expect("integer"));
+                tokens.extend(quote! {  pub const #name : Self = Self(1 << #bitpos); });
             }
             Self::Alias { name, alias, .. } => {
                 let name = format_ident!("{}", name.as_ref());
@@ -300,6 +359,146 @@ impl ToTokens for VkCommand {
     }
 }
 
+impl ToTokens for VkExtension {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let VkExtension {
+            name,
+            number,
+            enum_members,
+        } = self;
+        {
+            if !(name.contains("VK_VERSION") || name.contains("VKSC_VERSION")) {
+                let number_name = format_ident!("{}_NUMBER", name.to_uppercase());
+                let number = number.parse::<TokenStream>().expect("Rust value");
+                tokens.extend(quote! {pub const #number_name : u64 = #number;});
+            }
+
+            tokens.extend(quote! {#(#enum_members)*});
+        }
+    }
+}
+
+lazy_static! {
+    static ref SEEN: Mutex<Vec<Arc<str>>> = Mutex::new(Vec::new());
+}
+
+fn seen(name: &Arc<str>) -> bool {
+    let mut seen = SEEN.lock().unwrap();
+    if seen.iter().any(|x| x == name) {
+        true
+    } else {
+        seen.push(name.clone());
+        false
+    }
+}
+
+impl ToTokens for VkExtensionEnumMember {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let get_type_by_name = |name: &Arc<str>| -> TokenStream {
+            if name.ends_with("_NAME") {
+                "&str"
+            } else {
+                "isize"
+            }
+            .parse::<TokenStream>()
+            .expect("Rust value")
+        };
+        let get_type_by_value = |value: &Arc<str>| -> TokenStream {
+            if value.starts_with('"') {
+                "&str"
+            } else {
+                "isize"
+            }
+            .parse::<TokenStream>()
+            .expect("Rust value")
+        };
+        match self {
+            Self::Value {
+                name,
+                value,
+                extends,
+            } => {
+                if seen(name) {
+                    return;
+                }
+                let type_ = get_type_by_value(value);
+                let name = format_ident!("{}", name.as_ref());
+                let value = value.parse::<TokenStream>().expect("Rust value");
+                if let Some(extends) = extends {
+                    let extends = format_ident!("{}", extends.as_ref());
+                    tokens.extend(quote! {
+                        impl #extends {
+                           pub const #name : Self = Self(#value);
+                        }
+                    });
+                } else {
+                    tokens.extend(quote! {pub const #name : #type_ = #value;});
+                }
+            }
+            Self::Alias { name, alias } => {
+                if seen(name) {
+                    return;
+                }
+                let type_ = get_type_by_name(name);
+                let name = format_ident!("{}", name.as_ref());
+                let alias = format_ident!("{}", alias.as_ref());
+                tokens.extend(quote! { pub const #name : #type_ = #alias; });
+            }
+            Self::ExtendsOffset {
+                name,
+                number,
+                extends,
+            } => {
+                if seen(name) {
+                    return;
+                }
+                let name = format_ident!("{}", name.as_ref());
+                let number = Literal::isize_unsuffixed(*number);
+                let extends = format_ident!("{}", extends.as_ref());
+                tokens.extend(quote! {
+                    impl #extends {
+                       pub const #name : Self = Self(#number);
+                    }
+                });
+            }
+            Self::ExtendsBitpos {
+                name,
+                bitpos,
+                extends,
+            } => {
+                if seen(name) {
+                    return;
+                }
+                let name = format_ident!("{}", name.as_ref());
+                let bitpos = Literal::isize_unsuffixed(parse_int::parse(bitpos).expect("integer"));
+                let extends = format_ident!("{}", extends.as_ref());
+                tokens.extend(quote! {
+                    impl #extends {
+                       pub const #name : Self = Self(1 << #bitpos);
+                    }
+                });
+            }
+            Self::ExtendsAlias {
+                name,
+                alias,
+                extends,
+            } => {
+                if seen(name) {
+                    return;
+                }
+                let name = format_ident!("{}", name.as_ref());
+                let alias = format_ident!("{}", alias.as_ref());
+                let extends = format_ident!("{}", extends.as_ref());
+                tokens.extend(quote! {
+                    impl #extends {
+                       pub const #name : Self = Self::#alias;
+                    }
+                });
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,8 +511,6 @@ mod tests {
         let vk_xml_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/vk.xml"));
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         vk_xml.write_decls(&mut io::sink()).expect("write succeeds");
-        vk_xml
-            .write_defs(&mut io::stdout())
-            .expect("write succeeds");
+        vk_xml.write_defs(&mut io::sink()).expect("write succeeds");
     }
 }

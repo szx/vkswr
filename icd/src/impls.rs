@@ -854,7 +854,35 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
-    todo!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface")
+    // VUID-vkCreateXcbSurfaceKHR-instance-parameter
+    let Some(instance) = Instance::get_handle(instance) else {
+        unreachable!()
+    };
+
+    // VUID-vkCreateXcbSurfaceKHR-pCreateInfo-parameter
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    // TODO: Automate valid CreateInfo structure asserts.
+    assert_eq!(
+        create_info.sType,
+        VkStructureType::VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR
+    );
+
+    // VUID-vkCreateXcbSurfaceKHR-pAllocator-parameter
+    if let Some(pAllocator) = pAllocator {
+        let pAllocator = pAllocator.as_ptr();
+        // TODO: Use callbacks for memory allocation.
+    }
+
+    // VUID-vkCreateXcbSurfaceKHR-pSurface-parameter
+    let Some(pSurface) = pSurface else {
+        unreachable!()
+    };
+
+    todo!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface");
+    VkResult::VK_SUCCESS
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(

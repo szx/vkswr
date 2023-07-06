@@ -659,16 +659,18 @@ impl PhysicalDevice {
             VkFormat::VK_FORMAT_ASTC_12x10_SRGB_BLOCK => unsupported,
             VkFormat::VK_FORMAT_ASTC_12x12_UNORM_BLOCK => unsupported,
             VkFormat::VK_FORMAT_ASTC_12x12_SRGB_BLOCK => unsupported,
+            VkFormat(185_u32..=u32::MAX) => unreachable!(),
         }
     }
 
-    pub const fn queue_family_properties(&self) -> [VkQueueFamilyProperties; 1] {
+    pub fn queue_family_properties(&self) -> [VkQueueFamilyProperties; 1] {
         // SPEC: If an implementation exposes any queue family that supports graphics operations,
         // at least one queue family of at least one physical device exposed by the implementation
         // must support both graphics and compute operations.
         let graphics_queue_family_properties = VkQueueFamilyProperties {
-            queueFlags: VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT as VkFlags
-                | VkQueueFlagBits::VK_QUEUE_COMPUTE_BIT as VkFlags,
+            queueFlags: (VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT
+                | VkQueueFlagBits::VK_QUEUE_COMPUTE_BIT)
+                .into(),
             queueCount: 1,
             timestampValidBits: 0,
             minImageTransferGranularity: VkExtent3D {
@@ -701,7 +703,7 @@ impl PhysicalDevice {
         ]
     }
 
-    pub const fn surface_capabilities(&self) -> VkSurfaceCapabilitiesKHR {
+    pub fn surface_capabilities(&self) -> VkSurfaceCapabilitiesKHR {
         VkSurfaceCapabilitiesKHR {
             minImageCount: 1,
             maxImageCount: 2,
@@ -719,12 +721,11 @@ impl PhysicalDevice {
             },
             maxImageArrayLayers: 1,
             supportedTransforms:
-                VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR as VkFlags,
+                VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR.into(),
             currentTransform: VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
             supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
-                as VkFlags,
-            supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                as VkFlags,
+                .into(),
+            supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.into(),
         }
     }
 }
@@ -851,8 +852,9 @@ impl Fence {
     ) -> VkNonDispatchableHandle {
         info!("new Fence");
         let flags = create_info.flags;
-        let signaled =
-            (flags & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT as VkFlags) != 0;
+        let signaled = (Into::<VkFenceCreateFlagBits>::into(flags)
+            & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT)
+            != 0;
         let fence = Self {
             logical_device,
             flags,

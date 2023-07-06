@@ -12,12 +12,13 @@ use thiserror::Error;
 
 #[derive(Debug, Default)]
 pub struct VkXml {
-    pub enums: HashSet<VkEnums>,
+    pub enums: Vec<VkEnums>,
     pub structs: HashSet<VkStruct>,
     pub typedefs: HashSet<VkTypedef>,
     pub type_attributes: HashSet<VkTypeAttributes>,
     pub type_externs: HashSet<VkTypeExtern>,
     pub commands: HashSet<VkCommand>,
+    pub extensions: HashSet<VkExtension>,
 }
 
 impl VkXml {
@@ -27,7 +28,7 @@ impl VkXml {
     pub fn from(vk_xml_path: impl AsRef<Path>) -> Result<Self, ParseVkXmlError> {
         let vk_xml_path = vk_xml_path.as_ref();
         let vk_xml_str = std::fs::read_to_string(vk_xml_path)?;
-        let vk_xml = read_vk_xml(&vk_xml_str)?;
+        let mut vk_xml = read_vk_xml(&vk_xml_str)?;
         Ok(vk_xml)
     }
 }
@@ -62,7 +63,7 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                         let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                         let str = std::str::from_utf8(&bytes)?;
                         if let Ok(e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
-                            vk_xml.enums.insert(e.fix());
+                            vk_xml.enums.push(e.fix());
                         }
                     }
                     b"type" => {
@@ -105,6 +106,16 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                         if let Ok(x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
                             if let Some(x) = x.fix(str) {
                                 vk_xml.commands.insert(x);
+                            }
+                            continue;
+                        }
+                    }
+                    b"extension" | b"feature" => {
+                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                        let str = std::str::from_utf8(&bytes)?;
+                        if let Ok(x) = quick_xml::de::from_str::<VkExtensionSerde>(str) {
+                            if let Some(x) = x.fix() {
+                                vk_xml.extensions.insert(x);
                             }
                             continue;
                         }
@@ -182,20 +193,16 @@ impl VkXmlEnumsSerde {
             };
         };
         let type_ = type_.as_ref();
-        if type_ == "enum" || type_ == "bitmask" && self.enumerators.is_some() {
+        if type_ == "enum" || type_ == "bitmask" {
             VkEnums::Enum {
                 name: self.name.clone(),
                 members: self
                     .enumerators
                     .as_ref()
-                    .expect("at least one enumerator")
+                    .unwrap_or(&vec![])
                     .iter()
                     .map(|x| x.fix(self.name.clone()))
                     .collect(),
-            }
-        } else if type_ == "bitmask" && self.enumerators.is_none() {
-            VkEnums::Bitmask {
-                name: self.name.clone(),
             }
         } else {
             unreachable!("{:?}", self)
@@ -211,9 +218,6 @@ pub enum VkEnums {
     Enum {
         name: Arc<str>,
         members: Vec<VkEnumsMember>,
-    },
-    Bitmask {
-        name: Arc<str>,
     },
 }
 
@@ -239,11 +243,13 @@ struct VkXmlEnumsMemberSerde {
 pub enum VkEnumsMember {
     MemberValue {
         name: Arc<str>,
-        value: Option<Arc<str>>,
+        value: Option<String>,
+        enum_name: Arc<str>,
     },
     MemberBitpos {
         name: Arc<str>,
         bitpos: Arc<str>,
+        enum_name: Arc<str>,
     },
     Alias {
         name: Arc<str>,
@@ -285,11 +291,13 @@ impl VkXmlEnumsMemberSerde {
             VkEnumsMember::MemberBitpos {
                 name: self.name.clone(),
                 bitpos: bitpos.clone(),
+                enum_name,
             }
         } else {
             VkEnumsMember::MemberValue {
                 name: self.name.clone(),
-                value: self.value.clone(),
+                value: self.value.as_deref().map(|x| x.to_string()),
+                enum_name,
             }
         }
     }
@@ -823,6 +831,170 @@ pub enum VkTypedef {
     Alias { name: Arc<str>, type_: VkFFIType },
 }
 
+// ---
+
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkExtensionSerde {
+    #[serde(rename = "@name")]
+    name: Arc<str>,
+
+    #[serde(rename = "@number")]
+    number: Arc<str>,
+
+    #[serde(rename = "@type")]
+    type_: Option<Arc<str>>,
+
+    #[serde(rename = "require")]
+    require: Vec<VkExtensionRequireSerde>,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkExtensionRequireSerde {
+    #[serde(rename = "enum")]
+    enum_members: Option<Vec<VkExtensionEnumMemberSerde>>,
+}
+
+impl VkExtensionSerde {
+    #[must_use]
+    pub fn fix(&self) -> Option<VkExtension> {
+        Some(VkExtension {
+            name: self.name.clone(),
+            number: self.number.clone(),
+            enum_members: self
+                .require
+                .iter()
+                .flat_map(|require| {
+                    require
+                        .enum_members
+                        .as_ref()
+                        .map(|x| x.iter().filter_map(|x| x.fix(self)).collect::<Vec<_>>())
+                })
+                .flatten()
+                .collect(),
+        })
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub struct VkExtension {
+    pub name: Arc<str>,
+    pub number: Arc<str>,
+    pub enum_members: Vec<VkExtensionEnumMember>,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+struct VkExtensionEnumMemberSerde {
+    #[serde(rename = "@name")]
+    name: Arc<str>,
+
+    #[serde(rename = "@api")]
+    api: Option<Arc<str>>,
+
+    #[serde(rename = "@value")]
+    value: Option<Arc<str>>,
+
+    #[serde(rename = "@offset")]
+    offset: Option<Arc<str>>,
+
+    #[serde(rename = "@extnumber")]
+    extnumber: Option<Arc<str>>,
+
+    #[serde(rename = "@bitpos")]
+    bitpos: Option<Arc<str>>,
+
+    #[serde(rename = "@extends")]
+    extends: Option<Arc<str>>,
+
+    #[serde(rename = "@alias")]
+    alias: Option<Arc<str>>,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub enum VkExtensionEnumMember {
+    Value {
+        name: Arc<str>,
+        value: Arc<str>,
+        extends: Option<Arc<str>>,
+    },
+    ExtendsOffset {
+        name: Arc<str>,
+        number: isize,
+        extends: Arc<str>,
+    },
+    ExtendsBitpos {
+        name: Arc<str>,
+        bitpos: Arc<str>,
+        extends: Arc<str>,
+    },
+    ExtendsAlias {
+        name: Arc<str>,
+        alias: Arc<str>,
+        extends: Arc<str>,
+    },
+    Alias {
+        name: Arc<str>,
+        alias: Arc<str>,
+    },
+}
+
+impl VkExtensionEnumMemberSerde {
+    pub fn fix(&self, extension: &VkExtensionSerde) -> Option<VkExtensionEnumMember> {
+        if matches!(self.api.as_deref(), Some("vulkansc"))
+            || self.name.as_ref() == "VK_ANDROID_NATIVE_BUFFER_NUMBER"
+        {
+            None
+        } else if let Some(value) = &self.value {
+            Some(VkExtensionEnumMember::Value {
+                name: self.name.clone(),
+                value: value.clone(),
+                extends: self.extends.clone(),
+            })
+        } else if let Some(offset) = &self.offset {
+            let Some(extends) = &self.extends else {
+                unreachable!()
+            };
+            let offset = parse_int::parse::<isize>(offset).unwrap();
+            let extension_number =
+                parse_int::parse::<isize>(if let Some(extnumber) = &self.extnumber {
+                    extnumber.as_ref()
+                } else {
+                    extension.number.as_ref()
+                })
+                .unwrap();
+            let number = 1000000000 + (extension_number - 1) * 1000 + offset;
+            Some(VkExtensionEnumMember::ExtendsOffset {
+                name: self.name.clone(),
+                number,
+                extends: extends.clone(),
+            })
+        } else if let Some(bitpos) = &self.bitpos {
+            let Some(extends) = &self.extends else {
+                unreachable!()
+            };
+            Some(VkExtensionEnumMember::ExtendsBitpos {
+                name: self.name.clone(),
+                bitpos: bitpos.clone(),
+                extends: extends.clone(),
+            })
+        } else if let Some(alias) = &self.alias {
+            if let Some(extends) = &self.extends {
+                Some(VkExtensionEnumMember::ExtendsAlias {
+                    name: self.name.clone(),
+                    alias: alias.clone(),
+                    extends: extends.clone(),
+                })
+            } else {
+                Some(VkExtensionEnumMember::Alias {
+                    name: self.name.clone(),
+                    alias: alias.clone(),
+                })
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -843,8 +1015,6 @@ mod tests {
             "VkOpticalFlowPerformanceLevelNV",
             "VkValidationCacheHeaderVersionEXT",
             "VkFenceImportFlagBits",
-        ];
-        let mut expected_bitmasks = vec![
             "VkPipelineCacheCreateFlagBits",
             "VkDescriptorSetLayoutCreateFlagBits",
             "VkPipelineDepthStencilStateCreateFlagBits",
@@ -855,15 +1025,12 @@ mod tests {
                 VkEnums::Enum { name, members: _ } => {
                     expected_enums.retain(|x| x != &name.as_ref());
                 }
-                VkEnums::Bitmask { name } => expected_bitmasks.retain(|x| x != &name.as_ref()),
             };
         }
         assert!(expected_enums.is_empty());
-        assert!(expected_bitmasks.is_empty());
 
         for enums in &vk_xml.enums {
             if let VkEnums::Enum { name: _, members } = enums {
-                assert!(!members.is_empty());
                 for member in members {
                     match member {
                         VkEnumsMember::ApiConstantMember {
@@ -877,7 +1044,7 @@ mod tests {
                             enum_name: _,
                         } => continue,
                         VkEnumsMember::ApiConstantAlias { name: _, alias: _ } => {}
-                        VkEnumsMember::MemberValue { name: _, value } => {
+                        VkEnumsMember::MemberValue { name: _, value, .. } => {
                             if let Some(value) = value {
                                 assert!(parse_int::parse::<isize>(value).is_ok());
                             }
