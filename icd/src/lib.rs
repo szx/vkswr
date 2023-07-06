@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 mod impls;
+mod surface;
 
 use headers::vk_decls::*;
 use impls::*;
@@ -72,7 +73,9 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
             std::mem::transmute(vkGetPhysicalDeviceSparseImageFormatProperties as *const ())
         },
         /* VK_KHR_surface extension instance commands */
-        "vkDestroySurfaceKHR" => unsafe { std::mem::transmute(vkDestroySurfaceKHR as *const ()) },
+        "vkDestroySurfaceKHR" => unsafe {
+            std::mem::transmute(surface::vkDestroySurfaceKHR as *const ())
+        },
         "vkGetPhysicalDeviceSurfaceSupportKHR" => unsafe {
             std::mem::transmute(vkGetPhysicalDeviceSurfaceSupportKHR as *const ())
         },
@@ -87,10 +90,10 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
         },
         /* VK_KHR_xcb_surface extension instance commands */
         "vkCreateXcbSurfaceKHR" => unsafe {
-            std::mem::transmute(vkCreateXcbSurfaceKHR as *const ())
+            std::mem::transmute(surface::vkCreateXcbSurfaceKHR as *const ())
         },
         "vkGetPhysicalDeviceXcbPresentationSupportKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceXcbPresentationSupportKHR as *const ())
+            std::mem::transmute(surface::vkGetPhysicalDeviceXcbPresentationSupportKHR as *const ())
         },
 
         /* VK_KHR_swapchain extension instance commands */

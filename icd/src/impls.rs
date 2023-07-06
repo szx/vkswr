@@ -846,61 +846,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     VkResult::VK_SUCCESS
 }
 
-/* VK_KHR_xcb_surface extension instance commands */
-
-pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
-    instance: VkInstance,
-    pCreateInfo: Option<NonNull<VkXcbSurfaceCreateInfoKHR>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSurface: Option<NonNull<VkSurfaceKHR>>,
-) -> VkResult {
-    // VUID-vkCreateXcbSurfaceKHR-instance-parameter
-    let Some(instance) = Instance::get_handle(instance) else {
-        unreachable!()
-    };
-
-    // VUID-vkCreateXcbSurfaceKHR-pCreateInfo-parameter
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
-    let create_info = pCreateInfo.as_ref();
-    // TODO: Automate valid CreateInfo structure asserts.
-    assert_eq!(
-        create_info.sType,
-        VkStructureType::VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR
-    );
-
-    // VUID-vkCreateXcbSurfaceKHR-pAllocator-parameter
-    if let Some(pAllocator) = pAllocator {
-        let pAllocator = pAllocator.as_ptr();
-        // TODO: Use callbacks for memory allocation.
-    }
-
-    // VUID-vkCreateXcbSurfaceKHR-pSurface-parameter
-    let Some(pSurface) = pSurface else {
-        unreachable!()
-    };
-
-    todo!("vkCreateXcbSurfaceKHR(instance, pCreateInfo, pAllocator, pSurface");
-    VkResult::VK_SUCCESS
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    connection: Option<NonNull<xcb_connection_t>>,
-    visual_id: xcb_visualid_t,
-) -> VkBool32 {
-    todo!(
-        "vkGetPhysicalDeviceXcbPresentationSupportKHR(
-        physicalDevice,
-        queueFamilyIndex,
-        connection,
-        visual_id,
-    "
-    )
-}
-
 /* VK_KHR_swapchain extension device commands */
 
 pub unsafe extern "C" fn vkDestroySwapchainKHR(
@@ -5462,14 +5407,6 @@ pub unsafe extern "C" fn vkCmdTraceRaysIndirectKHR(
         indirectDeviceAddress,
     "
     )
-}
-
-pub unsafe extern "C" fn vkDestroySurfaceKHR(
-    instance: VkInstance,
-    surface: VkSurfaceKHR,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroySurfaceKHR(instance, surface, pAllocator")
 }
 
 pub unsafe extern "C" fn vkCmdBeginDebugUtilsLabelEXT(

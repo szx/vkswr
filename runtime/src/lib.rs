@@ -1,3 +1,5 @@
+pub mod surface;
+
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
@@ -21,6 +23,7 @@ pub struct Context {
     queues: Vec<Arc<Queue>>,
     fences: HashMap<VkNonDispatchableHandle, Fence>,
     semaphores: HashMap<VkNonDispatchableHandle, Semaphore>,
+    surfaces: HashMap<VkNonDispatchableHandle, surface::Surface>,
 }
 
 impl Context {
@@ -32,6 +35,7 @@ impl Context {
             queues: vec![],
             fences: HashMap::new(),
             semaphores: HashMap::new(),
+            surfaces: HashMap::new(),
         }
     }
 }
@@ -116,12 +120,6 @@ where
         id
     }
 
-    fn unregister_handle(&self) {
-        let mut context = CONTEXT.write();
-        // TODO: Refactor NonDispatchableHandle - store id in struct.
-        Self::get_hash_mut(&mut context).retain(|_, v| v as *const _ != self as *const _);
-    }
-
     fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: VkNonDispatchableHandle) {
         let context = CONTEXT.read();
         trace!(
@@ -148,9 +146,9 @@ where
         guard
     }
 
-    fn drop_handle(self: Arc<Self>) {
-        self.unregister_handle();
-        unimplemented!("drop_handle")
+    fn drop_handle(handle: VkNonDispatchableHandle) {
+        let mut context = CONTEXT.write();
+        Self::get_hash_mut(&mut context).remove(&handle);
     }
 }
 
