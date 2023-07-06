@@ -5,12 +5,16 @@
 #![allow(clippy::pedantic)]
 
 pub use std::ptr::NonNull;
+use xcb;
 
 pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct VkNonDispatchableHandle(pub u64);
+
+pub type xcb_connection_t = xcb::ffi::xcb_connection_t;
+pub type xcb_window_t = u32;
 
 // TODO: Smarter handling of unsupported FFI types.
 pub(crate) type VkUnsupportedType = *const std::ffi::c_void;

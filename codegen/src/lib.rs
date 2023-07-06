@@ -32,6 +32,7 @@ impl VkXml {
             writeln!(f, "{tokens}")?;
         }
 
+        Self::add_externs();
         for x in &self.type_externs {
             let tokens = x.into_token_stream();
             writeln!(f, "{tokens}")?;
@@ -63,12 +64,35 @@ impl VkXml {
 
         Ok(())
     }
+
+    fn add_externs() {
+        Self::add_extern("xcb_connection_t");
+        Self::add_extern("xcb_window_t");
+    }
+
+    fn add_extern(name: &str) {
+        seen(Arc::from(name));
+    }
 }
 
 #[derive(Error, Debug)]
 pub enum WriteVkXmlError {
     #[error("IO write error: {0}")]
     IO(#[from] std::io::Error),
+}
+
+lazy_static! {
+    static ref SEEN: Mutex<Vec<Arc<str>>> = Mutex::new(Vec::new());
+}
+
+fn seen(name: Arc<str>) -> bool {
+    let mut seen = SEEN.lock().unwrap();
+    if seen.iter().any(|x| x == &name) {
+        true
+    } else {
+        seen.push(name);
+        false
+    }
 }
 
 fn enum_type_from_name(name: &Arc<str>) -> &'static str {
@@ -286,6 +310,9 @@ impl ToTokens for VkTypeExtern {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Extern { name } => {
+                if seen(name.clone()) {
+                    return;
+                }
                 let name = format_ident!("{}", name.as_ref());
                 tokens.extend(quote! {pub type #name = VkUnsupportedType;});
             }
@@ -378,20 +405,6 @@ impl ToTokens for VkExtension {
     }
 }
 
-lazy_static! {
-    static ref SEEN: Mutex<Vec<Arc<str>>> = Mutex::new(Vec::new());
-}
-
-fn seen(name: &Arc<str>) -> bool {
-    let mut seen = SEEN.lock().unwrap();
-    if seen.iter().any(|x| x == name) {
-        true
-    } else {
-        seen.push(name.clone());
-        false
-    }
-}
-
 impl ToTokens for VkExtensionEnumMember {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let get_type_by_name = |name: &Arc<str>| -> TokenStream {
@@ -418,7 +431,7 @@ impl ToTokens for VkExtensionEnumMember {
                 value,
                 extends,
             } => {
-                if seen(name) {
+                if seen(name.clone()) {
                     return;
                 }
                 let type_ = get_type_by_value(value);
@@ -436,7 +449,7 @@ impl ToTokens for VkExtensionEnumMember {
                 }
             }
             Self::Alias { name, alias } => {
-                if seen(name) {
+                if seen(name.clone()) {
                     return;
                 }
                 let type_ = get_type_by_name(name);
@@ -449,7 +462,7 @@ impl ToTokens for VkExtensionEnumMember {
                 number,
                 extends,
             } => {
-                if seen(name) {
+                if seen(name.clone()) {
                     return;
                 }
                 let name = format_ident!("{}", name.as_ref());
@@ -466,7 +479,7 @@ impl ToTokens for VkExtensionEnumMember {
                 bitpos,
                 extends,
             } => {
-                if seen(name) {
+                if seen(name.clone()) {
                     return;
                 }
                 let name = format_ident!("{}", name.as_ref());
@@ -483,7 +496,7 @@ impl ToTokens for VkExtensionEnumMember {
                 alias,
                 extends,
             } => {
-                if seen(name) {
+                if seen(name.clone()) {
                     return;
                 }
                 let name = format_ident!("{}", name.as_ref());
