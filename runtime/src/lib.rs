@@ -1,4 +1,5 @@
 pub mod surface;
+pub mod swapchain;
 
 use headers::c_char_array;
 use headers::vk_decls::*;
@@ -24,6 +25,7 @@ pub struct Context {
     fences: HashMap<VkNonDispatchableHandle, Fence>,
     semaphores: HashMap<VkNonDispatchableHandle, Semaphore>,
     surfaces: HashMap<VkNonDispatchableHandle, surface::Surface>,
+    swapchains: HashMap<VkNonDispatchableHandle, swapchain::Swapchain>,
 }
 
 impl Context {
@@ -36,6 +38,7 @@ impl Context {
             fences: HashMap::new(),
             semaphores: HashMap::new(),
             surfaces: HashMap::new(),
+            swapchains: HashMap::new(),
         }
     }
 }
@@ -714,8 +717,8 @@ impl PhysicalDevice {
                 height: 0,
             },
             maxImageExtent: VkExtent2D {
-                width: 0,
-                height: 0,
+                width: 16384, // TODO: Replace with maxImageDimension2D.
+                height: 16384,
             },
             maxImageArrayLayers: 1,
             supportedTransforms:

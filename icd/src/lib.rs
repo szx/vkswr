@@ -2,6 +2,7 @@
 
 mod impls;
 mod surface;
+mod swapchain;
 
 use headers::vk_decls::*;
 use impls::*;

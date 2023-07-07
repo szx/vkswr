@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
+use crate::swapchain::*;
 use headers::vk_decls::*;
 use headers::vk_defs::*;
 use runtime::*;
@@ -844,27 +845,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     *pSurfaceCapabilities.as_ptr() = physicalDevice.surface_capabilities();
 
     VkResult::VK_SUCCESS
-}
-
-/* VK_KHR_swapchain extension device commands */
-
-pub unsafe extern "C" fn vkDestroySwapchainKHR(
-    device: VkDevice,
-    swapchain: VkSwapchainKHR,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    todo!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
-}
-
-pub unsafe extern "C" fn vkAcquireNextImageKHR(
-    device: VkDevice,
-    swapchain: VkSwapchainKHR,
-    timeout: u64,
-    semaphore: VkSemaphore,
-    fence: VkFence,
-    pImageIndex: Option<NonNull<u32>>,
-) -> VkResult {
-    todo!("vkAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex")
 }
 
 /* unimplemented */
@@ -2045,13 +2025,6 @@ pub unsafe extern "C" fn vkCmdCopyAccelerationStructureNV(
     unimplemented!("vkCmdCopyAccelerationStructureNV(commandBuffer, dst, src, mode")
 }
 
-pub unsafe extern "C" fn vkQueuePresentKHR(
-    queue: VkQueue,
-    pPresentInfo: Option<NonNull<VkPresentInfoKHR>>,
-) -> VkResult {
-    unimplemented!("vkQueuePresentKHR(queue, pPresentInfo")
-}
-
 pub unsafe extern "C" fn vkCmdCopyBufferToImage2(
     commandBuffer: VkCommandBuffer,
     pCopyBufferToImageInfo: Option<NonNull<VkCopyBufferToImageInfo2>>,
@@ -2092,15 +2065,6 @@ pub unsafe extern "C" fn vkCmdWriteBufferMarker2AMD(
     marker: u32,
 ) {
     unimplemented!("vkCmdWriteBufferMarker2AMD(commandBuffer, stage, dstBuffer, dstOffset, marker")
-}
-
-pub unsafe extern "C" fn vkCreateSwapchainKHR(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkSwapchainCreateInfoKHR>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSwapchain: Option<NonNull<VkSwapchainKHR>>,
-) -> VkResult {
-    unimplemented!("vkCreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain")
 }
 
 pub unsafe extern "C" fn vkEnumerateInstanceVersion(pApiVersion: Option<NonNull<u32>>) -> VkResult {
@@ -3077,17 +3041,6 @@ pub unsafe extern "C" fn vkMapMemory(
     ppData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkMapMemory(device, memory, offset, size, flags, ppData")
-}
-
-pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
-    device: VkDevice,
-    swapchain: VkSwapchainKHR,
-    pSwapchainImageCount: Option<NonNull<u32>>,
-    pSwapchainImages: Option<NonNull<VkImage>>,
-) -> VkResult {
-    unimplemented!(
-        "vkGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages"
-    )
 }
 
 pub unsafe extern "C" fn vkGetSemaphoreWin32HandleKHR(
