@@ -35,7 +35,13 @@ pub unsafe extern "C" fn vkDestroySwapchainKHR(
     swapchain: VkSwapchainKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    todo!("vkDestroySwapchainKHR(device, swapchain, pAllocator")
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Swapchain::drop_handle(swapchain);
 }
 
 pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
