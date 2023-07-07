@@ -217,7 +217,6 @@ name = "icd"
 version = "0.1.0"
 dependencies = [
  "assert_fs",
- "ctor",
  "env_logger",
  "headers",
  "libloading",

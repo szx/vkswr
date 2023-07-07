@@ -198,7 +198,6 @@ impl ToTokens for VkEnumsMember {
                         Literal::i32_suffixed(parse_int::parse(value).expect("integer"))
                     };
                     tokens.extend(
-                        // TODO: use bytemuck instead of transmute
                         quote! { pub const #name : Self = Self(unsafe { std::mem::transmute(#value) }); },
                     );
                 } else {

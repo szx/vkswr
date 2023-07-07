@@ -1,15 +1,10 @@
 use assert_fs::TempDir;
 use std::fs;
 
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 pub type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-#[ctor::ctor]
-fn setup() {
-    // TODO: Logger.
-}
 
 pub fn get_cdylib_path() -> PathBuf {
     let mut cdylib_path = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));

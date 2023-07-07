@@ -10,34 +10,26 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
-    // VUID-vkCreateXcbSurfaceKHR-instance-parameter
     let Some(instance) = Instance::get_handle(instance) else {
         unreachable!()
     };
 
-    // VUID-vkCreateXcbSurfaceKHR-pCreateInfo-parameter
     let Some(pCreateInfo) = pCreateInfo else {
         unreachable!()
     };
     let create_info = pCreateInfo.as_ref();
-    // TODO: Automate valid CreateInfo structure asserts.
     assert_eq!(
         create_info.sType,
         VkStructureType::VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR
     );
 
-    // VUID-vkCreateXcbSurfaceKHR-pAllocator-parameter
-    if let Some(pAllocator) = pAllocator {
-        let pAllocator = pAllocator.as_ptr();
-        // TODO: Use callbacks for memory allocation.
-    }
+    let _ = pAllocator;
 
-    // VUID-vkCreateXcbSurfaceKHR-pSurface-parameter
     let Some(pSurface) = pSurface else {
         unreachable!()
     };
 
-    Surface::set_handle(pSurface, Surface::create(create_info));
+    Surface::set_handle(pSurface, Surface::create(instance, create_info));
 
     VkResult::VK_SUCCESS
 }
@@ -63,16 +55,11 @@ pub unsafe extern "C" fn vkDestroySurfaceKHR(
     surface: VkSurfaceKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    // VUID-vkDestroySurfaceKHR-instance-parameter
     let Some(instance) = Instance::get_handle(instance) else {
         unreachable!()
     };
 
-    // VUID-vkDestroySurfaceKHR-pAllocator-parameter
-    if let Some(pAllocator) = pAllocator {
-        let pAllocator = pAllocator.as_ptr();
-        // TODO: Use callbacks for memory allocation.
-    }
+    let _ = pAllocator;
 
     Surface::drop_handle(surface);
 }
