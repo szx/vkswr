@@ -1,8 +1,9 @@
 //! XCB surface
 
-use crate::{Context, Instance, NonDispatchableHandle};
+use crate::{Context, Instance, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::mem::ManuallyDrop;
@@ -41,14 +42,16 @@ impl Surface {
     }
 }
 
-impl NonDispatchableHandle for Surface {
-    fn get_hash<'a>(context: &'a Context) -> &'a HashMap<VkNonDispatchableHandle, Self> {
+impl NonDispatchable for Surface {
+    fn get_hash<'a>(
+        context: &'a Context,
+    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &context.surfaces
     }
 
     fn get_hash_mut<'a>(
         context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Self> {
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.surfaces
     }
 }

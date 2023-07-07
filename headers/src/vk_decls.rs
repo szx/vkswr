@@ -4,6 +4,7 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
+use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
 use xcb;
 
@@ -11,7 +12,7 @@ pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct VkNonDispatchableHandle(pub u64);
+pub struct VkNonDispatchableHandle(pub Option<NonZeroU64>);
 
 pub type xcb_connection_t = xcb::ffi::xcb_connection_t;
 pub type xcb_window_t = u32;

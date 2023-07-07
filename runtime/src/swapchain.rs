@@ -1,8 +1,9 @@
 //! Swapchain
 
-use crate::{Context, LogicalDevice, NonDispatchableHandle};
+use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -57,14 +58,16 @@ impl Swapchain {
     }
 }
 
-impl NonDispatchableHandle for Swapchain {
-    fn get_hash<'a>(context: &'a Context) -> &'a HashMap<VkNonDispatchableHandle, Self> {
+impl NonDispatchable for Swapchain {
+    fn get_hash<'a>(
+        context: &'a Context,
+    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &context.swapchains
     }
 
     fn get_hash_mut<'a>(
         context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Self> {
+    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.swapchains
     }
 }

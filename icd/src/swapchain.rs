@@ -50,6 +50,12 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
     pSwapchainImageCount: Option<NonNull<u32>>,
     pSwapchainImages: Option<NonNull<VkImage>>,
 ) -> VkResult {
+    let Some(device) = LogicalDevice::get_handle(device) else {
+        unreachable!()
+    };
+
+    let swapchain = Swapchain::get_handle(swapchain);
+
     todo!("vkGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages")
 }
 

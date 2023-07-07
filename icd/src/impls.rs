@@ -630,7 +630,7 @@ pub unsafe extern "C" fn vkWaitForFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let fences = pFences
         .iter()
-        .map(|&handle| Fence::get_handle_mut(handle))
+        .map(|&handle| Fence::get_handle(handle))
         .collect::<Vec<_>>();
 
     device.wait_for_fences(fences, waitAll != 0, timeout);
@@ -656,7 +656,7 @@ pub unsafe extern "C" fn vkResetFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let mut fences = pFences
         .iter()
-        .map(|&handle| Fence::get_handle_mut(handle))
+        .map(|&handle| Fence::get_handle(handle))
         .collect::<Vec<_>>();
 
     device.reset_fences(fences);
