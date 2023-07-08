@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 /* Context */
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Context {
     instances: Vec<Arc<Instance>>,
     physical_devices: Vec<Arc<PhysicalDevice>>,
@@ -28,21 +28,12 @@ pub struct Context {
     surfaces: HashMap<VkNonDispatchableHandle, Arc<Mutex<surface::Surface>>>,
     swapchains: HashMap<VkNonDispatchableHandle, Arc<Mutex<swapchain::Swapchain>>>,
     images: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::Image>>>,
+    image_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::ImageView>>>,
 }
 
 impl Context {
     pub fn new() -> Self {
-        Self {
-            instances: vec![],
-            physical_devices: vec![],
-            logical_devices: vec![],
-            queues: vec![],
-            fences: HashMap::new(),
-            semaphores: HashMap::new(),
-            surfaces: HashMap::new(),
-            swapchains: HashMap::new(),
-            images: HashMap::new(),
-        }
+        Default::default()
     }
 }
 
@@ -120,7 +111,6 @@ where
         context: &'a mut Context,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
 
-    // HIRO ranme
     fn set_handle(&mut self, handle: VkNonDispatchableHandle);
     fn get_handle(&self) -> VkNonDispatchableHandle;
 

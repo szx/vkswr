@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
+use crate::image::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
 use headers::vk_defs::*;
@@ -4397,15 +4398,6 @@ pub unsafe extern "C" fn vkCmdDraw(
         firstInstance,
     "
     )
-}
-
-pub unsafe extern "C" fn vkCreateImageView(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkImageViewCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pView: Option<NonNull<VkImageView>>,
-) -> VkResult {
-    unimplemented!("vkCreateImageView(device, pCreateInfo, pAllocator, pView")
 }
 
 pub unsafe extern "C" fn vkDestroyFence(
