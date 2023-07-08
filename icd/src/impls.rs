@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
+use crate::command_buffer::*;
 use crate::image::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
@@ -3604,15 +3605,6 @@ pub unsafe extern "C" fn vkGetMemoryFdKHR(
     pFd: Option<NonNull<int>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryFdKHR(device, pGetFdInfo, pFd")
-}
-
-pub unsafe extern "C" fn vkCreateCommandPool(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkCommandPoolCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pCommandPool: Option<NonNull<VkCommandPool>>,
-) -> VkResult {
-    unimplemented!("vkCreateCommandPool(device, pCreateInfo, pAllocator, pCommandPool")
 }
 
 pub unsafe extern "C" fn vkGetSemaphoreZirconHandleFUCHSIA(

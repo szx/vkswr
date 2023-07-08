@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod command_buffer;
 mod image;
 mod impls;
 mod surface;

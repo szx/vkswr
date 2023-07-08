@@ -1,3 +1,4 @@
+pub mod command_buffer;
 pub mod image;
 pub mod surface;
 pub mod swapchain;
@@ -29,6 +30,7 @@ pub struct Context {
     swapchains: HashMap<VkNonDispatchableHandle, Arc<Mutex<swapchain::Swapchain>>>,
     images: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::Image>>>,
     image_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::ImageView>>>,
+    command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<command_buffer::CommandPool>>>,
 }
 
 impl Context {
