@@ -1,5 +1,6 @@
 //! Swapchain
 
+use crate::image::*;
 use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
@@ -9,9 +10,13 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 pub struct Swapchain {
+    handle: VkNonDispatchableHandle,
     logical_device: Arc<LogicalDevice>,
     flags: VkSwapchainCreateFlagsKHR,
     surface: VkSurfaceKHR,
+    pub images: Vec<Arc<Mutex<Image>>>,
+    color_space: VkColorSpaceKHR,
+    present_mode: VkPresentModeKHR,
 }
 
 impl Swapchain {
@@ -20,41 +25,54 @@ impl Swapchain {
         create_info: &VkSwapchainCreateInfoKHR,
     ) -> VkNonDispatchableHandle {
         info!("new Swapchain");
+        let handle = VK_NULL_HANDLE;
         let logical_device = logical_device.clone();
         let flags = create_info.flags;
         let surface = create_info.surface;
-        // TODO: Parse rest of create info.
+
         let image_count = create_info.minImageCount;
         let image_format = create_info.imageFormat;
-        let image_color_space = create_info.imageColorSpace;
         let image_extent = create_info.imageExtent;
         let image_array_layers = create_info.imageArrayLayers;
         let image_usage = create_info.imageUsage;
-        let image_sharing_mode = create_info.imageSharingMode;
-        let queue_family_index_count = create_info.queueFamilyIndexCount;
-        let queue_family_indices =
-            if let Some(pQueueFamilyIndices) = create_info.pQueueFamilyIndices {
-                unsafe {
-                    std::slice::from_raw_parts(
-                        create_info.pQueueFamilyIndices.unwrap().as_ptr(),
-                        queue_family_index_count as usize,
-                    )
-                }
-            } else {
-                &[]
-            };
-        let pre_transform = create_info.preTransform;
-        let composite_alpha = create_info.compositeAlpha;
-        let present_mode = create_info.presentMode;
-        let clipped = create_info.clipped;
-        let old_swapchain = create_info.oldSwapchain;
+        let mut images = Vec::with_capacity(image_count as usize);
+        for _ in 0..image_count {
+            let image = Image::new(
+                logical_device.clone(),
+                image_format,
+                image_extent,
+                image_array_layers,
+                image_usage,
+            );
+            let image = Image::from_handle(image);
+            images.push(image);
+        }
 
-        let surface = Self {
+        let color_space = create_info.imageColorSpace;
+        let present_mode = create_info.presentMode;
+
+        // TODO: Parse rest of swapchain create info.
+        let _ = create_info.imageSharingMode;
+        let _ = create_info.queueFamilyIndexCount;
+        let _ = create_info.pQueueFamilyIndices;
+
+        let _ = create_info.preTransform;
+        let _ = create_info.compositeAlpha;
+
+        let _ = create_info.clipped;
+
+        let _ = create_info.oldSwapchain;
+
+        let swapchain = Self {
+            handle,
             logical_device,
             flags,
             surface,
+            images,
+            color_space,
+            present_mode,
         };
-        surface.register_handle()
+        swapchain.register_object()
     }
 }
 
@@ -69,6 +87,14 @@ impl NonDispatchable for Swapchain {
         context: &'a mut Context,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.swapchains
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
     }
 }
 

@@ -1,6 +1,7 @@
 //! VK_KHR_swapchain extension device commands
 
 use headers::vk_decls::*;
+use runtime::image::Image;
 use runtime::swapchain::*;
 use runtime::*;
 
@@ -10,7 +11,7 @@ pub unsafe extern "C" fn vkCreateSwapchainKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSwapchain: Option<NonNull<VkSwapchainKHR>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -25,7 +26,7 @@ pub unsafe extern "C" fn vkCreateSwapchainKHR(
         unreachable!()
     };
 
-    Swapchain::set_handle(pSwapchain, Swapchain::create(device, create_info));
+    *pSwapchain.as_ptr() = Swapchain::create(device, create_info);
 
     VkResult::VK_SUCCESS
 }
@@ -35,7 +36,7 @@ pub unsafe extern "C" fn vkDestroySwapchainKHR(
     swapchain: VkSwapchainKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -50,13 +51,36 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
     pSwapchainImageCount: Option<NonNull<u32>>,
     pSwapchainImages: Option<NonNull<VkImage>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
-    let swapchain = Swapchain::get_handle(swapchain);
+    let swapchain = Swapchain::from_handle(swapchain);
 
-    todo!("vkGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages")
+    let Some(pSwapchainImageCount) = pSwapchainImageCount else {
+        unreachable!()
+    };
+
+    pSwapchainImages.map_or_else(
+        || {
+            *pSwapchainImageCount.as_ptr() = swapchain.lock().images.len() as u32;
+            VkResult::VK_SUCCESS
+        },
+        |pSwapchainImages| {
+            let images = swapchain
+                .lock()
+                .images
+                .iter()
+                .map(|x| x.lock().get_handle())
+                .collect::<Vec<_>>();
+            std::ptr::copy_nonoverlapping(
+                images.as_ptr(),
+                pSwapchainImages.as_ptr(),
+                *pSwapchainImageCount.as_ptr() as usize,
+            );
+            VkResult::VK_SUCCESS
+        },
+    )
 }
 
 pub unsafe extern "C" fn vkAcquireNextImageKHR(

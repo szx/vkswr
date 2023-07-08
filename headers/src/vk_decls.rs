@@ -13,6 +13,7 @@ pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct VkNonDispatchableHandle(pub Option<NonZeroU64>);
+pub const VK_NULL_HANDLE: VkNonDispatchableHandle = VkNonDispatchableHandle(None);
 
 pub type xcb_connection_t = xcb::ffi::xcb_connection_t;
 pub type xcb_window_t = u32;

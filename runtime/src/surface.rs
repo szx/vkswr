@@ -11,6 +11,7 @@ use std::sync::Arc;
 use xcb;
 
 pub struct Surface {
+    handle: VkNonDispatchableHandle,
     instance: Arc<Instance>,
     flags: VkXcbSurfaceCreateFlagsKHR,
     connection: ManuallyDrop<xcb::Connection>,
@@ -23,6 +24,7 @@ impl Surface {
         create_info: &VkXcbSurfaceCreateInfoKHR,
     ) -> VkNonDispatchableHandle {
         info!("new Surface");
+        let handle = VK_NULL_HANDLE;
         let instance = instance.clone();
         let flags = create_info.flags;
         let Some(connection) = create_info.connection else {
@@ -33,12 +35,13 @@ impl Surface {
         let window = unsafe { ManuallyDrop::new(xcb::XidNew::new(create_info.window)) };
 
         let surface = Self {
+            handle,
             instance,
             flags,
             connection,
             window,
         };
-        surface.register_handle()
+        surface.register_object()
     }
 }
 
@@ -53,6 +56,14 @@ impl NonDispatchable for Surface {
         context: &'a mut Context,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.surfaces
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
     }
 }
 

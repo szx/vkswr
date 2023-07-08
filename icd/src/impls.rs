@@ -28,7 +28,7 @@ pub unsafe extern "C" fn vkCreateInstance(
         unreachable!()
     };
 
-    Instance::set_handle(pInstance, Instance::new());
+    Instance::set_ffi_handle(pInstance, Instance::new());
 
     VkResult::VK_SUCCESS
 }
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
     pPhysicalDeviceCount: Option<NonNull<u32>>,
     pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
 ) -> VkResult {
-    let Some(instance) = Instance::get_handle(instance) else {
+    let Some(instance) = Instance::from_handle(instance) else {
         unreachable!()
     };
 
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            PhysicalDevice::set_handle(pPhysicalDevices, PhysicalDevice::get());
+            PhysicalDevice::set_ffi_handle(pPhysicalDevices, PhysicalDevice::get());
             VkResult::VK_SUCCESS
         },
     )
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     physicalDevice: VkPhysicalDevice,
     pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     physicalDevice: VkPhysicalDevice,
     pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     physicalDevice: VkPhysicalDevice,
     pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     pQueueFamilyPropertyCount: Option<NonNull<u32>>,
     pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -175,7 +175,7 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     pPropertyCount: Option<NonNull<u32>>,
     pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pDevice: Option<NonNull<VkDevice>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -239,7 +239,7 @@ pub unsafe extern "C" fn vkCreateDevice(
         return VkResult::VK_ERROR_INITIALIZATION_FAILED;
     };
     let queue_create_info = queue_create_info.as_ref();
-    LogicalDevice::set_handle(
+    LogicalDevice::set_ffi_handle(
         pDevice,
         LogicalDevice::new(&physicalDevice, queue_create_info),
     );
@@ -250,7 +250,7 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
     device: VkDevice,
     pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -493,7 +493,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     format: VkFormat,
     pFormatProperties: Option<NonNull<VkFormatProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -509,7 +509,7 @@ pub unsafe extern "C" fn vkDestroyDevice(
     device: VkDevice,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -522,7 +522,7 @@ pub unsafe extern "C" fn vkDestroyInstance(
     instance: VkInstance,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(instance) = Instance::get_handle(instance) else {
+    let Some(instance) = Instance::from_handle(instance) else {
         unreachable!()
     };
 
@@ -539,14 +539,14 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     queueIndex: u32,
     pQueue: Option<NonNull<VkQueue>>,
 ) {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
     let Some(pQueue) = pQueue else { unreachable!() };
 
     let queue = device.queue(queueFamilyIndex, queueIndex);
-    Queue::set_handle(pQueue, queue);
+    Queue::set_ffi_handle(pQueue, queue);
 }
 
 pub unsafe extern "C" fn vkCreateFence(
@@ -555,7 +555,7 @@ pub unsafe extern "C" fn vkCreateFence(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pFence: Option<NonNull<VkFence>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -574,7 +574,7 @@ pub unsafe extern "C" fn vkCreateFence(
         unreachable!()
     };
 
-    Fence::set_handle(pFence, Fence::create(device, create_info));
+    *pFence.as_ptr() = Fence::create(device, create_info);
 
     VkResult::VK_SUCCESS
 }
@@ -585,7 +585,7 @@ pub unsafe extern "C" fn vkCreateSemaphore(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSemaphore: Option<NonNull<VkSemaphore>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -604,7 +604,7 @@ pub unsafe extern "C" fn vkCreateSemaphore(
         unreachable!()
     };
 
-    Semaphore::set_handle(pSemaphore, Semaphore::create(create_info));
+    *pSemaphore.as_ptr() = Semaphore::create(create_info);
 
     VkResult::VK_SUCCESS
 }
@@ -616,7 +616,7 @@ pub unsafe extern "C" fn vkWaitForFences(
     waitAll: VkBool32,
     timeout: u64,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -630,7 +630,7 @@ pub unsafe extern "C" fn vkWaitForFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let fences = pFences
         .iter()
-        .map(|&handle| Fence::get_handle(handle))
+        .map(|&handle| Fence::from_handle(handle))
         .collect::<Vec<_>>();
 
     device.wait_for_fences(fences, waitAll != 0, timeout);
@@ -642,7 +642,7 @@ pub unsafe extern "C" fn vkResetFences(
     fenceCount: u32,
     pFences: Option<NonNull<VkFence>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::get_handle(device) else {
+    let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -656,7 +656,7 @@ pub unsafe extern "C" fn vkResetFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let mut fences = pFences
         .iter()
-        .map(|&handle| Fence::get_handle(handle))
+        .map(|&handle| Fence::from_handle(handle))
         .collect::<Vec<_>>();
 
     device.reset_fences(fences);
@@ -671,7 +671,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     surface: VkSurfaceKHR,
     pSupported: Option<NonNull<VkBool32>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -690,7 +690,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     pPresentModeCount: Option<NonNull<u32>>,
     pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -721,7 +721,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
     pSurfaceFormatCount: Option<NonNull<u32>>,
     pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 
@@ -751,7 +751,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     surface: VkSurfaceKHR,
     pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::get_handle(physicalDevice) else {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
         unreachable!()
     };
 

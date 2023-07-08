@@ -10,7 +10,7 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
-    let Some(instance) = Instance::get_handle(instance) else {
+    let Some(instance) = Instance::from_handle(instance) else {
         unreachable!()
     };
 
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
         unreachable!()
     };
 
-    Surface::set_handle(pSurface, Surface::create(instance, create_info));
+    *pSurface.as_ptr() = Surface::create(instance, create_info);
 
     VkResult::VK_SUCCESS
 }
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn vkDestroySurfaceKHR(
     surface: VkSurfaceKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(instance) = Instance::get_handle(instance) else {
+    let Some(instance) = Instance::from_handle(instance) else {
         unreachable!()
     };
 

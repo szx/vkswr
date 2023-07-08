@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod image;
 mod impls;
 mod surface;
 mod swapchain;

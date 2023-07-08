@@ -1,3 +1,4 @@
+pub mod image;
 pub mod surface;
 pub mod swapchain;
 
@@ -26,6 +27,7 @@ pub struct Context {
     semaphores: HashMap<VkNonDispatchableHandle, Arc<Mutex<Semaphore>>>,
     surfaces: HashMap<VkNonDispatchableHandle, Arc<Mutex<surface::Surface>>>,
     swapchains: HashMap<VkNonDispatchableHandle, Arc<Mutex<swapchain::Swapchain>>>,
+    images: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::Image>>>,
 }
 
 impl Context {
@@ -39,6 +41,7 @@ impl Context {
             semaphores: HashMap::new(),
             surfaces: HashMap::new(),
             swapchains: HashMap::new(),
+            images: HashMap::new(),
         }
     }
 }
@@ -50,14 +53,14 @@ lazy_static! {
 pub trait Dispatchable<T = Self> {
     fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>>;
 
-    fn register_handle(self: Arc<Self>) -> Arc<Self> {
+    fn register_object(self: Arc<Self>) -> Arc<Self> {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
         self.get_vec(context).push(self.clone());
         self
     }
 
-    fn unregister_handle(self: &Arc<Self>) {
+    fn unregister_object(self: &Arc<Self>) {
         let mut context = CONTEXT.write();
         let index = self
             .get_vec(&mut context)
@@ -67,9 +70,9 @@ pub trait Dispatchable<T = Self> {
         self.get_vec(&mut context).remove(index);
     }
 
-    unsafe fn set_handle(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
+    unsafe fn set_ffi_handle(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
         trace!(
-            "{}::set_handle arc: {} {}",
+            "{}::set_ffi_handle arc: {} {}",
             std::any::type_name::<T>(),
             Arc::strong_count(&value),
             Arc::weak_count(&value)
@@ -79,7 +82,7 @@ pub trait Dispatchable<T = Self> {
         *handle.as_ptr() = std::mem::transmute(value);
     }
 
-    unsafe fn get_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {
+    unsafe fn from_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {
         handle.map_or_else(
             || None,
             |handle| {
@@ -87,7 +90,7 @@ pub trait Dispatchable<T = Self> {
                 Arc::increment_strong_count(ptr);
                 let arc = Arc::from_raw(ptr);
                 trace!(
-                    "{}::get_handle arc: {} {}",
+                    "{}::from_handle arc: {} {}",
                     std::any::type_name::<Self>(),
                     Arc::strong_count(&arc),
                     Arc::weak_count(&arc)
@@ -98,7 +101,7 @@ pub trait Dispatchable<T = Self> {
     }
 
     fn drop_handle(self: Arc<Self>) {
-        self.unregister_handle();
+        self.unregister_object();
         assert_eq!(Arc::strong_count(&self), 1);
         drop(self);
     }
@@ -117,28 +120,22 @@ where
         context: &'a mut Context,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
 
-    fn register_handle(self) -> VkNonDispatchableHandle {
+    // HIRO ranme
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle);
+    fn get_handle(&self) -> VkNonDispatchableHandle;
+
+    fn register_object(self) -> VkNonDispatchableHandle {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
-        let id =
+        let handle =
             VkNonDispatchableHandle(NonZeroU64::new(ID_COUNTER.fetch_add(1, Ordering::Relaxed)));
-        Self::get_hash_mut(context).insert(id, Arc::new(Mutex::new(self)));
-        id
+        let object = Arc::new(Mutex::new(self));
+        Self::get_hash_mut(context).insert(handle, object.clone());
+        object.lock().set_handle(handle);
+        handle
     }
 
-    fn set_handle(handle: NonNull<VkNonDispatchableHandle>, value: VkNonDispatchableHandle) {
-        let context = CONTEXT.read();
-        trace!(
-            "{}::set_handle value: {:?}",
-            std::any::type_name::<T>(),
-            value.0
-        );
-        unsafe {
-            *handle.as_ptr() = std::mem::transmute(value);
-        }
-    }
-
-    fn get_handle(handle: VkNonDispatchableHandle) -> Arc<Mutex<Self>> {
+    fn from_handle(handle: VkNonDispatchableHandle) -> Arc<Mutex<Self>> {
         let context = CONTEXT.read();
         Self::get_hash(&context).get(&handle).unwrap().clone()
     }
@@ -162,7 +159,7 @@ impl Instance {
             driver_name: "vulkan_software_rasterizer",
         };
         let instance = Arc::new(instance);
-        instance.register_handle()
+        instance.register_object()
     }
 
     pub fn extension_count() -> usize {
@@ -757,7 +754,7 @@ impl LogicalDevice {
             queue,
         };
         let logical_device = Arc::new(logical_device);
-        logical_device.register_handle()
+        logical_device.register_object()
     }
 }
 
@@ -815,7 +812,7 @@ impl Queue {
             flags,
         };
         let queue = Arc::new(queue);
-        queue.register_handle()
+        queue.register_object()
     }
 }
 
@@ -830,6 +827,7 @@ impl Dispatchable for Queue {
 /// Synchronization primitive that can be used to insert a dependency from a queue to the host.
 #[derive(Debug)]
 pub struct Fence {
+    handle: VkNonDispatchableHandle,
     logical_device: Arc<LogicalDevice>,
     flags: VkFenceCreateFlags,
     signaled: bool,
@@ -841,16 +839,18 @@ impl Fence {
         create_info: &VkFenceCreateInfo,
     ) -> VkNonDispatchableHandle {
         info!("new Fence");
+        let handle = VK_NULL_HANDLE;
         let flags = create_info.flags;
         let signaled = (Into::<VkFenceCreateFlagBits>::into(flags)
             & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT)
             != 0;
         let fence = Self {
+            handle,
             logical_device,
             flags,
             signaled,
         };
-        fence.register_handle()
+        fence.register_object()
     }
 
     pub fn signal(&mut self) {
@@ -871,10 +871,18 @@ impl NonDispatchable for Fence {
         &context.fences
     }
 
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.fences
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
     }
 }
 
@@ -884,16 +892,18 @@ impl NonDispatchable for Fence {
 /// between a queue operation and the host.
 #[derive(Debug)]
 pub struct Semaphore {
+    handle: VkNonDispatchableHandle,
     flags: VkSemaphoreCreateFlags,
 }
 
 impl Semaphore {
     pub fn create(create_info: &VkSemaphoreCreateInfo) -> VkNonDispatchableHandle {
         info!("new Semaphore");
+        let handle = VK_NULL_HANDLE;
         let flags = create_info.flags;
 
-        let semaphore = Self { flags };
-        semaphore.register_handle()
+        let semaphore = Self { handle, flags };
+        semaphore.register_object()
     }
 }
 
@@ -908,5 +918,13 @@ impl NonDispatchable for Semaphore {
         context: &'a mut Context,
     ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.semaphores
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
     }
 }
