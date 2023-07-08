@@ -1,9 +1,9 @@
 //! Image
 
-use crate::{Context, LogicalDevice, NonDispatchable};
+use crate::{Context, Dispatchable, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -56,5 +56,34 @@ impl NonDispatchable for CommandPool {
 
     fn get_handle(&self) -> VkNonDispatchableHandle {
         self.handle
+    }
+}
+
+#[derive(Debug)]
+pub struct CommandBuffer {
+    handle: VkNonDispatchableHandle,
+    level: VkCommandBufferLevel,
+    command_pool: Arc<Mutex<CommandPool>>,
+}
+
+impl CommandBuffer {
+    pub fn create(allocate_info: &VkCommandBufferAllocateInfo) -> Arc<Self> {
+        info!("new CommandBuffer");
+        let handle = VK_NULL_HANDLE;
+        let level = allocate_info.level;
+        let command_pool = CommandPool::from_handle(allocate_info.commandPool);
+
+        let object = Arc::new(Self {
+            handle,
+            level,
+            command_pool,
+        });
+        object.register_object()
+    }
+}
+
+impl Dispatchable for CommandBuffer {
+    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
+        context.command_buffers.as_mut()
     }
 }

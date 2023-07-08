@@ -31,6 +31,7 @@ pub struct Context {
     images: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::Image>>>,
     image_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::ImageView>>>,
     command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<command_buffer::CommandPool>>>,
+    command_buffers: Vec<Arc<command_buffer::CommandBuffer>>,
 }
 
 impl Context {
@@ -43,7 +44,10 @@ lazy_static! {
     static ref CONTEXT: RwLock<Context> = RwLock::new(Context::new());
 }
 
-pub trait Dispatchable<T = Self> {
+pub trait Dispatchable<T = Self>
+where
+    Self: Sized,
+{
     fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>>;
 
     fn register_object(self: Arc<Self>) -> Arc<Self> {
@@ -63,16 +67,16 @@ pub trait Dispatchable<T = Self> {
         self.get_vec(&mut context).remove(index);
     }
 
-    unsafe fn set_ffi_handle(handle: NonNull<VkDispatchableHandle>, value: Arc<T>) {
+    unsafe fn get_handle(self: &Arc<Self>) -> VkDispatchableHandle {
         trace!(
-            "{}::set_ffi_handle arc: {} {}",
+            "{}::get_ffi_handle arc: {} {}",
             std::any::type_name::<T>(),
-            Arc::strong_count(&value),
-            Arc::weak_count(&value)
+            Arc::strong_count(&self),
+            Arc::weak_count(&self)
         );
-        let value = Arc::into_raw(value);
+        let value = Arc::into_raw(self.clone());
         Arc::decrement_strong_count(value);
-        *handle.as_ptr() = std::mem::transmute(value);
+        std::mem::transmute::<*const Self, _>(value)
     }
 
     unsafe fn from_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {

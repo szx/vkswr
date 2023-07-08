@@ -30,7 +30,7 @@ pub unsafe extern "C" fn vkCreateInstance(
         unreachable!()
     };
 
-    Instance::set_ffi_handle(pInstance, Instance::new());
+    *pInstance.as_ptr() = Instance::new().get_handle();
 
     VkResult::VK_SUCCESS
 }
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            PhysicalDevice::set_ffi_handle(pPhysicalDevices, PhysicalDevice::get());
+            *pPhysicalDevices.as_ptr() = PhysicalDevice::get().get_handle();
             VkResult::VK_SUCCESS
         },
     )
@@ -241,10 +241,8 @@ pub unsafe extern "C" fn vkCreateDevice(
         return VkResult::VK_ERROR_INITIALIZATION_FAILED;
     };
     let queue_create_info = queue_create_info.as_ref();
-    LogicalDevice::set_ffi_handle(
-        pDevice,
-        LogicalDevice::new(&physicalDevice, queue_create_info),
-    );
+
+    *pDevice.as_ptr() = LogicalDevice::new(&physicalDevice, queue_create_info).get_handle();
     VkResult::VK_SUCCESS
 }
 
@@ -548,7 +546,7 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     let Some(pQueue) = pQueue else { unreachable!() };
 
     let queue = device.queue(queueFamilyIndex, queueIndex);
-    Queue::set_ffi_handle(pQueue, queue);
+    *pQueue.as_ptr() = queue.get_handle();
 }
 
 pub unsafe extern "C" fn vkCreateFence(
@@ -3092,14 +3090,6 @@ pub unsafe extern "C" fn vkSetPrivateData(
     data: u64,
 ) -> VkResult {
     unimplemented!("vkSetPrivateData(device, objectType, objectHandle, privateDataSlot, data")
-}
-
-pub unsafe extern "C" fn vkAllocateCommandBuffers(
-    device: VkDevice,
-    pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
-    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
-) -> VkResult {
-    unimplemented!("vkAllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers")
 }
 
 pub unsafe extern "C" fn vkCmdBindIndexBuffer(

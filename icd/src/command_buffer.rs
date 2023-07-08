@@ -21,9 +21,43 @@ pub unsafe extern "C" fn vkCreateCommandPool(
 
     let _ = pAllocator;
 
-    let Some(pCommandPool) = pCommandPool else { unreachable!() };
+    let Some(pCommandPool) = pCommandPool else {
+        unreachable!()
+    };
 
     *pCommandPool.as_ptr() = CommandPool::create(device, create_info);
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkAllocateCommandBuffers(
+    device: VkDevice,
+    pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pAllocateInfo) = pAllocateInfo else {
+        unreachable!()
+    };
+    let allocate_info = pAllocateInfo.as_ref();
+
+    let Some(pCommandBuffers) = pCommandBuffers else {
+        unreachable!()
+    };
+
+    let command_buffer_count = allocate_info.commandBufferCount as usize;
+    let command_buffers = vec![CommandBuffer::create(allocate_info); command_buffer_count]
+        .iter()
+        .map(|x| x.get_handle())
+        .collect::<Vec<_>>();
+    std::ptr::copy_nonoverlapping(
+        command_buffers.as_ptr(),
+        pCommandBuffers.as_ptr(),
+        command_buffer_count,
+    );
 
     VkResult::VK_SUCCESS
 }
