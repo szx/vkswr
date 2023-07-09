@@ -3,6 +3,7 @@
 mod command_buffer;
 mod image;
 mod impls;
+mod memory;
 mod surface;
 mod swapchain;
 

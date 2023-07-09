@@ -4,6 +4,7 @@
 
 use crate::command_buffer::*;
 use crate::image::*;
+use crate::memory::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
 use headers::vk_defs::*;
@@ -2453,15 +2454,6 @@ pub unsafe extern "C" fn vkGetDisplayModePropertiesKHR(
     unimplemented!(
         "vkGetDisplayModePropertiesKHR(physicalDevice, display, pPropertyCount, pProperties"
     )
-}
-
-pub unsafe extern "C" fn vkAllocateMemory(
-    device: VkDevice,
-    pAllocateInfo: Option<NonNull<VkMemoryAllocateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pMemory: Option<NonNull<VkDeviceMemory>>,
-) -> VkResult {
-    unimplemented!("vkAllocateMemory(device, pAllocateInfo, pAllocator, pMemory")
 }
 
 pub unsafe extern "C" fn vkGetFenceWin32HandleKHR(

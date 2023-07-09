@@ -1,5 +1,6 @@
 pub mod command_buffer;
 pub mod image;
+pub mod memory;
 pub mod surface;
 pub mod swapchain;
 
@@ -34,6 +35,7 @@ pub struct Context {
     image_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::ImageView>>>,
     command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<command_buffer::CommandPool>>>,
     command_buffers: HashMap<VkDispatchableHandle, Arc<Mutex<command_buffer::CommandBuffer>>>,
+    device_memories: HashMap<VkNonDispatchableHandle, Arc<Mutex<memory::DeviceMemory>>>,
 }
 
 impl Context {
@@ -135,6 +137,7 @@ pub struct Instance {
     driver_name: &'static str,
 }
 impl Instance {
+    // TODO: Remove all create() accepting create info.
     pub fn new() -> VkDispatchableHandle {
         let handle = VkDispatchableHandle(None);
         let instance = Self {
