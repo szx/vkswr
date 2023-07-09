@@ -51,3 +51,23 @@ pub unsafe extern "C" fn vkCreateImage(
 
     VkResult::VK_SUCCESS
 }
+
+pub unsafe extern "C" fn vkGetImageMemoryRequirements(
+    device: VkDevice,
+    image: VkImage,
+    pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(image) = Image::from_handle(image) else {
+        unreachable!()
+    };
+
+    let Some(pMemoryRequirements) = pMemoryRequirements else {
+        unreachable!()
+    };
+
+    *pMemoryRequirements.as_ptr() = image.lock().memory_requirements();
+}

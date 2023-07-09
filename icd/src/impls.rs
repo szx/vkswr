@@ -3364,14 +3364,6 @@ pub unsafe extern "C" fn vkCmdSetViewportSwizzleNV(
     )
 }
 
-pub unsafe extern "C" fn vkGetImageMemoryRequirements(
-    device: VkDevice,
-    image: VkImage,
-    pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
-) {
-    unimplemented!("vkGetImageMemoryRequirements(device, image, pMemoryRequirements")
-}
-
 pub unsafe extern "C" fn vkCmdBeginTransformFeedbackEXT(
     commandBuffer: VkCommandBuffer,
     firstCounterBuffer: u32,

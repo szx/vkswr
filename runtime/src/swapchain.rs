@@ -32,7 +32,10 @@ impl Swapchain {
 
         let image_count = create_info.minImageCount;
         let image_format = create_info.imageFormat;
-        let image_extent = create_info.imageExtent;
+        let (image_width, image_height) = (
+            create_info.imageExtent.width,
+            create_info.imageExtent.height,
+        );
         let image_array_layers = create_info.imageArrayLayers;
         let image_usage = create_info.imageUsage;
         let mut images = Vec::with_capacity(image_count as usize);
@@ -40,7 +43,8 @@ impl Swapchain {
             let image = Image::new(
                 logical_device.clone(),
                 image_format,
-                image_extent,
+                image_width,
+                image_height,
                 image_array_layers,
                 image_usage,
             );

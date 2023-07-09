@@ -12,27 +12,32 @@ use std::sync::Arc;
 pub struct Image {
     handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
+    format: VkFormat,
+    width: u32,
+    height: u32,
 }
 
 impl Image {
     pub fn new(
         logical_device: Arc<Mutex<LogicalDevice>>,
         format: VkFormat,
-        extent: VkExtent2D,
+        width: u32,
+        height: u32,
         array_layers: u32,
         image_usage: VkImageUsageFlags,
     ) -> VkNonDispatchableHandle {
         info!("new Image");
         let handle = VK_NULL_HANDLE;
 
-        let _ = format;
-        let _ = extent;
         let _ = array_layers;
         let _ = image_usage;
 
         let image = Self {
             handle,
             logical_device,
+            format,
+            width,
+            height,
         };
         image.register_object()
     }
@@ -41,14 +46,23 @@ impl Image {
         logical_device: Arc<Mutex<LogicalDevice>>,
         create_info: &VkImageCreateInfo,
     ) -> VkNonDispatchableHandle {
-        let format = create_info.format;
-        let extent = VkExtent2D {
-            width: create_info.extent.width,
-            height: create_info.extent.height,
-        };
-        let array_layers = create_info.arrayLayers;
-        let image_usage = create_info.usage;
-        Self::new(logical_device, format, extent, array_layers, image_usage)
+        Self::new(
+            logical_device,
+            create_info.format,
+            create_info.extent.width,
+            create_info.extent.height,
+            create_info.arrayLayers,
+            create_info.usage,
+        )
+    }
+
+    pub fn memory_requirements(&self) -> VkMemoryRequirements {
+        let size = self.width as u64 * self.height as u64 * self.format.bytes_per_pixel() as u64;
+        VkMemoryRequirements {
+            size,
+            alignment: 1,
+            memoryTypeBits: 0, // HIRO
+        }
     }
 }
 
