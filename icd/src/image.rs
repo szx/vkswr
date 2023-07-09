@@ -2,7 +2,9 @@
 
 use headers::vk_decls::*;
 use runtime::image::*;
+use runtime::memory::DeviceMemory;
 use runtime::*;
+use std::ops::Deref;
 
 pub unsafe extern "C" fn vkCreateImageView(
     device: VkDevice,
@@ -47,7 +49,14 @@ pub unsafe extern "C" fn vkCreateImage(
 
     let Some(pImage) = pImage else { unreachable!() };
 
-    *pImage.as_ptr() = Image::create(device, create_info);
+    *pImage.as_ptr() = Image::create(
+        device,
+        create_info.format,
+        create_info.extent.width,
+        create_info.extent.height,
+        create_info.arrayLayers,
+        create_info.usage,
+    );
 
     VkResult::VK_SUCCESS
 }
@@ -70,4 +79,26 @@ pub unsafe extern "C" fn vkGetImageMemoryRequirements(
     };
 
     *pMemoryRequirements.as_ptr() = image.lock().memory_requirements();
+}
+
+pub unsafe extern "C" fn vkBindImageMemory(
+    device: VkDevice,
+    image: VkImage,
+    memory: VkDeviceMemory,
+    memoryOffset: VkDeviceSize,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(image) = Image::from_handle(image) else {
+        unreachable!()
+    };
+
+    let Some(memory) = DeviceMemory::from_handle(memory) else {
+        unreachable!()
+    };
+
+    let result = image.lock().bind_memory(memory, memoryOffset);
+    result
 }

@@ -31,22 +31,15 @@ impl Swapchain {
         let surface = create_info.surface;
 
         let image_count = create_info.minImageCount;
-        let image_format = create_info.imageFormat;
-        let (image_width, image_height) = (
-            create_info.imageExtent.width,
-            create_info.imageExtent.height,
-        );
-        let image_array_layers = create_info.imageArrayLayers;
-        let image_usage = create_info.imageUsage;
         let mut images = Vec::with_capacity(image_count as usize);
         for _ in 0..image_count {
-            let image = Image::new(
+            let image = Image::create(
                 logical_device.clone(),
-                image_format,
-                image_width,
-                image_height,
-                image_array_layers,
-                image_usage,
+                create_info.imageFormat,
+                create_info.imageExtent.width,
+                create_info.imageExtent.height,
+                create_info.imageArrayLayers,
+                create_info.imageUsage,
             );
             let Some(image) = Image::from_handle(image) else {
                 unreachable!()

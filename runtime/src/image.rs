@@ -1,5 +1,6 @@
 //! Image
 
+use crate::memory::{DeviceMemory, MemoryBinding};
 use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
@@ -15,10 +16,11 @@ pub struct Image {
     format: VkFormat,
     width: u32,
     height: u32,
+    binding: Option<MemoryBinding>,
 }
 
 impl Image {
-    pub fn new(
+    pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         format: VkFormat,
         width: u32,
@@ -38,31 +40,24 @@ impl Image {
             format,
             width,
             height,
+            binding: None,
         };
         image.register_object()
     }
 
-    pub fn create(
-        logical_device: Arc<Mutex<LogicalDevice>>,
-        create_info: &VkImageCreateInfo,
-    ) -> VkNonDispatchableHandle {
-        Self::new(
-            logical_device,
-            create_info.format,
-            create_info.extent.width,
-            create_info.extent.height,
-            create_info.arrayLayers,
-            create_info.usage,
-        )
-    }
-
-    pub fn memory_requirements(&self) -> VkMemoryRequirements {
+    pub const fn memory_requirements(&self) -> VkMemoryRequirements {
         let size = self.width as u64 * self.height as u64 * self.format.bytes_per_pixel() as u64;
         VkMemoryRequirements {
             size,
             alignment: 1,
             memoryTypeBits: 0, // HIRO
         }
+    }
+
+    pub fn bind_memory(&mut self, memory: Arc<Mutex<DeviceMemory>>, offset: u64) -> VkResult {
+        // HIRO
+        self.binding = Some(MemoryBinding(memory, offset));
+        VkResult::VK_SUCCESS
     }
 }
 

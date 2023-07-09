@@ -1549,15 +1549,6 @@ pub unsafe extern "C" fn vkCmdSetDiscardRectangleEnableEXT(
     unimplemented!("vkCmdSetDiscardRectangleEnableEXT(commandBuffer, discardRectangleEnable")
 }
 
-pub unsafe extern "C" fn vkBindImageMemory(
-    device: VkDevice,
-    image: VkImage,
-    memory: VkDeviceMemory,
-    memoryOffset: VkDeviceSize,
-) -> VkResult {
-    unimplemented!("vkBindImageMemory(device, image, memory, memoryOffset")
-}
-
 pub unsafe extern "C" fn vkFreeCommandBuffers(
     device: VkDevice,
     commandPool: VkCommandPool,

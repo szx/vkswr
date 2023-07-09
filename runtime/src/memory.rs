@@ -54,3 +54,6 @@ impl NonDispatchable for DeviceMemory {
         self.handle
     }
 }
+
+#[derive(Debug)]
+pub struct MemoryBinding(pub Arc<Mutex<DeviceMemory>>, pub u64);
