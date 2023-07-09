@@ -36,6 +36,20 @@ impl Image {
         };
         image.register_object()
     }
+
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        create_info: &VkImageCreateInfo,
+    ) -> VkNonDispatchableHandle {
+        let format = create_info.format;
+        let extent = VkExtent2D {
+            width: create_info.extent.width,
+            height: create_info.extent.height,
+        };
+        let array_layers = create_info.arrayLayers;
+        let image_usage = create_info.usage;
+        Self::new(logical_device, format, extent, array_layers, image_usage)
+    }
 }
 
 impl NonDispatchable for Image {

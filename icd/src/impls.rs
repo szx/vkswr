@@ -6247,15 +6247,6 @@ pub unsafe extern "C" fn vkResetQueryPool(
     unimplemented!("vkResetQueryPool(device, queryPool, firstQuery, queryCount")
 }
 
-pub unsafe extern "C" fn vkCreateImage(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkImageCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pImage: Option<NonNull<VkImage>>,
-) -> VkResult {
-    unimplemented!("vkCreateImage(device, pCreateInfo, pAllocator, pImage")
-}
-
 pub unsafe extern "C" fn vkWriteMicromapsPropertiesEXT(
     device: VkDevice,
     micromapCount: u32,
