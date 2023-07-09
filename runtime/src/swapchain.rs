@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 pub struct Swapchain {
     handle: VkNonDispatchableHandle,
-    logical_device: Arc<LogicalDevice>,
+    logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkSwapchainCreateFlagsKHR,
     surface: VkSurfaceKHR,
     pub images: Vec<Arc<Mutex<Image>>>,
@@ -21,12 +21,12 @@ pub struct Swapchain {
 
 impl Swapchain {
     pub fn create(
-        logical_device: Arc<LogicalDevice>,
+        logical_device: Arc<Mutex<LogicalDevice>>,
         create_info: &VkSwapchainCreateInfoKHR,
     ) -> VkNonDispatchableHandle {
         info!("new Swapchain");
         let handle = VK_NULL_HANDLE;
-        let logical_device = logical_device.clone();
+
         let flags = create_info.flags;
         let surface = create_info.surface;
 
@@ -44,7 +44,9 @@ impl Swapchain {
                 image_array_layers,
                 image_usage,
             );
-            let image = Image::from_handle(image);
+            let Some(image) = Image::from_handle(image) else {
+                unreachable!()
+            };
             images.push(image);
         }
 

@@ -30,7 +30,7 @@ pub unsafe extern "C" fn vkCreateInstance(
         unreachable!()
     };
 
-    *pInstance.as_ptr() = Instance::new().get_handle();
+    *pInstance.as_ptr() = Instance::new();
 
     VkResult::VK_SUCCESS
 }
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            *pPhysicalDevices.as_ptr() = PhysicalDevice::get().get_handle();
+            *pPhysicalDevices.as_ptr() = PhysicalDevice::get();
             VkResult::VK_SUCCESS
         },
     )
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     };
 
     // SPEC: "Returns properties of a physical device"
-    *pProperties.as_ptr() = physicalDevice.properties();
+    *pProperties.as_ptr() = physicalDevice.lock().properties();
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     };
 
     // SPEC: "Reports memory information for the specified physical device"
-    *pMemoryProperties.as_ptr() = physicalDevice.memory_properties();
+    *pMemoryProperties.as_ptr() = physicalDevice.lock().memory_properties();
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
@@ -105,7 +105,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     };
 
     // SPEC: "Reports capabilities of a physical device"
-    *pFeatures.as_ptr() = physicalDevice.features();
+    *pFeatures.as_ptr() = physicalDevice.lock().features();
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
@@ -123,12 +123,13 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
 
     // SPEC: "Reports properties of the queues of the specified physical device"
     if pQueueFamilyProperties.is_none() {
-        *pQueueFamilyPropertyCount.as_ptr() = physicalDevice.queue_family_properties().len() as u32;
+        *pQueueFamilyPropertyCount.as_ptr() =
+            physicalDevice.lock().queue_family_properties().len() as u32;
     } else {
         let Some(pQueueFamilyProperties) = pQueueFamilyProperties else {
             unreachable!()
         };
-        let queue_family_properties = physicalDevice.queue_family_properties();
+        let queue_family_properties = physicalDevice.lock().queue_family_properties();
         pQueueFamilyProperties.as_ptr().copy_from(
             queue_family_properties.as_ptr(),
             queue_family_properties.len(),
@@ -242,7 +243,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     };
     let queue_create_info = queue_create_info.as_ref();
 
-    *pDevice.as_ptr() = LogicalDevice::new(&physicalDevice, queue_create_info).get_handle();
+    *pDevice.as_ptr() = LogicalDevice::new(physicalDevice.clone(), queue_create_info);
     VkResult::VK_SUCCESS
 }
 
@@ -502,33 +503,25 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     };
 
     // SPEC: "Reports capabilities of a physical device"
-    *pFormatProperties.as_ptr() = physicalDevice.format_properties(format);
+    *pFormatProperties.as_ptr() = physicalDevice.lock().format_properties(format);
 }
 
 pub unsafe extern "C" fn vkDestroyDevice(
     device: VkDevice,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
-
     let _ = pAllocator;
 
-    device.drop_handle();
+    LogicalDevice::drop_handle(device);
 }
 
 pub unsafe extern "C" fn vkDestroyInstance(
     instance: VkInstance,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(instance) = Instance::from_handle(instance) else {
-        unreachable!()
-    };
-
     let _ = pAllocator;
 
-    instance.drop_handle();
+    Instance::drop_handle(instance);
 }
 
 /* Vulkan Core 1.0 device commands  */
@@ -545,8 +538,8 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
 
     let Some(pQueue) = pQueue else { unreachable!() };
 
-    let queue = device.queue(queueFamilyIndex, queueIndex);
-    *pQueue.as_ptr() = queue.get_handle();
+    let queue = device.lock().queue(queueFamilyIndex, queueIndex);
+    *pQueue.as_ptr() = queue.lock().get_handle();
 }
 
 pub unsafe extern "C" fn vkCreateFence(
@@ -630,10 +623,10 @@ pub unsafe extern "C" fn vkWaitForFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let fences = pFences
         .iter()
-        .map(|&handle| Fence::from_handle(handle))
+        .map(|&handle| Fence::from_handle(handle).unwrap())
         .collect::<Vec<_>>();
 
-    device.wait_for_fences(fences, waitAll != 0, timeout);
+    device.lock().wait_for_fences(fences, waitAll != 0, timeout);
     VkResult::VK_SUCCESS
 }
 
@@ -656,10 +649,10 @@ pub unsafe extern "C" fn vkResetFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let mut fences = pFences
         .iter()
-        .map(|&handle| Fence::from_handle(handle))
+        .map(|&handle| Fence::from_handle(handle).unwrap())
         .collect::<Vec<_>>();
 
-    device.reset_fences(fences);
+    device.lock().reset_fences(fences);
     VkResult::VK_SUCCESS
 }
 
@@ -679,7 +672,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
         unreachable!()
     };
 
-    *pSupported.as_ptr() = physicalDevice.surface_support(queueFamilyIndex, surface) as VkBool32;
+    *pSupported.as_ptr() = physicalDevice
+        .lock()
+        .surface_support(queueFamilyIndex, surface) as VkBool32;
 
     VkResult::VK_SUCCESS
 }
@@ -700,10 +695,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
 
     pPresentModes.map_or_else(
         || {
-            *pPresentModeCount.as_ptr() = physicalDevice.present_modes().len() as u32;
+            *pPresentModeCount.as_ptr() = physicalDevice.lock().present_modes().len() as u32;
         },
         |pPresentModes| {
-            let present_modes = physicalDevice.present_modes();
+            let present_modes = physicalDevice.lock().present_modes();
             std::ptr::copy_nonoverlapping(
                 present_modes.as_ptr(),
                 pPresentModes.as_ptr(),
@@ -731,10 +726,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
 
     pSurfaceFormats.map_or_else(
         || {
-            *pSurfaceFormatCount.as_ptr() = physicalDevice.surface_formats().len() as u32;
+            *pSurfaceFormatCount.as_ptr() = physicalDevice.lock().surface_formats().len() as u32;
         },
         |pSurfaceFormats| {
-            let surface_formats = physicalDevice.surface_formats();
+            let surface_formats = physicalDevice.lock().surface_formats();
             std::ptr::copy_nonoverlapping(
                 surface_formats.as_ptr(),
                 pSurfaceFormats.as_ptr(),
@@ -759,7 +754,7 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         unreachable!()
     };
 
-    *pSurfaceCapabilities.as_ptr() = physicalDevice.surface_capabilities();
+    *pSurfaceCapabilities.as_ptr() = physicalDevice.lock().surface_capabilities();
 
     VkResult::VK_SUCCESS
 }
@@ -3936,13 +3931,6 @@ pub unsafe extern "C" fn vkCmdSetRasterizationSamplesEXT(
     rasterizationSamples: VkSampleCountFlagBits,
 ) {
     unimplemented!("vkCmdSetRasterizationSamplesEXT(commandBuffer, rasterizationSamples")
-}
-
-pub unsafe extern "C" fn vkBeginCommandBuffer(
-    commandBuffer: VkCommandBuffer,
-    pBeginInfo: Option<NonNull<VkCommandBufferBeginInfo>>,
-) -> VkResult {
-    unimplemented!("vkBeginCommandBuffer(commandBuffer, pBeginInfo")
 }
 
 pub unsafe extern "C" fn vkCmdClearDepthStencilImage(

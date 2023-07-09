@@ -55,7 +55,9 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
         unreachable!()
     };
 
-    let swapchain = Swapchain::from_handle(swapchain);
+    let Some(swapchain) = Swapchain::from_handle(swapchain) else {
+        unreachable!()
+    };
 
     let Some(pSwapchainImageCount) = pSwapchainImageCount else {
         unreachable!()

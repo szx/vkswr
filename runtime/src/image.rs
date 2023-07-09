@@ -11,12 +11,12 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct Image {
     handle: VkNonDispatchableHandle,
-    logical_device: Arc<LogicalDevice>,
+    logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
 impl Image {
     pub fn new(
-        logical_device: Arc<LogicalDevice>,
+        logical_device: Arc<Mutex<LogicalDevice>>,
         format: VkFormat,
         extent: VkExtent2D,
         array_layers: u32,
@@ -24,7 +24,7 @@ impl Image {
     ) -> VkNonDispatchableHandle {
         info!("new Image");
         let handle = VK_NULL_HANDLE;
-        let logical_device = logical_device.clone();
+
         let _ = format;
         let _ = extent;
         let _ = array_layers;
@@ -63,19 +63,21 @@ impl NonDispatchable for Image {
 #[derive(Debug)]
 pub struct ImageView {
     handle: VkNonDispatchableHandle,
-    logical_device: Arc<LogicalDevice>,
+    logical_device: Arc<Mutex<LogicalDevice>>,
     image: Arc<Mutex<Image>>,
 }
 
 impl ImageView {
     pub fn create(
-        logical_device: Arc<LogicalDevice>,
+        logical_device: Arc<Mutex<LogicalDevice>>,
         create_info: &VkImageViewCreateInfo,
     ) -> VkNonDispatchableHandle {
         info!("new ImageView");
         let handle = VK_NULL_HANDLE;
-        let logical_device = logical_device.clone();
-        let image = Image::from_handle(create_info.image);
+
+        let Some(image) = Image::from_handle(create_info.image) else {
+            unreachable!()
+        };
 
         let image = Self {
             handle,
@@ -87,15 +89,13 @@ impl ImageView {
 }
 
 impl NonDispatchable for ImageView {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &context.image_views
     }
 
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.image_views
     }
 

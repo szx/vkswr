@@ -12,7 +12,7 @@ use xcb;
 
 pub struct Surface {
     handle: VkNonDispatchableHandle,
-    instance: Arc<Instance>,
+    instance: Arc<Mutex<Instance>>,
     flags: VkXcbSurfaceCreateFlagsKHR,
     connection: ManuallyDrop<xcb::Connection>,
     window: ManuallyDrop<xcb::x::Window>,
@@ -20,12 +20,11 @@ pub struct Surface {
 
 impl Surface {
     pub fn create(
-        instance: Arc<Instance>,
+        instance: Arc<Mutex<Instance>>,
         create_info: &VkXcbSurfaceCreateInfoKHR,
     ) -> VkNonDispatchableHandle {
         info!("new Surface");
         let handle = VK_NULL_HANDLE;
-        let instance = instance.clone();
         let flags = create_info.flags;
         let Some(connection) = create_info.connection else {
             unreachable!()

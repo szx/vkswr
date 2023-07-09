@@ -11,19 +11,18 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct CommandPool {
     handle: VkNonDispatchableHandle,
-    logical_device: Arc<LogicalDevice>,
+    logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkCommandPoolCreateFlags,
     queue_family_index: u32,
 }
 
 impl CommandPool {
     pub fn create(
-        logical_device: Arc<LogicalDevice>,
+        logical_device: Arc<Mutex<LogicalDevice>>,
         create_info: &VkCommandPoolCreateInfo,
     ) -> VkNonDispatchableHandle {
         info!("new CommandPool");
         let handle = VK_NULL_HANDLE;
-        let logical_device = logical_device.clone();
         let flags = create_info.flags;
         let queue_family_index = create_info.queueFamilyIndex;
 
@@ -61,29 +60,47 @@ impl NonDispatchable for CommandPool {
 
 #[derive(Debug)]
 pub struct CommandBuffer {
-    handle: VkNonDispatchableHandle,
+    handle: VkDispatchableHandle,
     level: VkCommandBufferLevel,
     command_pool: Arc<Mutex<CommandPool>>,
 }
 
 impl CommandBuffer {
-    pub fn create(allocate_info: &VkCommandBufferAllocateInfo) -> Arc<Self> {
+    pub fn create(allocate_info: &VkCommandBufferAllocateInfo) -> VkDispatchableHandle {
         info!("new CommandBuffer");
-        let handle = VK_NULL_HANDLE;
+        let handle = VkDispatchableHandle(None);
         let level = allocate_info.level;
-        let command_pool = CommandPool::from_handle(allocate_info.commandPool);
+        let Some(command_pool) = CommandPool::from_handle(allocate_info.commandPool) else {
+            unreachable!()
+        };
 
-        let object = Arc::new(Self {
+        let object = Self {
             handle,
             level,
             command_pool,
-        });
+        };
         object.register_object()
+    }
+
+    pub fn begin(&mut self) {
+        // TODO: Start recording command buffer.
     }
 }
 
 impl Dispatchable for CommandBuffer {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
-        context.command_buffers.as_mut()
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.command_buffers
+    }
+
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.command_buffers
+    }
+
+    fn set_handle(&mut self, handle: VkDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkDispatchableHandle {
+        self.handle
     }
 }

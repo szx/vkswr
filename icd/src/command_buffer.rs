@@ -51,13 +51,31 @@ pub unsafe extern "C" fn vkAllocateCommandBuffers(
     let command_buffer_count = allocate_info.commandBufferCount as usize;
     let command_buffers = vec![CommandBuffer::create(allocate_info); command_buffer_count]
         .iter()
-        .map(|x| x.get_handle())
+        .map(|x| *x)
         .collect::<Vec<_>>();
     std::ptr::copy_nonoverlapping(
         command_buffers.as_ptr(),
         pCommandBuffers.as_ptr(),
         command_buffer_count,
     );
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkBeginCommandBuffer(
+    commandBuffer: VkCommandBuffer,
+    pBeginInfo: Option<NonNull<VkCommandBufferBeginInfo>>,
+) -> VkResult {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(pBeginInfo) = pBeginInfo else {
+        unreachable!()
+    };
+    let _ = pBeginInfo.as_ref();
+
+    commandBuffer.lock().begin();
 
     VkResult::VK_SUCCESS
 }

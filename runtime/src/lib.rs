@@ -12,6 +12,7 @@ use parking_lot::{
 };
 use std::collections::HashMap;
 use std::ffi::c_char;
+use std::mem::ManuallyDrop;
 use std::num::NonZeroU64;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -20,10 +21,11 @@ use std::sync::Arc;
 
 #[derive(Debug, Default)]
 pub struct Context {
-    instances: Vec<Arc<Instance>>,
-    physical_devices: Vec<Arc<PhysicalDevice>>,
-    logical_devices: Vec<Arc<LogicalDevice>>,
-    queues: Vec<Arc<Queue>>,
+    // TODO: Better way to do concurrency than Arc<Mutex<_>>?
+    instances: HashMap<VkDispatchableHandle, Arc<Mutex<Instance>>>,
+    physical_devices: HashMap<VkDispatchableHandle, Arc<Mutex<PhysicalDevice>>>,
+    logical_devices: HashMap<VkDispatchableHandle, Arc<Mutex<LogicalDevice>>>,
+    queues: HashMap<VkDispatchableHandle, Arc<Mutex<Queue>>>,
     fences: HashMap<VkNonDispatchableHandle, Arc<Mutex<Fence>>>,
     semaphores: HashMap<VkNonDispatchableHandle, Arc<Mutex<Semaphore>>>,
     surfaces: HashMap<VkNonDispatchableHandle, Arc<Mutex<surface::Surface>>>,
@@ -31,7 +33,7 @@ pub struct Context {
     images: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::Image>>>,
     image_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<image::ImageView>>>,
     command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<command_buffer::CommandPool>>>,
-    command_buffers: Vec<Arc<command_buffer::CommandBuffer>>,
+    command_buffers: HashMap<VkDispatchableHandle, Arc<Mutex<command_buffer::CommandBuffer>>>,
 }
 
 impl Context {
@@ -44,67 +46,49 @@ lazy_static! {
     static ref CONTEXT: RwLock<Context> = RwLock::new(Context::new());
 }
 
+static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 pub trait Dispatchable<T = Self>
 where
-    Self: Sized,
+    Self: Sized + Send + Sync,
 {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>>;
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>>;
 
-    fn register_object(self: Arc<Self>) -> Arc<Self> {
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>>;
+
+    fn set_handle(&mut self, handle: VkDispatchableHandle);
+
+    fn get_handle(&self) -> VkDispatchableHandle;
+
+    fn register_object(self) -> VkDispatchableHandle {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
-        self.get_vec(context).push(self.clone());
-        self
-    }
-
-    fn unregister_object(self: &Arc<Self>) {
-        let mut context = CONTEXT.write();
-        let index = self
-            .get_vec(&mut context)
-            .iter()
-            .position(|x| Arc::ptr_eq(x, self))
-            .unwrap();
-        self.get_vec(&mut context).remove(index);
-    }
-
-    unsafe fn get_handle(self: &Arc<Self>) -> VkDispatchableHandle {
-        trace!(
-            "{}::get_ffi_handle arc: {} {}",
-            std::any::type_name::<T>(),
-            Arc::strong_count(&self),
-            Arc::weak_count(&self)
-        );
-        let value = Arc::into_raw(self.clone());
-        Arc::decrement_strong_count(value);
-        std::mem::transmute::<*const Self, _>(value)
-    }
-
-    unsafe fn from_handle(handle: VkDispatchableHandle) -> Option<Arc<T>> {
-        handle.map_or_else(
-            || None,
-            |handle| {
-                let ptr = std::mem::transmute::<_, *const T>(handle);
-                Arc::increment_strong_count(ptr);
-                let arc = Arc::from_raw(ptr);
-                trace!(
-                    "{}::from_handle arc: {} {}",
-                    std::any::type_name::<Self>(),
-                    Arc::strong_count(&arc),
-                    Arc::weak_count(&arc)
-                );
-                Some(arc)
+        let handle = VkDispatchableHandle(NonNull::new(Box::into_raw(Box::new(
+            VkDispatchableHandleInner {
+                loader_data: VkLoaderData {
+                    loader_magic: VkLoaderData::LOADER_MAGIC,
+                },
+                key: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             },
-        )
+        ))));
+        let object = Arc::new(Mutex::new(self));
+        Self::get_hash_mut(context).insert(handle, object.clone());
+        object.lock().set_handle(handle);
+        handle
     }
 
-    fn drop_handle(self: Arc<Self>) {
-        self.unregister_object();
-        assert_eq!(Arc::strong_count(&self), 1);
-        drop(self);
+    fn from_handle(handle: VkDispatchableHandle) -> Option<Arc<Mutex<Self>>> {
+        let context = CONTEXT.read();
+        Self::get_hash(&context).get(&handle).cloned()
+    }
+
+    fn drop_handle(handle: VkDispatchableHandle) {
+        let mut context = CONTEXT.write();
+        Self::get_hash_mut(&mut context).remove(&handle);
+        let inner = unsafe { Box::from_raw(handle.0.unwrap().as_ptr()) };
+        drop(inner);
     }
 }
-
-static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub trait NonDispatchable<T = Self>
 where
@@ -131,9 +115,9 @@ where
         handle
     }
 
-    fn from_handle(handle: VkNonDispatchableHandle) -> Arc<Mutex<Self>> {
+    fn from_handle(handle: VkNonDispatchableHandle) -> Option<Arc<Mutex<Self>>> {
         let context = CONTEXT.read();
-        Self::get_hash(&context).get(&handle).unwrap().clone()
+        Self::get_hash(&context).get(&handle).cloned()
     }
 
     fn drop_handle(handle: VkNonDispatchableHandle) {
@@ -147,14 +131,16 @@ where
 /// Contains system-level information and functionality
 #[derive(Debug)]
 pub struct Instance {
+    handle: VkDispatchableHandle,
     driver_name: &'static str,
 }
 impl Instance {
-    pub fn new() -> Arc<Self> {
+    pub fn new() -> VkDispatchableHandle {
+        let handle = VkDispatchableHandle(None);
         let instance = Self {
+            handle,
             driver_name: "vulkan_software_rasterizer",
         };
-        let instance = Arc::new(instance);
         instance.register_object()
     }
 
@@ -187,8 +173,20 @@ impl Instance {
 }
 
 impl Dispatchable for Instance {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
-        context.instances.as_mut()
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.instances
+    }
+
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.instances
+    }
+
+    fn set_handle(&mut self, handle: VkDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkDispatchableHandle {
+        self.handle
     }
 }
 
@@ -197,23 +195,18 @@ impl Dispatchable for Instance {
 /// Performs rendering operations.
 #[derive(Debug)]
 pub struct PhysicalDevice {
+    handle: VkDispatchableHandle,
     physical_device_name: &'static str,
 }
 
 impl PhysicalDevice {
-    pub fn get() -> Arc<Self> {
+    pub fn get() -> VkDispatchableHandle {
         info!("new PhysicalDevice");
-        let mut context = CONTEXT.write();
-        if context.physical_devices.len() < Self::physical_device_count() {
-            let physical_device = Self {
-                physical_device_name: "vulkan_software_rasterizer physical device",
-            };
-            let physical_device = Arc::new(physical_device);
-
-            context.physical_devices.push(physical_device.clone());
-        }
-        let arc = context.physical_devices.last().unwrap().clone();
-        arc
+        let physical_device = Self {
+            handle: VkDispatchableHandle(None),
+            physical_device_name: "vulkan_software_rasterizer physical device",
+        };
+        physical_device.register_object()
     }
 
     pub const fn physical_device_count() -> usize {
@@ -719,8 +712,20 @@ impl PhysicalDevice {
 }
 
 impl Dispatchable for PhysicalDevice {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
-        context.physical_devices.as_mut()
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.physical_devices
+    }
+
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.physical_devices
+    }
+
+    fn set_handle(&mut self, handle: VkDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkDispatchableHandle {
+        self.handle
     }
 }
 
@@ -729,39 +734,51 @@ impl Dispatchable for PhysicalDevice {
 /// Identifier used to associate functions with a `PhysicalDevice`.
 #[derive(Debug)]
 pub struct LogicalDevice {
+    handle: VkDispatchableHandle,
     driver_name: &'static str,
-    physical_device: Arc<PhysicalDevice>,
-    queue: Arc<Queue>,
+    physical_device: Arc<Mutex<PhysicalDevice>>,
+    queue: Arc<Mutex<Queue>>,
 }
 
 impl LogicalDevice {
     pub fn new(
-        physical_device: &Arc<PhysicalDevice>,
+        physical_device: Arc<Mutex<PhysicalDevice>>,
         queue_create_info: &VkDeviceQueueCreateInfo,
-    ) -> Arc<Self> {
+    ) -> VkDispatchableHandle {
         info!("new LogicalDevice");
-        let physical_device = physical_device.clone();
 
         let queue = Queue::new(physical_device.clone(), queue_create_info);
-
+        let queue = Queue::from_handle(queue).unwrap();
         let logical_device = Self {
+            handle: VkDispatchableHandle(None),
             driver_name: "vulkan_software_rasterizer",
             physical_device,
             queue,
         };
-        let logical_device = Arc::new(logical_device);
         logical_device.register_object()
     }
 }
 
 impl Dispatchable for LogicalDevice {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
-        context.logical_devices.as_mut()
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.logical_devices
+    }
+
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.logical_devices
+    }
+
+    fn set_handle(&mut self, handle: VkDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkDispatchableHandle {
+        self.handle
     }
 }
 
 impl LogicalDevice {
-    pub fn queue(&self, queue_family_index: u32, queue_index: u32) -> Arc<Queue> {
+    pub fn queue(&self, queue_family_index: u32, queue_index: u32) -> Arc<Mutex<Queue>> {
         let _ = queue_family_index;
         let _ = queue_index;
         self.queue.clone()
@@ -771,7 +788,7 @@ impl LogicalDevice {
         let _ = wait_all;
         let _ = timeout;
         for fence in fences {
-            if fence.lock().logical_device.as_ref() as *const _ != self as *const _ {
+            if fence.lock().logical_device.data_ptr() as *const _ != self as *const _ {
                 continue;
             }
             // TODO: Wait for one or more fences to become signaled.
@@ -791,30 +808,42 @@ impl LogicalDevice {
 /// Queue associated with `LogicalDevice`.
 #[derive(Debug)]
 pub struct Queue {
-    physical_device: Arc<PhysicalDevice>,
+    handle: VkDispatchableHandle,
+    physical_device: Arc<Mutex<PhysicalDevice>>,
     flags: VkDeviceQueueCreateFlags,
 }
 
 impl Queue {
     pub fn new(
-        physical_device: Arc<PhysicalDevice>,
+        physical_device: Arc<Mutex<PhysicalDevice>>,
         create_info: &VkDeviceQueueCreateInfo,
-    ) -> Arc<Self> {
+    ) -> VkDispatchableHandle {
         info!("new Queue");
         let flags = create_info.flags;
 
         let queue = Self {
+            handle: VkDispatchableHandle(None),
             physical_device,
             flags,
         };
-        let queue = Arc::new(queue);
         queue.register_object()
     }
 }
 
 impl Dispatchable for Queue {
-    fn get_vec<'a>(&'a self, context: &'a mut RwLockWriteGuard<Context>) -> &mut Vec<Arc<Self>> {
-        context.queues.as_mut()
+    fn get_hash(context: &Context) -> &HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.queues
+    }
+
+    fn get_hash_mut(context: &mut Context) -> &mut HashMap<VkDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.queues
+    }
+    fn set_handle(&mut self, handle: VkDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkDispatchableHandle {
+        self.handle
     }
 }
 
@@ -824,14 +853,14 @@ impl Dispatchable for Queue {
 #[derive(Debug)]
 pub struct Fence {
     handle: VkNonDispatchableHandle,
-    logical_device: Arc<LogicalDevice>,
+    logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkFenceCreateFlags,
     signaled: bool,
 }
 
 impl Fence {
     pub fn create(
-        logical_device: Arc<LogicalDevice>,
+        logical_device: Arc<Mutex<LogicalDevice>>,
         create_info: &VkFenceCreateInfo,
     ) -> VkNonDispatchableHandle {
         info!("new Fence");
@@ -861,9 +890,7 @@ impl Fence {
 }
 
 impl NonDispatchable for Fence {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &context.fences
     }
 

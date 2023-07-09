@@ -4,11 +4,52 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
+use std::fmt::{Debug, Formatter};
+use std::hash::Hasher;
 use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
 use xcb;
 
-pub type VkDispatchableHandle = Option<NonNull<std::ffi::c_void>>;
+/// ICD has to return pointer to struct with the first field being VkLoaderData.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct VkDispatchableHandle(pub Option<NonNull<VkDispatchableHandleInner>>);
+
+impl std::hash::Hash for VkDispatchableHandle {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        unsafe {
+            state.write_u64(self.0.unwrap().as_ref().key);
+        }
+        state.finish();
+    }
+}
+
+unsafe impl Send for VkDispatchableHandle {}
+unsafe impl Sync for VkDispatchableHandle {}
+
+#[repr(C)]
+pub struct VkDispatchableHandleInner {
+    pub loader_data: VkLoaderData,
+    pub key: u64,
+}
+
+impl Debug for VkDispatchableHandleInner {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VkDispatchableHandleInner")
+            .field("key", &self.key)
+            .finish()
+    }
+}
+
+#[repr(C)]
+pub union VkLoaderData {
+    pub loader_magic: usize,
+    pub loader_data: Option<NonNull<std::ffi::c_void>>,
+}
+
+impl VkLoaderData {
+    pub const LOADER_MAGIC: usize = 0x01CDC0DE;
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
