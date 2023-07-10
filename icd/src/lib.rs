@@ -4,6 +4,7 @@ mod command_buffer;
 mod image;
 mod impls;
 mod memory;
+mod sampler;
 mod surface;
 mod swapchain;
 

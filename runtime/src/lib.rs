@@ -1,6 +1,7 @@
 pub mod command_buffer;
 pub mod image;
 pub mod memory;
+pub mod sampler;
 pub mod surface;
 pub mod swapchain;
 
@@ -36,6 +37,7 @@ pub struct Context {
     command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<command_buffer::CommandPool>>>,
     command_buffers: HashMap<VkDispatchableHandle, Arc<Mutex<command_buffer::CommandBuffer>>>,
     device_memories: HashMap<VkNonDispatchableHandle, Arc<Mutex<memory::DeviceMemory>>>,
+    samplers: HashMap<VkNonDispatchableHandle, Arc<Mutex<sampler::Sampler>>>,
 }
 
 impl Context {

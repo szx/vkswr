@@ -5,6 +5,7 @@
 use crate::command_buffer::*;
 use crate::image::*;
 use crate::memory::*;
+use crate::sampler::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
 use headers::vk_defs::*;
@@ -1081,14 +1082,6 @@ pub unsafe extern "C" fn vkGetImageOpaqueCaptureDescriptorDataEXT(
     pData: Option<NonNull<std::ffi::c_void>>,
 ) -> VkResult {
     unimplemented!("vkGetImageOpaqueCaptureDescriptorDataEXT(device, pInfo, pData")
-}
-
-pub unsafe extern "C" fn vkDestroySampler(
-    device: VkDevice,
-    sampler: VkSampler,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroySampler(device, sampler, pAllocator")
 }
 
 pub unsafe extern "C" fn vkGetQueueCheckpointDataNV(
@@ -3244,15 +3237,6 @@ pub unsafe extern "C" fn vkCmdWriteTimestamp2(
     query: u32,
 ) {
     unimplemented!("vkCmdWriteTimestamp2(commandBuffer, stage, queryPool, query")
-}
-
-pub unsafe extern "C" fn vkCreateSampler(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkSamplerCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSampler: Option<NonNull<VkSampler>>,
-) -> VkResult {
-    unimplemented!("vkCreateSampler(device, pCreateInfo, pAllocator, pSampler")
 }
 
 pub unsafe extern "C" fn vkCmdBindVertexBuffers2(
