@@ -4290,15 +4290,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayProperties2KHR(
     )
 }
 
-pub unsafe extern "C" fn vkGetImageSubresourceLayout(
-    device: VkDevice,
-    image: VkImage,
-    pSubresource: Option<NonNull<VkImageSubresource>>,
-    pLayout: Option<NonNull<VkSubresourceLayout>>,
-) {
-    unimplemented!("vkGetImageSubresourceLayout(device, image, pSubresource, pLayout")
-}
-
 pub unsafe extern "C" fn vkImportFenceSciSyncFenceNV(
     device: VkDevice,
     pImportFenceSciSyncInfo: Option<NonNull<VkImportFenceSciSyncInfoNV>>,

@@ -109,6 +109,32 @@ pub unsafe extern "C" fn vkGetImageMemoryRequirements(
     *pMemoryRequirements.as_ptr() = image.lock().memory_requirements();
 }
 
+pub unsafe extern "C" fn vkGetImageSubresourceLayout(
+    device: VkDevice,
+    image: VkImage,
+    pSubresource: Option<NonNull<VkImageSubresource>>,
+    pLayout: Option<NonNull<VkSubresourceLayout>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(image) = Image::from_handle(image) else {
+        unreachable!()
+    };
+
+    let Some(pSubresource) = pSubresource else {
+        unreachable!()
+    };
+    let subresource = pSubresource.as_ref();
+
+    let Some(pLayout) = pLayout else {
+        unreachable!()
+    };
+
+    *pLayout.as_ptr() = image.lock().subresource_layout(subresource);
+}
+
 pub unsafe extern "C" fn vkBindImageMemory(
     device: VkDevice,
     image: VkImage,

@@ -45,12 +45,32 @@ impl Image {
         image.register_object()
     }
 
+    pub const fn size_in_bytes(&self) -> u64 {
+        self.width as u64 * self.height as u64 * self.format.bytes_per_pixel() as u64
+    }
+
     pub const fn memory_requirements(&self) -> VkMemoryRequirements {
-        let size = self.width as u64 * self.height as u64 * self.format.bytes_per_pixel() as u64;
         VkMemoryRequirements {
-            size,
+            size: self.size_in_bytes(),
             alignment: 1,
-            memoryTypeBits: 0, // HIRO
+            memoryTypeBits: 0, // TODO: Acquire MemoryType from PhysicalDevice..
+        }
+    }
+
+    pub fn subresource_layout(&self, subresource: &VkImageSubresource) -> VkSubresourceLayout {
+        if subresource.aspectMask == VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT.into()
+            && subresource.arrayLayer == 0
+            && subresource.mipLevel == 0
+        {
+            VkSubresourceLayout {
+                offset: 0,
+                size: self.size_in_bytes(),
+                rowPitch: self.width as u64 * self.format.bytes_per_pixel() as u64, // HIRO: Take from format?
+                arrayPitch: 0,
+                depthPitch: 0,
+            }
+        } else {
+            unimplemented!("subresource: {:?}", subresource)
         }
     }
 
