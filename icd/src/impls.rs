@@ -508,6 +508,34 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     *pFormatProperties.as_ptr() = physicalDevice.lock().format_properties(format);
 }
 
+pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
+    physicalDevice: VkPhysicalDevice,
+    format: VkFormat,
+    type_: VkImageType,
+    tiling: VkImageTiling,
+    usage: VkImageUsageFlags,
+    flags: VkImageCreateFlags,
+    pImageFormatProperties: Option<NonNull<VkImageFormatProperties>>,
+) -> VkResult {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
+        unreachable!()
+    };
+
+    let Some(pImageFormatProperties) = pImageFormatProperties else {
+        unreachable!()
+    };
+
+    let properties = physicalDevice
+        .lock()
+        .image_format_properties(format, type_, tiling, usage, flags);
+    if let Some(properties) = properties {
+        *pImageFormatProperties.as_ptr() = properties;
+        VkResult::VK_SUCCESS
+    } else {
+        VkResult::VK_ERROR_FORMAT_NOT_SUPPORTED
+    }
+}
+
 pub unsafe extern "C" fn vkDestroyDevice(
     device: VkDevice,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
@@ -3747,14 +3775,6 @@ pub unsafe extern "C" fn vkCmdSetLineStippleEnableEXT(
     unimplemented!("vkCmdSetLineStippleEnableEXT(commandBuffer, stippledLineEnable")
 }
 
-pub unsafe extern "C" fn vkDestroyImage(
-    device: VkDevice,
-    image: VkImage,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyImage(device, image, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
     device: VkDevice,
     pCreateInfo: Option<NonNull<VkDescriptorSetLayoutCreateInfo>>,
@@ -4030,14 +4050,6 @@ pub unsafe extern "C" fn vkCmdWriteAccelerationStructuresPropertiesKHR(
         firstQuery,
     "
     )
-}
-
-pub unsafe extern "C" fn vkDestroyImageView(
-    device: VkDevice,
-    imageView: VkImageView,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyImageView(device, imageView, pAllocator")
 }
 
 pub unsafe extern "C" fn vkImportSemaphoreZirconHandleFUCHSIA(
@@ -5610,28 +5622,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR
         physicalDevice,
         pPerformanceQueryCreateInfo,
         pNumPasses,
-    "
-    )
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
-    physicalDevice: VkPhysicalDevice,
-    format: VkFormat,
-    type_: VkImageType,
-    tiling: VkImageTiling,
-    usage: VkImageUsageFlags,
-    flags: VkImageCreateFlags,
-    pImageFormatProperties: Option<NonNull<VkImageFormatProperties>>,
-) -> VkResult {
-    unimplemented!(
-        "vkGetPhysicalDeviceImageFormatProperties(
-        physicalDevice,
-        format,
-        type_,
-        tiling,
-        usage,
-        flags,
-        pImageFormatProperties,
     "
     )
 }

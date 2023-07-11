@@ -102,12 +102,12 @@ impl ImageView {
             unreachable!()
         };
 
-        let image = Self {
+        let object = Self {
             handle,
             logical_device,
             image,
         };
-        image.register_object()
+        object.register_object()
     }
 }
 

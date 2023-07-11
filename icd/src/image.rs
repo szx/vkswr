@@ -30,6 +30,20 @@ pub unsafe extern "C" fn vkCreateImageView(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkDestroyImageView(
+    device: VkDevice,
+    imageView: VkImageView,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    ImageView::drop_handle(imageView);
+}
+
 pub unsafe extern "C" fn vkCreateImage(
     device: VkDevice,
     pCreateInfo: Option<NonNull<VkImageCreateInfo>>,
@@ -59,6 +73,20 @@ pub unsafe extern "C" fn vkCreateImage(
     );
 
     VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyImage(
+    device: VkDevice,
+    image: VkImage,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Image::drop_handle(image);
 }
 
 pub unsafe extern "C" fn vkGetImageMemoryRequirements(
