@@ -5,6 +5,7 @@ use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
@@ -12,8 +13,14 @@ use std::sync::Arc;
 pub struct DeviceMemory {
     handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
-    size: u64,
-    // TODO: Allocate actual memory.
+    data: Vec<u8>,
+    state: DeviceMemoryState,
+}
+
+#[derive(Debug)]
+enum DeviceMemoryState {
+    HostUnmapped,
+    HostMapped,
 }
 
 impl DeviceMemory {
@@ -29,9 +36,30 @@ impl DeviceMemory {
         let object = Self {
             handle,
             logical_device,
-            size,
+            data: vec![0; size as usize],
+            state: DeviceMemoryState::HostUnmapped,
         };
         object.register_object()
+    }
+
+    pub fn map_host(&mut self) -> Result<NonNull<std::ffi::c_void>, VkResult> {
+        match self.state {
+            DeviceMemoryState::HostMapped => Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED),
+            DeviceMemoryState::HostUnmapped => unsafe {
+                self.state = DeviceMemoryState::HostMapped;
+                let ptr = NonNull::new_unchecked(self.data.as_mut_ptr() as *mut c_void);
+                Ok(ptr)
+            },
+        }
+    }
+
+    pub fn unmap_host(&mut self) {
+        match self.state {
+            DeviceMemoryState::HostMapped => {
+                self.state = DeviceMemoryState::HostUnmapped;
+            }
+            DeviceMemoryState::HostUnmapped => {}
+        }
     }
 }
 

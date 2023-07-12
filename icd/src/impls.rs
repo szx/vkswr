@@ -2948,17 +2948,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlaneProperties2KHR(
     )
 }
 
-pub unsafe extern "C" fn vkMapMemory(
-    device: VkDevice,
-    memory: VkDeviceMemory,
-    offset: VkDeviceSize,
-    size: VkDeviceSize,
-    flags: VkMemoryMapFlags,
-    ppData: Option<NonNull<std::ffi::c_void>>,
-) -> VkResult {
-    unimplemented!("vkMapMemory(device, memory, offset, size, flags, ppData")
-}
-
 pub unsafe extern "C" fn vkGetSemaphoreWin32HandleKHR(
     device: VkDevice,
     pGetWin32HandleInfo: Option<NonNull<VkSemaphoreGetWin32HandleInfoKHR>>,
@@ -3950,17 +3939,9 @@ pub unsafe extern "C" fn vkGetSemaphoreFdKHR(
 pub unsafe extern "C" fn vkGetDescriptorSetHostMappingVALVE(
     device: VkDevice,
     descriptorSet: VkDescriptorSet,
-    ppData: Option<NonNull<std::ffi::c_void>>,
+    ppData: Option<NonNull<NonNull<std::ffi::c_void>>>,
 ) {
     unimplemented!("vkGetDescriptorSetHostMappingVALVE(device, descriptorSet, ppData")
-}
-
-pub unsafe extern "C" fn vkFreeMemory(
-    device: VkDevice,
-    memory: VkDeviceMemory,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkFreeMemory(device, memory, pAllocator")
 }
 
 pub unsafe extern "C" fn vkEnumeratePhysicalDeviceGroups(
@@ -4770,10 +4751,6 @@ pub unsafe extern "C" fn vkGetFenceSciSyncObjNV(
     unimplemented!("vkGetFenceSciSyncObjNV(device, pGetSciSyncHandleInfo, pHandle")
 }
 
-pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory) {
-    unimplemented!("vkUnmapMemory(device, memory")
-}
-
 pub unsafe extern "C" fn vkCmdSetStencilCompareMask(
     commandBuffer: VkCommandBuffer,
     faceMask: VkStencilFaceFlags,
@@ -4967,7 +4944,7 @@ pub unsafe extern "C" fn vkCmdSetDepthBounds(
 pub unsafe extern "C" fn vkMapMemory2KHR(
     device: VkDevice,
     pMemoryMapInfo: Option<NonNull<VkMemoryMapInfoKHR>>,
-    ppData: Option<NonNull<std::ffi::c_void>>,
+    ppData: Option<NonNull<NonNull<std::ffi::c_void>>>,
 ) -> VkResult {
     unimplemented!("vkMapMemory2KHR(device, pMemoryMapInfo, ppData")
 }
