@@ -48,6 +48,7 @@ pub struct Context {
     pipelines: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::Pipeline>>>,
     descriptor_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<descriptor::DescriptorPool>>>,
     descriptor_sets: HashMap<VkNonDispatchableHandle, Arc<Mutex<descriptor::DescriptorSet>>>,
+    framebuffers: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::Framebuffer>>>,
 }
 
 impl Context {

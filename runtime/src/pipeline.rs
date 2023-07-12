@@ -1,5 +1,6 @@
 //! Pipeline
 
+use crate::image::ImageView;
 use crate::memory::{DeviceMemory, MemoryBinding};
 use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
@@ -272,4 +273,58 @@ pub struct GraphicsPipelineStateCreateInfo<'a> {
     pub depth_stencil_state: Option<&'a VkPipelineDepthStencilStateCreateInfo>,
     pub color_blend_state: Option<&'a VkPipelineColorBlendStateCreateInfo>,
     pub dynamic_state: Option<&'a VkPipelineDynamicStateCreateInfo>,
+}
+
+#[derive(Debug)]
+pub struct Framebuffer {
+    handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+}
+
+impl Framebuffer {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        flags: VkFramebufferCreateFlags,
+        width: u32,
+        height: u32,
+        layers: u32,
+        attachments: Vec<Arc<Mutex<ImageView>>>,
+        render_pass: Arc<Mutex<RenderPass>>,
+    ) -> VkNonDispatchableHandle {
+        info!("new Framebuffer");
+        let handle = VK_NULL_HANDLE;
+
+        let _ = flags;
+        let _ = width;
+        let _ = height;
+        let _ = layers;
+        let _ = attachments;
+        let _ = render_pass;
+
+        let object = Self {
+            handle,
+            logical_device,
+        };
+        object.register_object()
+    }
+}
+
+impl NonDispatchable for Framebuffer {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.framebuffers
+    }
+
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.framebuffers
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
+    }
 }

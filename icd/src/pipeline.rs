@@ -1,6 +1,7 @@
 //! VkPipeline device commands
 
 use headers::vk_decls::*;
+use runtime::image::ImageView;
 use runtime::pipeline::*;
 use runtime::*;
 
@@ -264,4 +265,63 @@ pub unsafe extern "C" fn vkDestroyPipeline(
     let _ = pAllocator;
 
     Pipeline::drop_handle(pipeline);
+}
+
+pub unsafe extern "C" fn vkCreateFramebuffer(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkFramebufferCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pFramebuffer: Option<NonNull<VkFramebuffer>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let attachments = create_info
+        .pAttachments
+        .map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), create_info.attachmentCount as usize)
+        })
+        .iter()
+        .map(|&handle| ImageView::from_handle(handle).unwrap())
+        .collect::<Vec<_>>();
+    let Some(render_pass) = RenderPass::from_handle(create_info.renderPass) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    let Some(pFramebuffer) = pFramebuffer else {
+        unreachable!()
+    };
+
+    *pFramebuffer.as_ptr() = Framebuffer::create(
+        device,
+        create_info.flags,
+        create_info.width,
+        create_info.height,
+        create_info.layers,
+        attachments,
+        render_pass,
+    );
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyFramebuffer(
+    device: VkDevice,
+    framebuffer: VkFramebuffer,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Framebuffer::drop_handle(framebuffer);
 }

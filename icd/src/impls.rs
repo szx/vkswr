@@ -5308,14 +5308,6 @@ pub unsafe extern "C" fn vkAcquireDrmDisplayEXT(
     unimplemented!("vkAcquireDrmDisplayEXT(physicalDevice, drmFd, display")
 }
 
-pub unsafe extern "C" fn vkDestroyFramebuffer(
-    device: VkDevice,
-    framebuffer: VkFramebuffer,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyFramebuffer(device, framebuffer, pAllocator")
-}
-
 pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
     unimplemented!("vkDeviceWaitIdle(device")
 }
@@ -5657,15 +5649,6 @@ pub unsafe extern "C" fn vkGetMemoryZirconHandleFUCHSIA(
     pZirconHandle: Option<NonNull<zx_handle_t>>,
 ) -> VkResult {
     unimplemented!("vkGetMemoryZirconHandleFUCHSIA(device, pGetZirconHandleInfo, pZirconHandle")
-}
-
-pub unsafe extern "C" fn vkCreateFramebuffer(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkFramebufferCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pFramebuffer: Option<NonNull<VkFramebuffer>>,
-) -> VkResult {
-    unimplemented!("vkCreateFramebuffer(device, pCreateInfo, pAllocator, pFramebuffer")
 }
 
 pub unsafe extern "C" fn vkCmdSetScissorWithCount(
