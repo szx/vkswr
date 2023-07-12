@@ -105,3 +105,47 @@ pub unsafe extern "C" fn vkDestroyRenderPass(
 
     RenderPass::drop_handle(renderPass);
 }
+
+pub unsafe extern "C" fn vkCreateShaderModule(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkShaderModuleCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pShaderModule: Option<NonNull<VkShaderModule>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let Some(code) = create_info.pCode else {
+        unreachable!()
+    };
+    let code = std::slice::from_raw_parts(code.as_ptr(), create_info.codeSize as usize);
+
+    let _ = pAllocator;
+
+    let Some(pShaderModule) = pShaderModule else {
+        unreachable!()
+    };
+
+    *pShaderModule.as_ptr() = ShaderModule::create(device, create_info.flags, code);
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyShaderModule(
+    device: VkDevice,
+    shaderModule: VkShaderModule,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    ShaderModule::drop_handle(shaderModule);
+}

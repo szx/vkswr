@@ -106,3 +106,51 @@ impl NonDispatchable for RenderPass {
         self.handle
     }
 }
+
+#[derive(Debug)]
+pub struct ShaderModule {
+    handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+    code: Vec<u32>,
+}
+
+impl ShaderModule {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        flags: VkDescriptorSetLayoutCreateFlags,
+        code: &[u32],
+    ) -> VkNonDispatchableHandle {
+        info!("new ShaderModule");
+        let handle = VK_NULL_HANDLE;
+
+        let _ = flags;
+        let code = code.to_vec();
+
+        let object = Self {
+            handle,
+            logical_device,
+            code,
+        };
+        object.register_object()
+    }
+}
+
+impl NonDispatchable for ShaderModule {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.shader_modules
+    }
+
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.shader_modules
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
+    }
+}

@@ -1062,15 +1062,6 @@ pub unsafe extern "C" fn vkBindAccelerationStructureMemoryNV(
     unimplemented!("vkBindAccelerationStructureMemoryNV(device, bindInfoCount, pBindInfos")
 }
 
-pub unsafe extern "C" fn vkCreateShaderModule(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkShaderModuleCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pShaderModule: Option<NonNull<VkShaderModule>>,
-) -> VkResult {
-    unimplemented!("vkCreateShaderModule(device, pCreateInfo, pAllocator, pShaderModule")
-}
-
 pub unsafe extern "C" fn vkCmdCopyBuffer2(
     commandBuffer: VkCommandBuffer,
     pCopyBufferInfo: Option<NonNull<VkCopyBufferInfo2>>,
@@ -2840,14 +2831,6 @@ pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
     pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
     unimplemented!("vkFlushMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
-}
-
-pub unsafe extern "C" fn vkDestroyShaderModule(
-    device: VkDevice,
-    shaderModule: VkShaderModule,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyShaderModule(device, shaderModule, pAllocator")
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
