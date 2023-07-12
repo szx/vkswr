@@ -47,3 +47,49 @@ pub unsafe extern "C" fn vkDestroyDescriptorSetLayout(
 
     DescriptorSetLayout::drop_handle(descriptorSetLayout);
 }
+
+pub unsafe extern "C" fn vkCreateDescriptorPool(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkDescriptorPoolCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pDescriptorPool: Option<NonNull<VkDescriptorPool>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let Some(pool_sizes) = create_info.pPoolSizes else {
+        unreachable!()
+    };
+    let pool_sizes =
+        std::slice::from_raw_parts(pool_sizes.as_ptr(), create_info.poolSizeCount as usize);
+
+    let _ = pAllocator;
+
+    let Some(pDescriptorPool) = pDescriptorPool else {
+        unreachable!()
+    };
+
+    *pDescriptorPool.as_ptr() =
+        DescriptorPool::create(device, create_info.flags, create_info.maxSets, pool_sizes);
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyDescriptorPool(
+    device: VkDevice,
+    descriptorPool: VkDescriptorPool,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    DescriptorPool::drop_handle(descriptorPool);
+}

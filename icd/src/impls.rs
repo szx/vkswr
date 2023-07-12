@@ -848,15 +848,6 @@ pub unsafe extern "C" fn vkGetDeviceSubpassShadingMaxWorkgroupSizeHUAWEI(
     )
 }
 
-pub unsafe extern "C" fn vkCreateDescriptorPool(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkDescriptorPoolCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pDescriptorPool: Option<NonNull<VkDescriptorPool>>,
-) -> VkResult {
-    unimplemented!("vkCreateDescriptorPool(device, pCreateInfo, pAllocator, pDescriptorPool")
-}
-
 pub unsafe extern "C" fn vkQueueSignalReleaseImageANDROID(
     queue: VkQueue,
     waitSemaphoreCount: u32,
@@ -2335,14 +2326,6 @@ pub unsafe extern "C" fn vkCmdCopyMemoryToImageIndirectNV(
         pImageSubresources,
     "
     )
-}
-
-pub unsafe extern "C" fn vkDestroyDescriptorPool(
-    device: VkDevice,
-    descriptorPool: VkDescriptorPool,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyDescriptorPool(device, descriptorPool, pAllocator")
 }
 
 pub unsafe extern "C" fn vkMergeValidationCachesEXT(
