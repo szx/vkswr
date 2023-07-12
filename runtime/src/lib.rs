@@ -3,6 +3,7 @@ pub mod command_buffer;
 pub mod descriptor;
 pub mod image;
 pub mod memory;
+pub mod pipeline;
 pub mod sampler;
 pub mod surface;
 pub mod swapchain;
@@ -11,12 +12,9 @@ use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
-use parking_lot::{
-    MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
+use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::ffi::c_char;
-use std::mem::ManuallyDrop;
 use std::num::NonZeroU64;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -43,6 +41,7 @@ pub struct Context {
     buffers: HashMap<VkNonDispatchableHandle, Arc<Mutex<buffer::Buffer>>>,
     descriptor_set_layouts:
         HashMap<VkNonDispatchableHandle, Arc<Mutex<descriptor::DescriptorSetLayout>>>,
+    pipeline_layouts: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::PipelineLayout>>>,
 }
 
 impl Context {

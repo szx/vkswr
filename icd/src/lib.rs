@@ -6,6 +6,7 @@ mod descriptor;
 mod image;
 mod impls;
 mod memory;
+mod pipeline;
 mod sampler;
 mod surface;
 mod swapchain;

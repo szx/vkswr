@@ -7,6 +7,7 @@ use crate::command_buffer::*;
 use crate::descriptor::*;
 use crate::image::*;
 use crate::memory::*;
+use crate::pipeline::*;
 use crate::sampler::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
@@ -2320,14 +2321,6 @@ pub unsafe extern "C" fn vkDestroyBufferView(
     unimplemented!("vkDestroyBufferView(device, bufferView, pAllocator")
 }
 
-pub unsafe extern "C" fn vkDestroyPipelineLayout(
-    device: VkDevice,
-    pipelineLayout: VkPipelineLayout,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyPipelineLayout(device, pipelineLayout, pAllocator")
-}
-
 pub unsafe extern "C" fn vkGetImageViewHandleNVX(
     device: VkDevice,
     pInfo: Option<NonNull<VkImageViewHandleInfoNVX>>,
@@ -2719,16 +2712,6 @@ pub unsafe extern "C" fn vkCmdSetPerformanceOverrideINTEL(
 ) -> VkResult {
     unimplemented!("vkCmdSetPerformanceOverrideINTEL(commandBuffer, pOverrideInfo")
 }
-
-pub unsafe extern "C" fn vkCreatePipelineLayout(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkPipelineLayoutCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pPipelineLayout: Option<NonNull<VkPipelineLayout>>,
-) -> VkResult {
-    unimplemented!("vkCreatePipelineLayout(device, pCreateInfo, pAllocator, pPipelineLayout")
-}
-
 pub unsafe extern "C" fn vkGetDrmDisplayEXT(
     physicalDevice: VkPhysicalDevice,
     drmFd: i32,
