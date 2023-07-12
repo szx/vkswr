@@ -154,3 +154,51 @@ impl NonDispatchable for ShaderModule {
         self.handle
     }
 }
+
+#[derive(Debug)]
+pub struct PipelineCache {
+    handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+    initial_data: Vec<u8>,
+}
+
+impl PipelineCache {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        flags: VkDescriptorSetLayoutCreateFlags,
+        initial_data: &[u8],
+    ) -> VkNonDispatchableHandle {
+        info!("new PipelineCache");
+        let handle = VK_NULL_HANDLE;
+
+        let _ = flags;
+        let initial_data = initial_data.to_vec();
+
+        let object = Self {
+            handle,
+            logical_device,
+            initial_data,
+        };
+        object.register_object()
+    }
+}
+
+impl NonDispatchable for PipelineCache {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.pipeline_caches
+    }
+
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.pipeline_caches
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
+    }
+}

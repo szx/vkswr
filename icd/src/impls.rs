@@ -1360,14 +1360,6 @@ pub unsafe extern "C" fn vkDestroyEvent(
     unimplemented!("vkDestroyEvent(device, event, pAllocator")
 }
 
-pub unsafe extern "C" fn vkDestroyPipelineCache(
-    device: VkDevice,
-    pipelineCache: VkPipelineCache,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyPipelineCache(device, pipelineCache, pAllocator")
-}
-
 pub unsafe extern "C" fn vkDestroyDescriptorUpdateTemplate(
     device: VkDevice,
     descriptorUpdateTemplate: VkDescriptorUpdateTemplate,
@@ -2482,15 +2474,6 @@ pub unsafe extern "C" fn vkGetSwapchainStatusKHR(
     swapchain: VkSwapchainKHR,
 ) -> VkResult {
     unimplemented!("vkGetSwapchainStatusKHR(device, swapchain")
-}
-
-pub unsafe extern "C" fn vkCreatePipelineCache(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkPipelineCacheCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pPipelineCache: Option<NonNull<VkPipelineCache>>,
-) -> VkResult {
-    unimplemented!("vkCreatePipelineCache(device, pCreateInfo, pAllocator, pPipelineCache")
 }
 
 pub unsafe extern "C" fn vkGetDeviceGroupPresentCapabilitiesKHR(

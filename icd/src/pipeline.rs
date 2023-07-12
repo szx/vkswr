@@ -149,3 +149,46 @@ pub unsafe extern "C" fn vkDestroyShaderModule(
 
     ShaderModule::drop_handle(shaderModule);
 }
+
+pub unsafe extern "C" fn vkCreatePipelineCache(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkPipelineCacheCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelineCache: Option<NonNull<VkPipelineCache>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let initial_data = create_info.pInitialData.map_or(&[] as &[u8], |x| {
+        std::slice::from_raw_parts(x.as_ptr() as *mut u8, create_info.initialDataSize as usize)
+    });
+
+    let _ = pAllocator;
+
+    let Some(pPipelineCache) = pPipelineCache else {
+        unreachable!()
+    };
+
+    *pPipelineCache.as_ptr() = PipelineCache::create(device, create_info.flags, initial_data);
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyPipelineCache(
+    device: VkDevice,
+    pipelineCache: VkPipelineCache,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    PipelineCache::drop_handle(pipelineCache);
+}
