@@ -58,7 +58,9 @@ impl DeviceMemory {
             DeviceMemoryState::HostMapped => {
                 self.state = DeviceMemoryState::HostUnmapped;
             }
-            DeviceMemoryState::HostUnmapped => {}
+            DeviceMemoryState::HostUnmapped => {
+                self.state = DeviceMemoryState::HostMapped;
+            }
         }
     }
 }

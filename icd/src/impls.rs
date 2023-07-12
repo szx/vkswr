@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
+use crate::buffer::*;
 use crate::command_buffer::*;
 use crate::image::*;
 use crate::memory::*;
@@ -2841,14 +2842,6 @@ pub unsafe extern "C" fn vkCreateRayTracingPipelinesNV(
     )
 }
 
-pub unsafe extern "C" fn vkDestroyBuffer(
-    device: VkDevice,
-    buffer: VkBuffer,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyBuffer(device, buffer, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCmdBeginQuery(
     commandBuffer: VkCommandBuffer,
     queryPool: VkQueryPool,
@@ -4323,15 +4316,6 @@ pub unsafe extern "C" fn vkGetImageMemoryRequirements2(
     unimplemented!("vkGetImageMemoryRequirements2(device, pInfo, pMemoryRequirements")
 }
 
-pub unsafe extern "C" fn vkBindBufferMemory(
-    device: VkDevice,
-    buffer: VkBuffer,
-    memory: VkDeviceMemory,
-    memoryOffset: VkDeviceSize,
-) -> VkResult {
-    unimplemented!("vkBindBufferMemory(device, buffer, memory, memoryOffset")
-}
-
 pub unsafe extern "C" fn vkCmdSetPatchControlPointsEXT(
     commandBuffer: VkCommandBuffer,
     patchControlPoints: u32,
@@ -5333,15 +5317,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceDirectFBPresentationSupportEXT(
     )
 }
 
-pub unsafe extern "C" fn vkCreateBuffer(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkBufferCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pBuffer: Option<NonNull<VkBuffer>>,
-) -> VkResult {
-    unimplemented!("vkCreateBuffer(device, pCreateInfo, pAllocator, pBuffer")
-}
-
 pub unsafe extern "C" fn vkGetCommandPoolMemoryConsumption(
     device: VkDevice,
     commandPool: VkCommandPool,
@@ -5425,14 +5400,6 @@ pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
     pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
     unimplemented!("vkInvalidateMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
-}
-
-pub unsafe extern "C" fn vkGetBufferMemoryRequirements(
-    device: VkDevice,
-    buffer: VkBuffer,
-    pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
-) {
-    unimplemented!("vkGetBufferMemoryRequirements(device, buffer, pMemoryRequirements")
 }
 
 pub unsafe extern "C" fn vkGetSemaphoreSciSyncObjNV(

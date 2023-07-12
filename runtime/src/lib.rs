@@ -4,6 +4,7 @@ pub mod memory;
 pub mod sampler;
 pub mod surface;
 pub mod swapchain;
+pub mod buffer;
 
 use headers::c_char_array;
 use headers::vk_decls::*;
@@ -38,6 +39,7 @@ pub struct Context {
     command_buffers: HashMap<VkDispatchableHandle, Arc<Mutex<command_buffer::CommandBuffer>>>,
     device_memories: HashMap<VkNonDispatchableHandle, Arc<Mutex<memory::DeviceMemory>>>,
     samplers: HashMap<VkNonDispatchableHandle, Arc<Mutex<sampler::Sampler>>>,
+    buffers: HashMap<VkNonDispatchableHandle, Arc<Mutex<buffer::Buffer>>>,
 }
 
 impl Context {
