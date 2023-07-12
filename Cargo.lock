@@ -522,6 +522,7 @@ name = "runtime"
 version = "0.1.0"
 dependencies = [
  "headers",
+ "itertools",
  "lazy_static",
  "log",
  "parking_lot",

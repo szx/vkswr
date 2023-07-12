@@ -1,7 +1,7 @@
 //! Swapchain
 
 use crate::image::*;
-use crate::{Context, LogicalDevice, NonDispatchable};
+use crate::{Context, Fence, LogicalDevice, NonDispatchable, Semaphore};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -72,6 +72,19 @@ impl Swapchain {
             present_mode,
         };
         swapchain.register_object()
+    }
+
+    pub fn acquire_next_image(
+        &mut self,
+        timeout: u64,
+        semaphore: Option<Arc<Mutex<Semaphore>>>,
+        fence: Option<Arc<Mutex<Fence>>>,
+    ) -> u32 {
+        // TODO: Acquire next swapchain image.
+        let _ = timeout;
+        let _ = semaphore;
+        let _ = fence;
+        0
     }
 }
 

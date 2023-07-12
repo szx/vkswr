@@ -12,6 +12,7 @@ use crate::sampler::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
 use headers::vk_defs::*;
+use runtime::command_buffer::CommandBuffer;
 use runtime::*;
 use std::sync::{Arc, Weak};
 
@@ -35,7 +36,7 @@ pub unsafe extern "C" fn vkCreateInstance(
         unreachable!()
     };
 
-    *pInstance.as_ptr() = Instance::new();
+    *pInstance.as_ptr() = Instance::create();
 
     VkResult::VK_SUCCESS
 }
@@ -248,7 +249,7 @@ pub unsafe extern "C" fn vkCreateDevice(
     };
     let queue_create_info = queue_create_info.as_ref();
 
-    *pDevice.as_ptr() = LogicalDevice::new(physicalDevice.clone(), queue_create_info);
+    *pDevice.as_ptr() = LogicalDevice::create(physicalDevice.clone(), queue_create_info);
     VkResult::VK_SUCCESS
 }
 
@@ -605,6 +606,20 @@ pub unsafe extern "C" fn vkCreateFence(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkDestroyFence(
+    device: VkDevice,
+    fence: VkFence,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Fence::drop_handle(fence);
+}
+
 pub unsafe extern "C" fn vkCreateSemaphore(
     device: VkDevice,
     pCreateInfo: Option<NonNull<VkSemaphoreCreateInfo>>,
@@ -633,6 +648,20 @@ pub unsafe extern "C" fn vkCreateSemaphore(
     *pSemaphore.as_ptr() = Semaphore::create(create_info);
 
     VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroySemaphore(
+    device: VkDevice,
+    semaphore: VkSemaphore,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Semaphore::drop_handle(semaphore);
 }
 
 pub unsafe extern "C" fn vkWaitForFences(
@@ -687,6 +716,66 @@ pub unsafe extern "C" fn vkResetFences(
 
     device.lock().reset_fences(fences);
     VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkQueueSubmit(
+    queue: VkQueue,
+    submitCount: u32,
+    pSubmits: Option<NonNull<VkSubmitInfo>>,
+    fence: VkFence,
+) -> VkResult {
+    let Some(queue) = Queue::from_handle(queue) else {
+        unreachable!()
+    };
+
+    let submits = pSubmits.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), submitCount as usize)
+    });
+
+    for submit in submits {
+        let wait_semaphores = submit
+            .pWaitSemaphores
+            .map_or(&[] as &[_], |x| {
+                std::slice::from_raw_parts(x.as_ptr(), submit.waitSemaphoreCount as usize)
+            })
+            .iter()
+            .map(|&handle| Semaphore::from_handle(handle).unwrap());
+        let wait_semaphores_stage_flags = submit.pWaitDstStageMask.map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), submit.waitSemaphoreCount as usize)
+        });
+        let signal_semaphores = submit
+            .pSignalSemaphores
+            .map_or(&[] as &[_], |x| {
+                std::slice::from_raw_parts(x.as_ptr(), submit.signalSemaphoreCount as usize)
+            })
+            .iter()
+            .map(|&handle| Semaphore::from_handle(handle).unwrap());
+        let command_buffers = submit
+            .pCommandBuffers
+            .map_or(&[] as &[_], |x| {
+                std::slice::from_raw_parts(x.as_ptr(), submit.commandBufferCount as usize)
+            })
+            .iter()
+            .map(|&handle| CommandBuffer::from_handle(handle).unwrap());
+
+        queue.lock().submit(
+            wait_semaphores,
+            wait_semaphores_stage_flags,
+            signal_semaphores,
+            command_buffers,
+        );
+    }
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let result = device.lock().wait_idle();
+    result
 }
 
 /* VK_KHR_surface extension instance commands */
@@ -1523,15 +1612,6 @@ pub unsafe extern "C" fn vkCmdSetDiscardRectangleEnableEXT(
     unimplemented!("vkCmdSetDiscardRectangleEnableEXT(commandBuffer, discardRectangleEnable")
 }
 
-pub unsafe extern "C" fn vkFreeCommandBuffers(
-    device: VkDevice,
-    commandPool: VkCommandPool,
-    commandBufferCount: u32,
-    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
-) {
-    unimplemented!("vkFreeCommandBuffers(device, commandPool, commandBufferCount, pCommandBuffers")
-}
-
 pub unsafe extern "C" fn vkGetQueueCheckpointData2NV(
     queue: VkQueue,
     pCheckpointDataCount: Option<NonNull<u32>>,
@@ -1669,15 +1749,6 @@ pub unsafe extern "C" fn vkDestroySemaphoreSciSyncPoolNV(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
     unimplemented!("vkDestroySemaphoreSciSyncPoolNV(device, semaphorePool, pAllocator")
-}
-
-pub unsafe extern "C" fn vkQueueSubmit(
-    queue: VkQueue,
-    submitCount: u32,
-    pSubmits: Option<NonNull<VkSubmitInfo>>,
-    fence: VkFence,
-) -> VkResult {
-    unimplemented!("vkQueueSubmit(queue, submitCount, pSubmits, fence")
 }
 
 pub unsafe extern "C" fn vkSetHdrMetadataEXT(
@@ -3994,14 +4065,6 @@ pub unsafe extern "C" fn vkGetImageSubresourceLayout2EXT(
     unimplemented!("vkGetImageSubresourceLayout2EXT(device, image, pSubresource, pLayout")
 }
 
-pub unsafe extern "C" fn vkDestroyCommandPool(
-    device: VkDevice,
-    commandPool: VkCommandPool,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyCommandPool(device, commandPool, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCreateDisplayPlaneSurfaceKHR(
     instance: VkInstance,
     pCreateInfo: Option<NonNull<VkDisplaySurfaceCreateInfoKHR>>,
@@ -4070,14 +4133,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceVideoCapabilitiesKHR(
     unimplemented!(
         "vkGetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice, pVideoProfile, pCapabilities"
     )
-}
-
-pub unsafe extern "C" fn vkDestroyFence(
-    device: VkDevice,
-    fence: VkFence,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyFence(device, fence, pAllocator")
 }
 
 pub unsafe extern "C" fn vkCmdSetPerformanceStreamMarkerINTEL(
@@ -4843,14 +4898,6 @@ pub unsafe extern "C" fn vkDestroyDebugReportCallbackEXT(
     unimplemented!("vkDestroyDebugReportCallbackEXT(instance, callback, pAllocator")
 }
 
-pub unsafe extern "C" fn vkDestroySemaphore(
-    device: VkDevice,
-    semaphore: VkSemaphore,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroySemaphore(device, semaphore, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCmdSetDiscardRectangleModeEXT(
     commandBuffer: VkCommandBuffer,
     discardRectangleMode: VkDiscardRectangleModeEXT,
@@ -5230,10 +5277,6 @@ pub unsafe extern "C" fn vkAcquireDrmDisplayEXT(
     display: VkDisplayKHR,
 ) -> VkResult {
     unimplemented!("vkAcquireDrmDisplayEXT(physicalDevice, drmFd, display")
-}
-
-pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
-    unimplemented!("vkDeviceWaitIdle(device")
 }
 
 pub unsafe extern "C" fn vkGetShaderModuleCreateInfoIdentifierEXT(

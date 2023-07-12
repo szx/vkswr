@@ -8,8 +8,11 @@ pub mod sampler;
 pub mod surface;
 pub mod swapchain;
 
+use crate::command_buffer::CommandBuffer;
+use crate::swapchain::Swapchain;
 use headers::c_char_array;
 use headers::vk_decls::*;
+use itertools::izip;
 use lazy_static::lazy_static;
 use log::*;
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
@@ -151,7 +154,7 @@ pub struct Instance {
 }
 impl Instance {
     // TODO: Remove all create() accepting create info.
-    pub fn new() -> VkDispatchableHandle {
+    pub fn create() -> VkDispatchableHandle {
         let handle = VkDispatchableHandle(None);
         let instance = Self {
             handle,
@@ -1091,13 +1094,13 @@ pub struct LogicalDevice {
 }
 
 impl LogicalDevice {
-    pub fn new(
+    pub fn create(
         physical_device: Arc<Mutex<PhysicalDevice>>,
         queue_create_info: &VkDeviceQueueCreateInfo,
     ) -> VkDispatchableHandle {
         info!("new LogicalDevice");
 
-        let queue = Queue::new(physical_device.clone(), queue_create_info);
+        let queue = Queue::create(physical_device.clone(), queue_create_info);
         let queue = Queue::from_handle(queue).unwrap();
         let logical_device = Self {
             handle: VkDispatchableHandle(None),
@@ -1151,6 +1154,11 @@ impl LogicalDevice {
             fence.lock().reset();
         }
     }
+
+    pub fn wait_idle(&self) -> VkResult {
+        // TODO: LogicalDevice wait idle.
+        VkResult::VK_SUCCESS
+    }
 }
 
 /* Queue */
@@ -1164,7 +1172,7 @@ pub struct Queue {
 }
 
 impl Queue {
-    pub fn new(
+    pub fn create(
         physical_device: Arc<Mutex<PhysicalDevice>>,
         create_info: &VkDeviceQueueCreateInfo,
     ) -> VkDispatchableHandle {
@@ -1177,6 +1185,39 @@ impl Queue {
             flags,
         };
         queue.register_object()
+    }
+
+    pub fn submit<'a>(
+        &mut self,
+        wait_semaphores: impl IntoIterator<Item = Arc<Mutex<Semaphore>>>,
+        wait_semaphores_stage_flags: impl IntoIterator<Item = &'a VkPipelineStageFlags>,
+        signal_semaphores: impl IntoIterator<Item = Arc<Mutex<Semaphore>>>,
+        command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
+    ) {
+        info!("Queue::submit");
+        let _ = command_buffers.into_iter();
+        let _ = wait_semaphores.into_iter();
+        let _ = wait_semaphores_stage_flags.into_iter();
+        let _ = signal_semaphores.into_iter();
+        // TODO: Queue submit.
+    }
+
+    pub fn present<'a>(
+        &mut self,
+        wait_semaphores: impl IntoIterator<Item = Arc<Mutex<Semaphore>>>,
+        swapchains: impl IntoIterator<Item = Arc<Mutex<Swapchain>>>,
+        image_indices: impl IntoIterator<Item = &'a u32>,
+        results: impl IntoIterator<Item = &'a mut VkResult>,
+    ) {
+        info!("Queue::present");
+
+        for (swapchain, image_index, result) in izip!(swapchains, image_indices, results) {
+            // TODO: Queue present.
+            let _ = wait_semaphores;
+            let _ = swapchain;
+            let _ = image_index;
+            *result = VkResult::VK_SUCCESS;
+        }
     }
 }
 

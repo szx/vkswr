@@ -31,6 +31,20 @@ pub unsafe extern "C" fn vkCreateCommandPool(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkDestroyCommandPool(
+    device: VkDevice,
+    commandPool: VkCommandPool,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    CommandPool::drop_handle(commandPool);
+}
+
 pub unsafe extern "C" fn vkAllocateCommandBuffers(
     device: VkDevice,
     pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
@@ -61,6 +75,28 @@ pub unsafe extern "C" fn vkAllocateCommandBuffers(
     );
 
     VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkFreeCommandBuffers(
+    device: VkDevice,
+    commandPool: VkCommandPool,
+    commandBufferCount: u32,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(commandPool) = CommandPool::from_handle(commandPool) else {
+        unreachable!()
+    };
+
+    let command_buffers = pCommandBuffers
+        .map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), commandBufferCount as usize)
+        })
+        .iter()
+        .for_each(|&handle| CommandBuffer::drop_handle(handle));
 }
 
 pub unsafe extern "C" fn vkBeginCommandBuffer(
