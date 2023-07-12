@@ -45,6 +45,7 @@ pub struct Context {
     render_passes: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::RenderPass>>>,
     shader_modules: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::ShaderModule>>>,
     pipeline_caches: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::PipelineCache>>>,
+    pipelines: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::Pipeline>>>,
 }
 
 impl Context {

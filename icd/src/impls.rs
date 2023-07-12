@@ -1154,26 +1154,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceVideoFormatPropertiesKHR(
     )
 }
 
-pub unsafe extern "C" fn vkCreateGraphicsPipelines(
-    device: VkDevice,
-    pipelineCache: VkPipelineCache,
-    createInfoCount: u32,
-    pCreateInfos: Option<NonNull<VkGraphicsPipelineCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pPipelines: Option<NonNull<VkPipeline>>,
-) -> VkResult {
-    unimplemented!(
-        "vkCreateGraphicsPipelines(
-        device,
-        pipelineCache,
-        createInfoCount,
-        pCreateInfos,
-        pAllocator,
-        pPipelines,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceDisplayPlanePropertiesKHR(
     physicalDevice: VkPhysicalDevice,
     pPropertyCount: Option<NonNull<u32>>,
@@ -1592,14 +1572,6 @@ pub unsafe extern "C" fn vkCmdSetStencilReference(
     reference: u32,
 ) {
     unimplemented!("vkCmdSetStencilReference(commandBuffer, faceMask, reference")
-}
-
-pub unsafe extern "C" fn vkDestroyPipeline(
-    device: VkDevice,
-    pipeline: VkPipeline,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyPipeline(device, pipeline, pAllocator")
 }
 
 pub unsafe extern "C" fn vkCmdCopyBuffer(

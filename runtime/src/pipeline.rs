@@ -202,3 +202,74 @@ impl NonDispatchable for PipelineCache {
         self.handle
     }
 }
+
+#[derive(Debug)]
+pub struct Pipeline {
+    handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+    pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
+}
+
+impl Pipeline {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
+        flags: VkDescriptorSetLayoutCreateFlags,
+        stages: &[VkPipelineShaderStageCreateInfo],
+        state: GraphicsPipelineStateCreateInfo,
+    ) -> VkNonDispatchableHandle {
+        info!("new Pipeline");
+        let handle = VK_NULL_HANDLE;
+
+        let _ = flags;
+        let _ = stages;
+        let _ = state.vertex_input_state;
+        let _ = state.input_assembly_state;
+        assert!(state.tessellation_state.is_none());
+        let _ = state.viewport_state;
+        let _ = state.rasterization_state;
+        let _ = state.multisample_state;
+        let _ = state.depth_stencil_state;
+        let _ = state.color_blend_state;
+        let _ = state.dynamic_state;
+
+        let object = Self {
+            handle,
+            logical_device,
+            pipeline_cache,
+        };
+        object.register_object()
+    }
+}
+
+impl NonDispatchable for Pipeline {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.pipelines
+    }
+
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.pipelines
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
+    }
+}
+
+pub struct GraphicsPipelineStateCreateInfo<'a> {
+    pub vertex_input_state: Option<&'a VkPipelineVertexInputStateCreateInfo>,
+    pub input_assembly_state: Option<&'a VkPipelineInputAssemblyStateCreateInfo>,
+    pub tessellation_state: Option<&'a VkPipelineTessellationStateCreateInfo>,
+    pub viewport_state: Option<&'a VkPipelineViewportStateCreateInfo>,
+    pub rasterization_state: Option<&'a VkPipelineRasterizationStateCreateInfo>,
+    pub multisample_state: Option<&'a VkPipelineMultisampleStateCreateInfo>,
+    pub depth_stencil_state: Option<&'a VkPipelineDepthStencilStateCreateInfo>,
+    pub color_blend_state: Option<&'a VkPipelineColorBlendStateCreateInfo>,
+    pub dynamic_state: Option<&'a VkPipelineDynamicStateCreateInfo>,
+}

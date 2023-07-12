@@ -192,3 +192,76 @@ pub unsafe extern "C" fn vkDestroyPipelineCache(
 
     PipelineCache::drop_handle(pipelineCache);
 }
+
+pub unsafe extern "C" fn vkCreateGraphicsPipelines(
+    device: VkDevice,
+    pipelineCache: VkPipelineCache,
+    createInfoCount: u32,
+    pCreateInfos: Option<NonNull<VkGraphicsPipelineCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pPipelines: Option<NonNull<VkPipeline>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let pipelineCache = PipelineCache::from_handle(pipelineCache);
+
+    let _ = pAllocator;
+
+    let Some(pPipelines) = pPipelines else {
+        unreachable!()
+    };
+    let pipelines = std::slice::from_raw_parts_mut(pPipelines.as_ptr(), createInfoCount as usize);
+
+    let Some(pCreateInfos) = pCreateInfos else {
+        unreachable!()
+    };
+    let create_infos = std::slice::from_raw_parts(pCreateInfos.as_ptr(), createInfoCount as usize);
+
+    for (create_info, pipeline) in std::iter::zip(create_infos, pipelines) {
+        let stages = create_info
+            .pStages
+            .map_or(&[] as &[VkPipelineShaderStageCreateInfo], |x| {
+                std::slice::from_raw_parts(
+                    x.as_ptr() as *mut VkPipelineShaderStageCreateInfo,
+                    create_info.stageCount as usize,
+                )
+            });
+        let state = GraphicsPipelineStateCreateInfo {
+            vertex_input_state: create_info.pVertexInputState.map(|x| x.as_ref()),
+            input_assembly_state: create_info.pInputAssemblyState.map(|x| x.as_ref()),
+            tessellation_state: create_info.pTessellationState.map(|x| x.as_ref()),
+            viewport_state: create_info.pViewportState.map(|x| x.as_ref()),
+            rasterization_state: create_info.pRasterizationState.map(|x| x.as_ref()),
+            multisample_state: create_info.pMultisampleState.map(|x| x.as_ref()),
+            depth_stencil_state: create_info.pDepthStencilState.map(|x| x.as_ref()),
+            color_blend_state: create_info.pColorBlendState.map(|x| x.as_ref()),
+            dynamic_state: create_info.pDynamicState.map(|x| x.as_ref()),
+        };
+
+        *pipeline = Pipeline::create(
+            device.clone(),
+            pipelineCache.clone(),
+            create_info.flags,
+            stages,
+            state,
+        );
+    }
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyPipeline(
+    device: VkDevice,
+    pipeline: VkPipeline,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    Pipeline::drop_handle(pipeline);
+}
