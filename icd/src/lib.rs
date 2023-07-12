@@ -2,6 +2,7 @@
 
 mod buffer;
 mod command_buffer;
+mod descriptor;
 mod image;
 mod impls;
 mod memory;

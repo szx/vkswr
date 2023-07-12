@@ -4,6 +4,7 @@
 
 use crate::buffer::*;
 use crate::command_buffer::*;
+use crate::descriptor::*;
 use crate::image::*;
 use crate::memory::*;
 use crate::sampler::*;
@@ -3108,14 +3109,6 @@ pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements2(
     )
 }
 
-pub unsafe extern "C" fn vkDestroyDescriptorSetLayout(
-    device: VkDevice,
-    descriptorSetLayout: VkDescriptorSetLayout,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyDescriptorSetLayout(device, descriptorSetLayout, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCmdBindDescriptorSets(
     commandBuffer: VkCommandBuffer,
     pipelineBindPoint: VkPipelineBindPoint,
@@ -3727,15 +3720,6 @@ pub unsafe extern "C" fn vkCmdSetLineStippleEnableEXT(
     stippledLineEnable: VkBool32,
 ) {
     unimplemented!("vkCmdSetLineStippleEnableEXT(commandBuffer, stippledLineEnable")
-}
-
-pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkDescriptorSetLayoutCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pSetLayout: Option<NonNull<VkDescriptorSetLayout>>,
-) -> VkResult {
-    unimplemented!("vkCreateDescriptorSetLayout(device, pCreateInfo, pAllocator, pSetLayout")
 }
 
 pub unsafe extern "C" fn vkDestroyCuModuleNVX(
