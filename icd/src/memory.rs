@@ -55,7 +55,7 @@ pub unsafe extern "C" fn vkMapMemory(
     offset: VkDeviceSize,
     size: VkDeviceSize,
     flags: VkMemoryMapFlags,
-    ppData: Option<NonNull<NonNull<std::ffi::c_void>>>, // HIRO: other ppData
+    ppData: Option<NonNull<NonNull<std::ffi::c_void>>>,
 ) -> VkResult {
     let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()

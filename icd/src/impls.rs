@@ -3435,34 +3435,6 @@ pub unsafe extern "C" fn vkCmdSetEvent2(
     unimplemented!("vkCmdSetEvent2(commandBuffer, event, pDependencyInfo")
 }
 
-pub unsafe extern "C" fn vkCmdPipelineBarrier(
-    commandBuffer: VkCommandBuffer,
-    srcStageMask: VkPipelineStageFlags,
-    dstStageMask: VkPipelineStageFlags,
-    dependencyFlags: VkDependencyFlags,
-    memoryBarrierCount: u32,
-    pMemoryBarriers: Option<NonNull<VkMemoryBarrier>>,
-    bufferMemoryBarrierCount: u32,
-    pBufferMemoryBarriers: Option<NonNull<VkBufferMemoryBarrier>>,
-    imageMemoryBarrierCount: u32,
-    pImageMemoryBarriers: Option<NonNull<VkImageMemoryBarrier>>,
-) {
-    unimplemented!(
-        "vkCmdPipelineBarrier(
-        commandBuffer,
-        srcStageMask,
-        dstStageMask,
-        dependencyFlags,
-        memoryBarrierCount,
-        pMemoryBarriers,
-        bufferMemoryBarrierCount,
-        pBufferMemoryBarriers,
-        imageMemoryBarrierCount,
-        pImageMemoryBarriers,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkCopyAccelerationStructureKHR(
     device: VkDevice,
     deferredOperation: VkDeferredOperationKHR,

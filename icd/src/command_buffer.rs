@@ -79,3 +79,32 @@ pub unsafe extern "C" fn vkBeginCommandBuffer(
 
     VkResult::VK_SUCCESS
 }
+
+pub unsafe extern "C" fn vkCmdPipelineBarrier(
+    commandBuffer: VkCommandBuffer,
+    srcStageMask: VkPipelineStageFlags,
+    dstStageMask: VkPipelineStageFlags,
+    dependencyFlags: VkDependencyFlags,
+    memoryBarrierCount: u32,
+    pMemoryBarriers: Option<NonNull<VkMemoryBarrier>>,
+    bufferMemoryBarrierCount: u32,
+    pBufferMemoryBarriers: Option<NonNull<VkBufferMemoryBarrier>>,
+    imageMemoryBarrierCount: u32,
+    pImageMemoryBarriers: Option<NonNull<VkImageMemoryBarrier>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let _ = srcStageMask;
+    let _ = dstStageMask;
+    let _ = dependencyFlags;
+    let _ = memoryBarrierCount;
+    let _ = pMemoryBarriers;
+    let _ = bufferMemoryBarrierCount;
+    let _ = pBufferMemoryBarriers;
+    let _ = imageMemoryBarrierCount;
+    let _ = pImageMemoryBarriers;
+
+    commandBuffer.lock().cmd_pipeline_barrier();
+}

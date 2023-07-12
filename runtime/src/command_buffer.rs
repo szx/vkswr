@@ -83,7 +83,13 @@ impl CommandBuffer {
     }
 
     pub fn begin(&mut self) {
+        trace!("CommandBuffer::begin");
         // TODO: Start recording command buffer.
+    }
+
+    pub fn cmd_pipeline_barrier(&mut self) {
+        trace!("CommandBuffer::cmd_pipeline_barrier");
+        // TODO: Record pipeline barrier.
     }
 }
 

@@ -65,7 +65,7 @@ impl Image {
             VkSubresourceLayout {
                 offset: 0,
                 size: self.size_in_bytes(),
-                rowPitch: self.width as u64 * self.format.bytes_per_pixel() as u64, // HIRO: Take from format?
+                rowPitch: self.width as u64 * self.format.bytes_per_pixel() as u64,
                 arrayPitch: 0,
                 depthPitch: 0,
             }
@@ -75,7 +75,6 @@ impl Image {
     }
 
     pub fn bind_memory(&mut self, memory: Arc<Mutex<DeviceMemory>>, offset: u64) -> VkResult {
-        // HIRO
         self.binding = Some(MemoryBinding(memory, offset));
         VkResult::VK_SUCCESS
     }
