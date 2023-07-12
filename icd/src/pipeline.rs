@@ -50,3 +50,58 @@ pub unsafe extern "C" fn vkDestroyPipelineLayout(
 
     PipelineLayout::drop_handle(pipelineLayout);
 }
+
+pub unsafe extern "C" fn vkCreateRenderPass(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkRenderPassCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pRenderPass: Option<NonNull<VkRenderPass>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let attachments = create_info
+        .pAttachments
+        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.attachmentCount as usize));
+    let dependencies = create_info
+        .pDependencies
+        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.dependencyCount as usize));
+    let subpasses = create_info
+        .pSubpasses
+        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.subpassCount as usize));
+
+    let _ = pAllocator;
+
+    let Some(pRenderPass) = pRenderPass else {
+        unreachable!()
+    };
+
+    *pRenderPass.as_ptr() = RenderPass::create(
+        device,
+        create_info.flags,
+        attachments,
+        dependencies,
+        subpasses,
+    );
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyRenderPass(
+    device: VkDevice,
+    renderPass: VkRenderPass,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    RenderPass::drop_handle(renderPass);
+}

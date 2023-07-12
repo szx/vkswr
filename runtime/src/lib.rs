@@ -42,6 +42,7 @@ pub struct Context {
     descriptor_set_layouts:
         HashMap<VkNonDispatchableHandle, Arc<Mutex<descriptor::DescriptorSetLayout>>>,
     pipeline_layouts: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::PipelineLayout>>>,
+    render_passes: HashMap<VkNonDispatchableHandle, Arc<Mutex<pipeline::RenderPass>>>,
 }
 
 impl Context {

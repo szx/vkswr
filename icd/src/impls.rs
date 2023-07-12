@@ -2034,14 +2034,6 @@ pub unsafe extern "C" fn vkAcquirePerformanceConfigurationINTEL(
     unimplemented!("vkAcquirePerformanceConfigurationINTEL(device, pAcquireInfo, pConfiguration")
 }
 
-pub unsafe extern "C" fn vkDestroyRenderPass(
-    device: VkDevice,
-    renderPass: VkRenderPass,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyRenderPass(device, renderPass, pAllocator")
-}
-
 pub unsafe extern "C" fn vkCreateMicromapEXT(
     device: VkDevice,
     pCreateInfo: Option<NonNull<VkMicromapCreateInfoEXT>>,
@@ -5588,15 +5580,6 @@ pub unsafe extern "C" fn vkGetQueryPoolResults(
         device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags,
     "
     )
-}
-
-pub unsafe extern "C" fn vkCreateRenderPass(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkRenderPassCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pRenderPass: Option<NonNull<VkRenderPass>>,
-) -> VkResult {
-    unimplemented!("vkCreateRenderPass(device, pCreateInfo, pAllocator, pRenderPass")
 }
 
 pub unsafe extern "C" fn vkGetDeviceFaultInfoEXT(
