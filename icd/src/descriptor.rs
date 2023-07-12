@@ -93,3 +93,93 @@ pub unsafe extern "C" fn vkDestroyDescriptorPool(
 
     DescriptorPool::drop_handle(descriptorPool);
 }
+
+pub unsafe extern "C" fn vkAllocateDescriptorSets(
+    device: VkDevice,
+    pAllocateInfo: Option<NonNull<VkDescriptorSetAllocateInfo>>,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pAllocateInfo) = pAllocateInfo else {
+        unreachable!()
+    };
+    let allocate_info = pAllocateInfo.as_ref();
+    let Some(descriptorPool) = DescriptorPool::from_handle(allocate_info.descriptorPool) else {
+        unreachable!()
+    };
+    let Some(pSetLayouts) = allocate_info.pSetLayouts else {
+        unreachable!()
+    };
+    let set_layouts = std::slice::from_raw_parts(
+        pSetLayouts.as_ptr(),
+        allocate_info.descriptorSetCount as usize,
+    );
+    let Some(pDescriptorSets) = pDescriptorSets else {
+        unreachable!()
+    };
+    let descriptor_sets = std::slice::from_raw_parts_mut(
+        pDescriptorSets.as_ptr(),
+        allocate_info.descriptorSetCount as usize,
+    );
+
+    for (set_layout, descriptor_set) in std::iter::zip(set_layouts, descriptor_sets) {
+        *descriptor_set = DescriptorSet::create(device.clone(), descriptorPool.clone(), set_layout);
+    }
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkFreeDescriptorSets(
+    device: VkDevice,
+    descriptorPool: VkDescriptorPool,
+    descriptorSetCount: u32,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(descriptorPool) = DescriptorPool::from_handle(descriptorPool) else {
+        unreachable!()
+    };
+
+    let Some(pDescriptorSets) = pDescriptorSets else {
+        unreachable!()
+    };
+    let descriptor_sets =
+        std::slice::from_raw_parts(pDescriptorSets.as_ptr(), descriptorSetCount as usize);
+
+    for descriptor_set in descriptor_sets {
+        DescriptorSet::drop_handle(*descriptor_set);
+        // TODO: Remove from DescriptorPool in DescriptorSet::drop().
+    }
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkUpdateDescriptorSets(
+    device: VkDevice,
+    descriptorWriteCount: u32,
+    pDescriptorWrites: Option<NonNull<VkWriteDescriptorSet>>,
+    descriptorCopyCount: u32,
+    pDescriptorCopies: Option<NonNull<VkCopyDescriptorSet>>,
+) {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+    let descriptor_writes = pDescriptorWrites
+        .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorWriteCount as usize));
+    let descriptor_copies = pDescriptorCopies
+        .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorCopyCount as usize));
+
+    descriptor_writes.map(|descriptor_write| {
+        // TODO: Descriptor write.
+    });
+
+    descriptor_copies.map(|descriptor_copy| {
+        // TODO: Descriptor write.
+    });
+}

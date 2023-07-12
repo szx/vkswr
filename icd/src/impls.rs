@@ -2580,17 +2580,6 @@ pub unsafe extern "C" fn vkCmdCopyMicromapEXT(
     unimplemented!("vkCmdCopyMicromapEXT(commandBuffer, pInfo")
 }
 
-pub unsafe extern "C" fn vkFreeDescriptorSets(
-    device: VkDevice,
-    descriptorPool: VkDescriptorPool,
-    descriptorSetCount: u32,
-    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
-) -> VkResult {
-    unimplemented!(
-        "vkFreeDescriptorSets(device, descriptorPool, descriptorSetCount, pDescriptorSets"
-    )
-}
-
 pub unsafe extern "C" fn vkQueueWaitIdle(queue: VkQueue) -> VkResult {
     unimplemented!("vkQueueWaitIdle(queue")
 }
@@ -3060,14 +3049,6 @@ pub unsafe extern "C" fn vkCmdSetSampleMaskEXT(
     pSampleMask: Option<NonNull<VkSampleMask>>,
 ) {
     unimplemented!("vkCmdSetSampleMaskEXT(commandBuffer, samples, pSampleMask")
-}
-
-pub unsafe extern "C" fn vkAllocateDescriptorSets(
-    device: VkDevice,
-    pAllocateInfo: Option<NonNull<VkDescriptorSetAllocateInfo>>,
-    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
-) -> VkResult {
-    unimplemented!("vkAllocateDescriptorSets(device, pAllocateInfo, pDescriptorSets")
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceXlibPresentationSupportKHR(
@@ -5802,24 +5783,6 @@ pub unsafe extern "C" fn vkCmdDecompressMemoryNV(
         commandBuffer,
         decompressRegionCount,
         pDecompressMemoryRegions,
-    "
-    )
-}
-
-pub unsafe extern "C" fn vkUpdateDescriptorSets(
-    device: VkDevice,
-    descriptorWriteCount: u32,
-    pDescriptorWrites: Option<NonNull<VkWriteDescriptorSet>>,
-    descriptorCopyCount: u32,
-    pDescriptorCopies: Option<NonNull<VkCopyDescriptorSet>>,
-) {
-    unimplemented!(
-        "vkUpdateDescriptorSets(
-        device,
-        descriptorWriteCount,
-        pDescriptorWrites,
-        descriptorCopyCount,
-        pDescriptorCopies,
     "
     )
 }

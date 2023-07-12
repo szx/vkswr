@@ -54,6 +54,7 @@ impl NonDispatchable for DescriptorSetLayout {
         self.handle
     }
 }
+
 #[derive(Debug)]
 pub struct DescriptorPool {
     handle: VkNonDispatchableHandle,
@@ -91,6 +92,53 @@ impl NonDispatchable for DescriptorPool {
         context: &mut Context,
     ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
         &mut context.descriptor_pools
+    }
+
+    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
+        self.handle = handle;
+    }
+
+    fn get_handle(&self) -> VkNonDispatchableHandle {
+        self.handle
+    }
+}
+
+#[derive(Debug)]
+pub struct DescriptorSet {
+    handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+    descriptor_pool: Arc<Mutex<DescriptorPool>>,
+}
+
+impl DescriptorSet {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        descriptor_pool: Arc<Mutex<DescriptorPool>>,
+        set_layout: &VkDescriptorSetLayout,
+    ) -> VkNonDispatchableHandle {
+        info!("new DescriptorSet");
+        let handle = VK_NULL_HANDLE;
+
+        let _ = set_layout;
+
+        let object = Self {
+            handle,
+            logical_device,
+            descriptor_pool,
+        };
+        object.register_object()
+    }
+}
+
+impl NonDispatchable for DescriptorSet {
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &context.descriptor_sets
+    }
+
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
+        &mut context.descriptor_sets
     }
 
     fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
