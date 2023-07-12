@@ -2,6 +2,7 @@
 
 use headers::vk_decls::*;
 use runtime::command_buffer::*;
+use runtime::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use runtime::*;
 
 pub unsafe extern "C" fn vkCreateCommandPool(
@@ -80,6 +81,16 @@ pub unsafe extern "C" fn vkBeginCommandBuffer(
     VkResult::VK_SUCCESS
 }
 
+pub unsafe extern "C" fn vkEndCommandBuffer(commandBuffer: VkCommandBuffer) -> VkResult {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    commandBuffer.lock().end();
+
+    VkResult::VK_SUCCESS
+}
+
 pub unsafe extern "C" fn vkCmdPipelineBarrier(
     commandBuffer: VkCommandBuffer,
     srcStageMask: VkPipelineStageFlags,
@@ -107,4 +118,151 @@ pub unsafe extern "C" fn vkCmdPipelineBarrier(
     let _ = pImageMemoryBarriers;
 
     commandBuffer.lock().cmd_pipeline_barrier();
+}
+
+pub unsafe extern "C" fn vkCmdBeginRenderPass(
+    commandBuffer: VkCommandBuffer,
+    pRenderPassBegin: Option<NonNull<VkRenderPassBeginInfo>>,
+    contents: VkSubpassContents,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(pRenderPassBegin) = pRenderPassBegin else {
+        unreachable!()
+    };
+    let render_pass_begin = pRenderPassBegin.as_ref();
+    let Some(render_pass) = RenderPass::from_handle(render_pass_begin.renderPass) else {
+        unreachable!()
+    };
+    let Some(framebuffer) = Framebuffer::from_handle(render_pass_begin.framebuffer) else {
+        unreachable!()
+    };
+    let clear_values = render_pass_begin.pClearValues.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), render_pass_begin.clearValueCount as usize)
+    });
+
+    commandBuffer.lock().cmd_begin_render_pass(
+        render_pass,
+        framebuffer,
+        render_pass_begin.renderArea,
+        clear_values,
+        contents,
+    );
+}
+
+pub unsafe extern "C" fn vkCmdEndRenderPass(commandBuffer: VkCommandBuffer) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    commandBuffer.lock().cmd_end_render_pass();
+}
+
+pub unsafe extern "C" fn vkCmdBindPipeline(
+    commandBuffer: VkCommandBuffer,
+    pipelineBindPoint: VkPipelineBindPoint,
+    pipeline: VkPipeline,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(pipeline) = Pipeline::from_handle(pipeline) else {
+        unreachable!()
+    };
+
+    commandBuffer
+        .lock()
+        .cmd_bind_pipeline(pipelineBindPoint, pipeline);
+}
+
+pub unsafe extern "C" fn vkCmdBindDescriptorSets(
+    commandBuffer: VkCommandBuffer,
+    pipelineBindPoint: VkPipelineBindPoint,
+    layout: VkPipelineLayout,
+    firstSet: u32,
+    descriptorSetCount: u32,
+    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
+    dynamicOffsetCount: u32,
+    pDynamicOffsets: Option<NonNull<u32>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(pipeline_layout) = PipelineLayout::from_handle(layout) else {
+        unreachable!()
+    };
+
+    let descriptor_sets = pDescriptorSets.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), descriptorSetCount as usize)
+    });
+
+    let dynamic_offsets = pDynamicOffsets.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), dynamicOffsetCount as usize)
+    });
+
+    commandBuffer.lock().cmd_bind_descriptor_sets(
+        pipelineBindPoint,
+        pipeline_layout,
+        firstSet,
+        descriptor_sets,
+        dynamic_offsets,
+    );
+}
+
+pub unsafe extern "C" fn vkCmdSetViewport(
+    commandBuffer: VkCommandBuffer,
+    firstViewport: u32,
+    viewportCount: u32,
+    pViewports: Option<NonNull<VkViewport>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let viewports = pViewports.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), viewportCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_set_viewport(firstViewport, viewports);
+}
+
+pub unsafe extern "C" fn vkCmdSetScissor(
+    commandBuffer: VkCommandBuffer,
+    firstScissor: u32,
+    scissorCount: u32,
+    pScissors: Option<NonNull<VkRect2D>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let scissors = pScissors.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), scissorCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_set_scissors(firstScissor, scissors);
+}
+
+pub unsafe extern "C" fn vkCmdDraw(
+    commandBuffer: VkCommandBuffer,
+    vertexCount: u32,
+    instanceCount: u32,
+    firstVertex: u32,
+    firstInstance: u32,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    commandBuffer
+        .lock()
+        .cmd_draw(vertexCount, instanceCount, firstVertex, firstInstance);
 }

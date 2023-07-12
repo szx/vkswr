@@ -1,5 +1,6 @@
 //! Image
 
+use crate::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use crate::{Context, Dispatchable, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
@@ -87,9 +88,93 @@ impl CommandBuffer {
         // TODO: Start recording command buffer.
     }
 
+    pub fn end(&mut self) {
+        trace!("CommandBuffer::end");
+        // TODO: Finish recording command buffer.
+    }
+
     pub fn cmd_pipeline_barrier(&mut self) {
         trace!("CommandBuffer::cmd_pipeline_barrier");
         // TODO: Record pipeline barrier.
+    }
+
+    pub fn cmd_begin_render_pass(
+        &mut self,
+        render_pass: Arc<Mutex<RenderPass>>,
+        framebuffer: Arc<Mutex<Framebuffer>>,
+        render_area: VkRect2D,
+        clear_values: &[VkClearValue],
+        contents: VkSubpassContents,
+    ) {
+        trace!("CommandBuffer::cmd_begin_render_pass");
+        let _ = render_pass;
+        let _ = framebuffer;
+        let _ = render_area;
+        let _ = clear_values;
+        let _ = contents;
+        // TODO: Record render pass start.
+    }
+
+    pub fn cmd_end_render_pass(&mut self) {
+        trace!("CommandBuffer::cmd_end_render_pass");
+        // TODO: Record render pass finish.
+    }
+
+    pub fn cmd_bind_pipeline(
+        &mut self,
+        bind_point: VkPipelineBindPoint,
+        pipeline: Arc<Mutex<Pipeline>>,
+    ) {
+        trace!("CommandBuffer::cmd_bind_pipeline");
+        let _ = bind_point;
+        let _ = pipeline;
+        // TODO: Record pipeline binding.
+    }
+
+    pub fn cmd_bind_descriptor_sets(
+        &mut self,
+        bind_point: VkPipelineBindPoint,
+        pipeline: Arc<Mutex<PipelineLayout>>,
+        first_set: u32,
+        descriptor_sets: &[VkDescriptorSet],
+        dynamic_offsets: &[u32],
+    ) {
+        trace!("CommandBuffer::cmd_bind_descriptor_sets");
+        let _ = bind_point;
+        let _ = pipeline;
+        let _ = first_set;
+        let _ = descriptor_sets;
+        let _ = dynamic_offsets;
+        // TODO: Record descriptor sets bindings.
+    }
+
+    pub fn cmd_set_viewport(&mut self, first_viewport: u32, viewports: &[VkViewport]) {
+        trace!("CommandBuffer::cmd_set_viewport");
+        let _ = first_viewport;
+        let _ = viewports;
+        // TODO: Record viewport dynamic state change.
+    }
+
+    pub fn cmd_set_scissors(&mut self, first_scissor: u32, scissors: &[VkRect2D]) {
+        trace!("CommandBuffer::cmd_set_scissors");
+        let _ = first_scissor;
+        let _ = scissors;
+        // TODO: Record scissors dynamic state change.
+    }
+
+    pub fn cmd_draw(
+        &mut self,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    ) {
+        trace!("CommandBuffer::cmd_draw");
+        let _ = vertex_count;
+        let _ = instance_count;
+        let _ = first_vertex;
+        let _ = first_instance;
+        // TODO: Record draw.
     }
 }
 

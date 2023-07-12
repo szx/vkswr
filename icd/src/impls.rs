@@ -1357,10 +1357,6 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCou
     )
 }
 
-pub unsafe extern "C" fn vkCmdEndRenderPass(commandBuffer: VkCommandBuffer) {
-    unimplemented!("vkCmdEndRenderPass(commandBuffer")
-}
-
 pub unsafe extern "C" fn vkGetPrivateData(
     device: VkDevice,
     objectType: VkObjectType,
@@ -2522,10 +2518,6 @@ pub unsafe extern "C" fn vkReleaseProfilingLockKHR(device: VkDevice) {
     unimplemented!("vkReleaseProfilingLockKHR(device")
 }
 
-pub unsafe extern "C" fn vkEndCommandBuffer(commandBuffer: VkCommandBuffer) -> VkResult {
-    unimplemented!("vkEndCommandBuffer(commandBuffer")
-}
-
 pub unsafe extern "C" fn vkCmdSetCoverageToColorLocationNV(
     commandBuffer: VkCommandBuffer,
     coverageToColorLocation: u32,
@@ -2548,14 +2540,6 @@ pub unsafe extern "C" fn vkGetDeviceAccelerationStructureCompatibilityKHR(
     unimplemented!(
         "vkGetDeviceAccelerationStructureCompatibilityKHR(device, pVersionInfo, pCompatibility"
     )
-}
-
-pub unsafe extern "C" fn vkCmdBindPipeline(
-    commandBuffer: VkCommandBuffer,
-    pipelineBindPoint: VkPipelineBindPoint,
-    pipeline: VkPipeline,
-) {
-    unimplemented!("vkCmdBindPipeline(commandBuffer, pipelineBindPoint, pipeline")
 }
 
 pub unsafe extern "C" fn vkGetImageDrmFormatModifierPropertiesEXT(
@@ -2994,30 +2978,6 @@ pub unsafe extern "C" fn vkGetImageSparseMemoryRequirements2(
     )
 }
 
-pub unsafe extern "C" fn vkCmdBindDescriptorSets(
-    commandBuffer: VkCommandBuffer,
-    pipelineBindPoint: VkPipelineBindPoint,
-    layout: VkPipelineLayout,
-    firstSet: u32,
-    descriptorSetCount: u32,
-    pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
-    dynamicOffsetCount: u32,
-    pDynamicOffsets: Option<NonNull<u32>>,
-) {
-    unimplemented!(
-        "vkCmdBindDescriptorSets(
-        commandBuffer,
-        pipelineBindPoint,
-        layout,
-        firstSet,
-        descriptorSetCount,
-        pDescriptorSets,
-        dynamicOffsetCount,
-        pDynamicOffsets,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
     physicalDevice: VkPhysicalDevice,
     pOpticalFlowImageFormatInfo: Option<NonNull<VkOpticalFlowImageFormatInfoNV>>,
@@ -3032,15 +2992,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
         pImageFormatProperties,
     "
     )
-}
-
-pub unsafe extern "C" fn vkCmdSetViewport(
-    commandBuffer: VkCommandBuffer,
-    firstViewport: u32,
-    viewportCount: u32,
-    pViewports: Option<NonNull<VkViewport>>,
-) {
-    unimplemented!("vkCmdSetViewport(commandBuffer, firstViewport, viewportCount, pViewports")
 }
 
 pub unsafe extern "C" fn vkCmdSetSampleMaskEXT(
@@ -4121,24 +4072,6 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceVideoCapabilitiesKHR(
     )
 }
 
-pub unsafe extern "C" fn vkCmdDraw(
-    commandBuffer: VkCommandBuffer,
-    vertexCount: u32,
-    instanceCount: u32,
-    firstVertex: u32,
-    firstInstance: u32,
-) {
-    unimplemented!(
-        "vkCmdDraw(
-        commandBuffer,
-        vertexCount,
-        instanceCount,
-        firstVertex,
-        firstInstance,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkDestroyFence(
     device: VkDevice,
     fence: VkFence,
@@ -4454,15 +4387,6 @@ pub unsafe extern "C" fn vkCmdSetColorBlendEnableEXT(
         pColorBlendEnables,
     "
     )
-}
-
-pub unsafe extern "C" fn vkCmdSetScissor(
-    commandBuffer: VkCommandBuffer,
-    firstScissor: u32,
-    scissorCount: u32,
-    pScissors: Option<NonNull<VkRect2D>>,
-) {
-    unimplemented!("vkCmdSetScissor(commandBuffer, firstScissor, scissorCount, pScissors")
 }
 
 pub unsafe extern "C" fn vkGetDisplayModeProperties2KHR(
@@ -5887,14 +5811,6 @@ pub unsafe extern "C" fn vkCmdSetPolygonModeEXT(
     polygonMode: VkPolygonMode,
 ) {
     unimplemented!("vkCmdSetPolygonModeEXT(commandBuffer, polygonMode")
-}
-
-pub unsafe extern "C" fn vkCmdBeginRenderPass(
-    commandBuffer: VkCommandBuffer,
-    pRenderPassBegin: Option<NonNull<VkRenderPassBeginInfo>>,
-    contents: VkSubpassContents,
-) {
-    unimplemented!("vkCmdBeginRenderPass(commandBuffer, pRenderPassBegin, contents")
 }
 
 pub unsafe extern "C" fn vkCmdCopyAccelerationStructureKHR(
