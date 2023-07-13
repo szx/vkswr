@@ -1,6 +1,8 @@
 //! VkSampler device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::logical_device::LogicalDevice;
 use runtime::sampler::*;
 use runtime::*;
 
@@ -35,7 +37,7 @@ pub unsafe extern "C" fn vkDestroySampler(
     sampler: VkSampler,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 

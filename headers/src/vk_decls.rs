@@ -68,7 +68,7 @@ include!(concat!(env!("OUT_DIR"), "/codegen_vk_decls.rs"));
 macro_rules! c_char_array {
     ($const_name:ident, $len_name:ident, $str:literal) => {
         lazy_static! {
-            static ref $const_name: [c_char; $len_name as usize] = {
+            static ref $const_name: [std::ffi::c_char; $len_name as usize] = {
                 let mut s: [u8; $len_name as usize] = [0; $len_name as usize];
                 let str = $str;
                 s[..str.len()].copy_from_slice(str.as_bytes());

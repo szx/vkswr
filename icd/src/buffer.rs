@@ -2,6 +2,8 @@
 
 use headers::vk_decls::*;
 use runtime::buffer::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::logical_device::LogicalDevice;
 use runtime::memory::DeviceMemory;
 use runtime::*;
 

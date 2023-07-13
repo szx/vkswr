@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 log = { workspace = true }
 xcb = { workspace = true }
+lazy_static = { workspace = true }
 
 [build-dependencies]
 codegen = { path = "../codegen" }

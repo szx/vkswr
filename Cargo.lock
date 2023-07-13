@@ -196,6 +196,7 @@ name = "headers"
 version = "0.1.0"
 dependencies = [
  "codegen",
+ "lazy_static",
  "log",
  "xcb",
 ]

@@ -1,17 +1,17 @@
 //! Image
 
+use crate::context::NonDispatchable;
+use crate::logical_device::LogicalDevice;
 use crate::memory::{DeviceMemory, MemoryBinding};
-use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Image {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     format: VkFormat,
     width: u32,
@@ -80,31 +80,9 @@ impl Image {
     }
 }
 
-impl NonDispatchable for Image {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.images
-    }
-
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.images
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct ImageView {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     image: Arc<Mutex<Image>>,
 }
@@ -127,25 +105,5 @@ impl ImageView {
             image,
         };
         object.register_object()
-    }
-}
-
-impl NonDispatchable for ImageView {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.image_views
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.image_views
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }

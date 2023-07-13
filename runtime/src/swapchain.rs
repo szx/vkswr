@@ -1,7 +1,10 @@
 //! Swapchain
 
+use crate::context::NonDispatchable;
+use crate::fence::Fence;
 use crate::image::*;
-use crate::{Context, Fence, LogicalDevice, NonDispatchable, Semaphore};
+use crate::logical_device::LogicalDevice;
+use crate::semaphore::Semaphore;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -10,7 +13,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 pub struct Swapchain {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkSwapchainCreateFlagsKHR,
     surface: VkSurfaceKHR,
@@ -85,28 +88,6 @@ impl Swapchain {
         let _ = semaphore;
         let _ = fence;
         0
-    }
-}
-
-impl NonDispatchable for Swapchain {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.swapchains
-    }
-
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.swapchains
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }
 

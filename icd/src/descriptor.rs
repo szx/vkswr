@@ -1,7 +1,9 @@
 //! VkDescriptorSets device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::descriptor::*;
+use runtime::logical_device::LogicalDevice;
 use runtime::*;
 
 pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
@@ -39,7 +41,7 @@ pub unsafe extern "C" fn vkDestroyDescriptorSetLayout(
     descriptorSetLayout: VkDescriptorSetLayout,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -85,7 +87,7 @@ pub unsafe extern "C" fn vkDestroyDescriptorPool(
     descriptorPool: VkDescriptorPool,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -138,11 +140,11 @@ pub unsafe extern "C" fn vkFreeDescriptorSets(
     descriptorSetCount: u32,
     pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
-    let Some(descriptorPool) = DescriptorPool::from_handle(descriptorPool) else {
+    let Some(_descriptorPool) = DescriptorPool::from_handle(descriptorPool) else {
         unreachable!()
     };
 
@@ -167,7 +169,7 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
     descriptorCopyCount: u32,
     pDescriptorCopies: Option<NonNull<VkCopyDescriptorSet>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
     let descriptor_writes = pDescriptorWrites

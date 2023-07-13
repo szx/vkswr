@@ -1,7 +1,9 @@
 //! VkImage device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::*;
+use runtime::logical_device::LogicalDevice;
 use runtime::memory::DeviceMemory;
 use runtime::*;
 use std::ops::Deref;
@@ -35,7 +37,7 @@ pub unsafe extern "C" fn vkDestroyImageView(
     imageView: VkImageView,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -80,7 +82,7 @@ pub unsafe extern "C" fn vkDestroyImage(
     image: VkImage,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -94,7 +96,7 @@ pub unsafe extern "C" fn vkGetImageMemoryRequirements(
     image: VkImage,
     pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -115,7 +117,7 @@ pub unsafe extern "C" fn vkGetImageSubresourceLayout(
     pSubresource: Option<NonNull<VkImageSubresource>>,
     pLayout: Option<NonNull<VkSubresourceLayout>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -141,7 +143,7 @@ pub unsafe extern "C" fn vkBindImageMemory(
     memory: VkDeviceMemory,
     memoryOffset: VkDeviceSize,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 

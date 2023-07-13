@@ -1,7 +1,12 @@
 //! VK_KHR_swapchain extension device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::fence::Fence;
 use runtime::image::Image;
+use runtime::logical_device::LogicalDevice;
+use runtime::queue::Queue;
+use runtime::semaphore::Semaphore;
 use runtime::swapchain::*;
 use runtime::*;
 

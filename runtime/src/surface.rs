@@ -1,6 +1,7 @@
 //! XCB surface
 
-use crate::{Context, Instance, NonDispatchable};
+use crate::context::NonDispatchable;
+use crate::instance::Instance;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -11,7 +12,7 @@ use std::sync::Arc;
 use xcb;
 
 pub struct Surface {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     instance: Arc<Mutex<Instance>>,
     flags: VkXcbSurfaceCreateFlagsKHR,
     connection: ManuallyDrop<xcb::Connection>,
@@ -41,28 +42,6 @@ impl Surface {
             window,
         };
         surface.register_object()
-    }
-}
-
-impl NonDispatchable for Surface {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.surfaces
-    }
-
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.surfaces
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }
 

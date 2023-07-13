@@ -1,17 +1,16 @@
 //! Device memory
 
-use crate::{Context, LogicalDevice, NonDispatchable};
+use crate::context::NonDispatchable;
+use crate::logical_device::LogicalDevice;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
-use std::ffi::c_void;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct DeviceMemory {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     data: Vec<u8>,
     state: DeviceMemoryState,
@@ -42,12 +41,27 @@ impl DeviceMemory {
         object.register_object()
     }
 
-    pub fn map_host(&mut self) -> Result<NonNull<std::ffi::c_void>, VkResult> {
+    pub fn map_host(
+        &mut self,
+        offset: usize,
+        size: usize,
+    ) -> Result<NonNull<std::ffi::c_void>, VkResult> {
         match self.state {
             DeviceMemoryState::HostMapped => Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED),
             DeviceMemoryState::HostUnmapped => unsafe {
                 self.state = DeviceMemoryState::HostMapped;
-                let ptr = NonNull::new_unchecked(self.data.as_mut_ptr() as *mut c_void);
+                if offset >= self.data.len() {
+                    return Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED);
+                }
+                let size = if size == VK_WHOLE_SIZE as usize {
+                    self.data.len()
+                } else if offset + size <= self.data.len() {
+                    size
+                } else {
+                    return Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED);
+                };
+                let ptr = self.data[offset..size].as_mut_ptr();
+                let ptr = NonNull::new_unchecked(ptr as *mut std::ffi::c_void);
                 Ok(ptr)
             },
         }
@@ -62,26 +76,6 @@ impl DeviceMemory {
                 self.state = DeviceMemoryState::HostMapped;
             }
         }
-    }
-}
-
-impl NonDispatchable for DeviceMemory {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.device_memories
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.device_memories
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }
 

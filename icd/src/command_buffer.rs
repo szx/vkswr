@@ -2,6 +2,8 @@
 
 use headers::vk_decls::*;
 use runtime::command_buffer::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::logical_device::LogicalDevice;
 use runtime::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use runtime::*;
 
@@ -36,7 +38,7 @@ pub unsafe extern "C" fn vkDestroyCommandPool(
     commandPool: VkCommandPool,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -50,7 +52,7 @@ pub unsafe extern "C" fn vkAllocateCommandBuffers(
     pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
     pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -83,15 +85,15 @@ pub unsafe extern "C" fn vkFreeCommandBuffers(
     commandBufferCount: u32,
     pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
-    let Some(commandPool) = CommandPool::from_handle(commandPool) else {
+    let Some(_commandPool) = CommandPool::from_handle(commandPool) else {
         unreachable!()
     };
 
-    let command_buffers = pCommandBuffers
+    pCommandBuffers
         .map_or(&[] as &[_], |x| {
             std::slice::from_raw_parts(x.as_ptr(), commandBufferCount as usize)
         })

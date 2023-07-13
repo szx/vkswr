@@ -1,7 +1,9 @@
 //! VkPipeline device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::ImageView;
+use runtime::logical_device::LogicalDevice;
 use runtime::pipeline::*;
 use runtime::*;
 
@@ -43,7 +45,7 @@ pub unsafe extern "C" fn vkDestroyPipelineLayout(
     pipelineLayout: VkPipelineLayout,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -98,7 +100,7 @@ pub unsafe extern "C" fn vkDestroyRenderPass(
     renderPass: VkRenderPass,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -142,7 +144,7 @@ pub unsafe extern "C" fn vkDestroyShaderModule(
     shaderModule: VkShaderModule,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -185,7 +187,7 @@ pub unsafe extern "C" fn vkDestroyPipelineCache(
     pipelineCache: VkPipelineCache,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -224,10 +226,7 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
         let stages = create_info
             .pStages
             .map_or(&[] as &[VkPipelineShaderStageCreateInfo], |x| {
-                std::slice::from_raw_parts(
-                    x.as_ptr() as *mut VkPipelineShaderStageCreateInfo,
-                    create_info.stageCount as usize,
-                )
+                std::slice::from_raw_parts(x.as_ptr(), create_info.stageCount as usize)
             });
         let state = GraphicsPipelineStateCreateInfo {
             vertex_input_state: create_info.pVertexInputState.map(|x| x.as_ref()),
@@ -258,7 +257,7 @@ pub unsafe extern "C" fn vkDestroyPipeline(
     pipeline: VkPipeline,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -317,7 +316,7 @@ pub unsafe extern "C" fn vkDestroyFramebuffer(
     framebuffer: VkFramebuffer,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 

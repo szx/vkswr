@@ -1,8 +1,9 @@
 //! Pipeline
 
+use crate::context::NonDispatchable;
 use crate::image::ImageView;
+use crate::logical_device::LogicalDevice;
 use crate::memory::{DeviceMemory, MemoryBinding};
-use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -12,7 +13,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PipelineLayout {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -38,29 +39,9 @@ impl PipelineLayout {
     }
 }
 
-impl NonDispatchable for PipelineLayout {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.pipeline_layouts
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.pipeline_layouts
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct RenderPass {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -88,29 +69,9 @@ impl RenderPass {
     }
 }
 
-impl NonDispatchable for RenderPass {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.render_passes
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.render_passes
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct ShaderModule {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     code: Vec<u32>,
 }
@@ -136,29 +97,9 @@ impl ShaderModule {
     }
 }
 
-impl NonDispatchable for ShaderModule {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.shader_modules
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.shader_modules
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct PipelineCache {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     initial_data: Vec<u8>,
 }
@@ -184,29 +125,9 @@ impl PipelineCache {
     }
 }
 
-impl NonDispatchable for PipelineCache {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.pipeline_caches
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.pipeline_caches
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct Pipeline {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 }
@@ -243,26 +164,6 @@ impl Pipeline {
     }
 }
 
-impl NonDispatchable for Pipeline {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.pipelines
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.pipelines
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 pub struct GraphicsPipelineStateCreateInfo<'a> {
     pub vertex_input_state: Option<&'a VkPipelineVertexInputStateCreateInfo>,
     pub input_assembly_state: Option<&'a VkPipelineInputAssemblyStateCreateInfo>,
@@ -277,7 +178,7 @@ pub struct GraphicsPipelineStateCreateInfo<'a> {
 
 #[derive(Debug)]
 pub struct Framebuffer {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -306,25 +207,5 @@ impl Framebuffer {
             logical_device,
         };
         object.register_object()
-    }
-}
-
-impl NonDispatchable for Framebuffer {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.framebuffers
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.framebuffers
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }

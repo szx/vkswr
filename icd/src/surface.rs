@@ -1,6 +1,8 @@
 //! VK_KHR_surface and VK_KHR_xcb_surface extension instance commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::instance::Instance;
 use runtime::surface::*;
 use runtime::*;
 

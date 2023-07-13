@@ -1,6 +1,8 @@
 //! VkDeviceMemory device commands
 
 use headers::vk_decls::*;
+use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::logical_device::LogicalDevice;
 use runtime::memory::*;
 use runtime::*;
 use std::ffi::c_void;
@@ -40,7 +42,7 @@ pub unsafe extern "C" fn vkFreeMemory(
     memory: VkDeviceMemory,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -54,10 +56,10 @@ pub unsafe extern "C" fn vkMapMemory(
     memory: VkDeviceMemory,
     offset: VkDeviceSize,
     size: VkDeviceSize,
-    flags: VkMemoryMapFlags,
+    _flags: VkMemoryMapFlags,
     ppData: Option<NonNull<NonNull<std::ffi::c_void>>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -67,7 +69,7 @@ pub unsafe extern "C" fn vkMapMemory(
 
     let Some(pData) = ppData else { unreachable!() };
 
-    let result = match memory.lock().map_host() {
+    let result = match memory.lock().map_host(offset as usize, size as usize) {
         Ok(ptr) => {
             *pData.as_ptr() = ptr;
             VkResult::VK_SUCCESS
@@ -78,7 +80,7 @@ pub unsafe extern "C" fn vkMapMemory(
 }
 
 pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 

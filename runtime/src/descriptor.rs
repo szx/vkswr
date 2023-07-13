@@ -1,17 +1,17 @@
 //! Descriptors
 
+use crate::context::NonDispatchable;
+use crate::logical_device::LogicalDevice;
 use crate::memory::{DeviceMemory, MemoryBinding};
-use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct DescriptorSetLayout {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -35,29 +35,9 @@ impl DescriptorSetLayout {
     }
 }
 
-impl NonDispatchable for DescriptorSetLayout {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.descriptor_set_layouts
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.descriptor_set_layouts
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct DescriptorPool {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -83,29 +63,9 @@ impl DescriptorPool {
     }
 }
 
-impl NonDispatchable for DescriptorPool {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.descriptor_pools
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.descriptor_pools
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
-    }
-}
-
 #[derive(Debug)]
 pub struct DescriptorSet {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     descriptor_pool: Arc<Mutex<DescriptorPool>>,
 }
@@ -127,25 +87,5 @@ impl DescriptorSet {
             descriptor_pool,
         };
         object.register_object()
-    }
-}
-
-impl NonDispatchable for DescriptorSet {
-    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.descriptor_sets
-    }
-
-    fn get_hash_mut(
-        context: &mut Context,
-    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.descriptor_sets
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }

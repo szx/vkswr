@@ -1,7 +1,8 @@
 //! Buffer
 
+use crate::context::NonDispatchable;
+use crate::logical_device::LogicalDevice;
 use crate::memory::{DeviceMemory, MemoryBinding};
-use crate::{Context, LogicalDevice, NonDispatchable};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -11,7 +12,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Buffer {
-    handle: VkNonDispatchableHandle,
+    pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     size: VkDeviceSize,
     binding: Option<MemoryBinding>,
@@ -50,27 +51,5 @@ impl Buffer {
     pub fn bind_memory(&mut self, memory: Arc<Mutex<DeviceMemory>>, offset: u64) -> VkResult {
         self.binding = Some(MemoryBinding(memory, offset));
         VkResult::VK_SUCCESS
-    }
-}
-
-impl NonDispatchable for Buffer {
-    fn get_hash<'a>(
-        context: &'a Context,
-    ) -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &context.buffers
-    }
-
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>> {
-        &mut context.buffers
-    }
-
-    fn set_handle(&mut self, handle: VkNonDispatchableHandle) {
-        self.handle = handle;
-    }
-
-    fn get_handle(&self) -> VkNonDispatchableHandle {
-        self.handle
     }
 }
