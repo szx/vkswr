@@ -53,11 +53,12 @@ fn run_executable(
     let out = out.output()?;
     if !out.status.success() {
         eprintln!("stdout: {}", String::from_utf8_lossy(&out.stdout),);
-        //eprintln!("stderr: {}", String::from_utf8_lossy(&out.stderr),);
+        eprintln!("stderr: {}", String::from_utf8_lossy(&out.stderr),);
         assert!(false);
     }
     Ok(())
 }
+
 #[test]
 fn run_vulkaninfo() -> common::TestResult {
     run_executable("vulkaninfo", None, [])
@@ -68,8 +69,7 @@ fn run_vkcube() -> common::TestResult {
     run_executable("vkcube", None, [])
 }
 
-#[test]
-fn run_deqp_vk_api_info() -> common::TestResult {
+fn run_deqp_vk(case_name: &'static str) -> common::TestResult {
     run_executable(
         "./deqp-vk",
         std::env::var("VULKAN_CTS_PATH").ok().as_deref(),
@@ -77,7 +77,22 @@ fn run_deqp_vk_api_info() -> common::TestResult {
             "--deqp-log-images=disable",
             "--deqp-log-shader-sources=disable",
             "-n",
-            "dEQP-VK.api.info.*",
+            case_name.into(),
         ],
     )
+}
+
+#[test]
+fn run_deqp_vk_api_info() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.info.*")
+}
+
+#[test]
+fn run_deqp_vk_api_version_check_entry_points() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.version_check.entry_points")
+}
+
+#[test]
+fn run_deqp_vk_api_all() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.*")
 }
