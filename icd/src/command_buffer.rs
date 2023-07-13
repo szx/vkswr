@@ -1,8 +1,10 @@
 //! VkCommandBuffer device commands
 
 use headers::vk_decls::*;
+use runtime::buffer::Buffer;
 use runtime::command_buffer::*;
 use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::image::Image;
 use runtime::logical_device::LogicalDevice;
 use runtime::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use runtime::*;
@@ -303,4 +305,33 @@ pub unsafe extern "C" fn vkCmdDraw(
     commandBuffer
         .lock()
         .cmd_draw(vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+pub unsafe extern "C" fn vkCmdCopyBufferToImage(
+    commandBuffer: VkCommandBuffer,
+    srcBuffer: VkBuffer,
+    dstImage: VkImage,
+    dstImageLayout: VkImageLayout,
+    regionCount: u32,
+    pRegions: Option<NonNull<VkBufferImageCopy>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(srcBuffer) = Buffer::from_handle(srcBuffer) else {
+        unreachable!()
+    };
+
+    let Some(dstImage) = Image::from_handle(dstImage) else {
+        unreachable!()
+    };
+
+    let regions = pRegions.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_copy_buffer_to_image(srcBuffer, dstImage, dstImageLayout, regions);
 }

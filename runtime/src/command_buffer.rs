@@ -1,6 +1,8 @@
 //! Image
 
+use crate::buffer::Buffer;
 use crate::context::{Dispatchable, NonDispatchable};
+use crate::image::Image;
 use crate::logical_device::LogicalDevice;
 use crate::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use headers::vk_decls::*;
@@ -153,5 +155,20 @@ impl CommandBuffer {
         let _ = first_vertex;
         let _ = first_instance;
         // TODO: Record draw.
+    }
+
+    pub fn cmd_copy_buffer_to_image(
+        &mut self,
+        src_buffer: Arc<Mutex<Buffer>>,
+        dst_image: Arc<Mutex<Image>>,
+        dst_image_layout: VkImageLayout,
+        regions: &[VkBufferImageCopy],
+    ) {
+        trace!("CommandBuffer::cmd_copy_buffer_to_image");
+        let _ = src_buffer;
+        let _ = dst_image;
+        let _ = dst_image_layout;
+        let _ = regions;
+        // TODO: Record buffer to image copy.
     }
 }

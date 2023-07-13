@@ -1480,26 +1480,6 @@ pub unsafe extern "C" fn vkCmdBindDescriptorBufferEmbeddedSamplersEXT(
     unimplemented!("vkCmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer, pipelineBindPoint, layout, set")
 }
 
-pub unsafe extern "C" fn vkCmdCopyBufferToImage(
-    commandBuffer: VkCommandBuffer,
-    srcBuffer: VkBuffer,
-    dstImage: VkImage,
-    dstImageLayout: VkImageLayout,
-    regionCount: u32,
-    pRegions: Option<NonNull<VkBufferImageCopy>>,
-) {
-    unimplemented!(
-        "vkCmdCopyBufferToImage(
-        commandBuffer,
-        srcBuffer,
-        dstImage,
-        dstImageLayout,
-        regionCount,
-        pRegions,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilities2EXT(
     physicalDevice: VkPhysicalDevice,
     surface: VkSurfaceKHR,
