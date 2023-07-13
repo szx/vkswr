@@ -32,38 +32,52 @@ fn check_exported_symbols() -> common::TestResult {
     Ok(())
 }
 
-#[test]
-fn run_vulkaninfo() -> common::TestResult {
+fn run_executable(
+    executable_path: &str,
+    current_dir: Option<&str>,
+    args: impl IntoIterator<Item = &'static str>,
+) -> common::TestResult {
     let icd_json_path = common::get_icd_json_path();
-    let out = Command::new("vulkaninfo")
+    let mut out = Command::new(executable_path);
+    let mut out = out
         .env("VK_ICD_FILENAMES", icd_json_path)
         .env("VK_LOADER_DEBUG", "error,warn,debug,driver") // error,warn,info,debug,layer,driver
-        .env("RUST_LOG", "trace") // error,warn,info,debug,layer,driver
         //.env("ICD_WAIT_FOR_DEBUGGER", "true")
-        .output()?;
-    assert!(
-        out.status.success(),
-        "stdout: {},\nstderr: {}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr),
-    );
+        .env("RUST_LOG", "trace");
+    let mut out = if let Some(current_dir) = current_dir {
+        out.current_dir(std::fs::canonicalize(current_dir)?)
+    } else {
+        out
+    };
+    let mut out = out.args(args);
+    let out = out.output()?;
+    if !out.status.success() {
+        eprintln!("stdout: {}", String::from_utf8_lossy(&out.stdout),);
+        //eprintln!("stderr: {}", String::from_utf8_lossy(&out.stderr),);
+        assert!(false);
+    }
     Ok(())
+}
+#[test]
+fn run_vulkaninfo() -> common::TestResult {
+    run_executable("vulkaninfo", None, [])
 }
 
 #[test]
 fn run_vkcube() -> common::TestResult {
-    let icd_json_path = common::get_icd_json_path();
-    let out = Command::new("vkcube")
-        .env("VK_ICD_FILENAMES", icd_json_path)
-        .env("VK_LOADER_DEBUG", "error,warn,debug,driver") // error,warn,info,debug,layer,driver
-        .env("RUST_LOG", "trace") // error,warn,info,debug,layer,driver
-        //.env("ICD_WAIT_FOR_DEBUGGER", "true")
-        .output()?;
-    assert!(
-        out.status.success(),
-        "stdout: {},\nstderr: {}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr),
-    );
-    Ok(())
+    run_executable("vkcube", None, [])
+}
+
+#[test]
+fn run_deqp_vk_api_info() -> common::TestResult {
+    run_executable(
+        "./deqp-vk",
+        std::env::var("VULKAN_CTS_PATH").ok().as_deref(),
+        [
+            "--deqp-log-images=disable",
+            "--deqp-log-shader-sources=disable",
+            "-n",
+            "dEQP-VK.api.info.*",
+        ],
+    )
 }
