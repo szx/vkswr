@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use phf::phf_map;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, Writer};
 use serde::Deserialize;
@@ -733,7 +732,7 @@ impl VkFFIType {
             type_ = cap.get(1).expect("capture").as_str().into();
         }
         type_ = RE_CONST.replace_all(&type_, "").trim().into();
-        let ffi = C_TYPE_TO_FFI.get(&type_);
+        let ffi = c_type_to_ffi(&type_);
 
         if let Some(ffi) = ffi {
             type_.replace_range(.., ffi);
@@ -770,18 +769,21 @@ impl VkFFIType {
     }
 }
 
-static C_TYPE_TO_FFI: phf::Map<&'static str, &'static str> = phf_map! {
-    "uint8_t" => "u8",
-    "uint16_t" => "u16",
-    "uint32_t" => "u32",
-    "uint64_t" => "u64",
-    "size_t" => "isize",
-    "int32_t" => "i32",
-    "int64_t" => "i64",
-    "float" => "f32",
-    "char" => "std::ffi::c_char",
-    "void" => "std::ffi::c_void",
-};
+fn c_type_to_ffi(from: &str) -> Option<&'static str> {
+    match from {
+        "uint8_t" => Some("u8"),
+        "uint16_t" => Some("u16"),
+        "uint32_t" => Some("u32"),
+        "uint64_t" => Some("u64"),
+        "size_t" => Some("isize"),
+        "int32_t" => Some("i32"),
+        "int64_t" => Some("i64"),
+        "float" => Some("f32"),
+        "char" => Some("std::ffi::c_char"),
+        "void" => Some("std::ffi::c_void"),
+        _ => None,
+    }
+}
 
 // ---
 
