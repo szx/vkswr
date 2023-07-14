@@ -158,7 +158,6 @@ where
                 key: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             },
         ))));
-        dbg!(&handle);
         let object = Arc::new(Mutex::new(self));
         Self::get_hash_mut(context).insert(handle, object.clone());
         object.lock().set_handle(handle);
