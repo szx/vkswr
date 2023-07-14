@@ -262,6 +262,265 @@ impl PhysicalDevice {
         }
     }
 
+    pub const fn supports_features(&self, enabled_features: &VkPhysicalDeviceFeatures) -> bool {
+        let supported_features = self.features();
+        if enabled_features.robustBufferAccess == VK_TRUE
+            && supported_features.robustBufferAccess == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.fullDrawIndexUint32 == VK_TRUE
+            && supported_features.fullDrawIndexUint32 == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.imageCubeArray == VK_TRUE
+            && supported_features.imageCubeArray == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.independentBlend == VK_TRUE
+            && supported_features.independentBlend == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.geometryShader == VK_TRUE
+            && supported_features.geometryShader == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.tessellationShader == VK_TRUE
+            && supported_features.tessellationShader == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sampleRateShading == VK_TRUE
+            && supported_features.sampleRateShading == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.dualSrcBlend == VK_TRUE && supported_features.dualSrcBlend == VK_FALSE {
+            return false;
+        }
+        if enabled_features.logicOp == VK_TRUE && supported_features.logicOp == VK_FALSE {
+            return false;
+        }
+        if enabled_features.multiDrawIndirect == VK_TRUE
+            && supported_features.multiDrawIndirect == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.drawIndirectFirstInstance == VK_TRUE
+            && supported_features.drawIndirectFirstInstance == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.depthClamp == VK_TRUE && supported_features.depthClamp == VK_FALSE {
+            return false;
+        }
+        if enabled_features.depthBiasClamp == VK_TRUE
+            && supported_features.depthBiasClamp == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.fillModeNonSolid == VK_TRUE
+            && supported_features.fillModeNonSolid == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.depthBounds == VK_TRUE && supported_features.depthBounds == VK_FALSE {
+            return false;
+        }
+        if enabled_features.wideLines == VK_TRUE && supported_features.wideLines == VK_FALSE {
+            return false;
+        }
+        if enabled_features.largePoints == VK_TRUE && supported_features.largePoints == VK_FALSE {
+            return false;
+        }
+        if enabled_features.alphaToOne == VK_TRUE && supported_features.alphaToOne == VK_FALSE {
+            return false;
+        }
+        if enabled_features.multiViewport == VK_TRUE && supported_features.multiViewport == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.samplerAnisotropy == VK_TRUE
+            && supported_features.samplerAnisotropy == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.textureCompressionETC2 == VK_TRUE
+            && supported_features.textureCompressionETC2 == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.textureCompressionASTC_LDR == VK_TRUE
+            && supported_features.textureCompressionASTC_LDR == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.textureCompressionBC == VK_TRUE
+            && supported_features.textureCompressionBC == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.occlusionQueryPrecise == VK_TRUE
+            && supported_features.occlusionQueryPrecise == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.pipelineStatisticsQuery == VK_TRUE
+            && supported_features.pipelineStatisticsQuery == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.vertexPipelineStoresAndAtomics == VK_TRUE
+            && supported_features.vertexPipelineStoresAndAtomics == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.fragmentStoresAndAtomics == VK_TRUE
+            && supported_features.fragmentStoresAndAtomics == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderTessellationAndGeometryPointSize == VK_TRUE
+            && supported_features.shaderTessellationAndGeometryPointSize == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderImageGatherExtended == VK_TRUE
+            && supported_features.shaderImageGatherExtended == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageImageExtendedFormats == VK_TRUE
+            && supported_features.shaderStorageImageExtendedFormats == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageImageMultisample == VK_TRUE
+            && supported_features.shaderStorageImageMultisample == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageImageReadWithoutFormat == VK_TRUE
+            && supported_features.shaderStorageImageReadWithoutFormat == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageImageWriteWithoutFormat == VK_TRUE
+            && supported_features.shaderStorageImageWriteWithoutFormat == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderUniformBufferArrayDynamicIndexing == VK_TRUE
+            && supported_features.shaderUniformBufferArrayDynamicIndexing == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderSampledImageArrayDynamicIndexing == VK_TRUE
+            && supported_features.shaderSampledImageArrayDynamicIndexing == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageBufferArrayDynamicIndexing == VK_TRUE
+            && supported_features.shaderStorageBufferArrayDynamicIndexing == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderStorageImageArrayDynamicIndexing == VK_TRUE
+            && supported_features.shaderStorageImageArrayDynamicIndexing == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderClipDistance == VK_TRUE
+            && supported_features.shaderClipDistance == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderCullDistance == VK_TRUE
+            && supported_features.shaderCullDistance == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderFloat64 == VK_TRUE && supported_features.shaderFloat64 == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderInt64 == VK_TRUE && supported_features.shaderInt64 == VK_FALSE {
+            return false;
+        }
+        if enabled_features.shaderInt16 == VK_TRUE && supported_features.shaderInt16 == VK_FALSE {
+            return false;
+        }
+        if enabled_features.shaderResourceResidency == VK_TRUE
+            && supported_features.shaderResourceResidency == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.shaderResourceMinLod == VK_TRUE
+            && supported_features.shaderResourceMinLod == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseBinding == VK_TRUE && supported_features.sparseBinding == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidencyBuffer == VK_TRUE
+            && supported_features.sparseResidencyBuffer == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidencyImage2D == VK_TRUE
+            && supported_features.sparseResidencyImage2D == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidencyImage3D == VK_TRUE
+            && supported_features.sparseResidencyImage3D == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidency2Samples == VK_TRUE
+            && supported_features.sparseResidency2Samples == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidency4Samples == VK_TRUE
+            && supported_features.sparseResidency4Samples == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidency8Samples == VK_TRUE
+            && supported_features.sparseResidency8Samples == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidency16Samples == VK_TRUE
+            && supported_features.sparseResidency16Samples == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.sparseResidencyAliased == VK_TRUE
+            && supported_features.sparseResidencyAliased == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.variableMultisampleRate == VK_TRUE
+            && supported_features.variableMultisampleRate == VK_FALSE
+        {
+            return false;
+        }
+        if enabled_features.inheritedQueries == VK_TRUE
+            && supported_features.inheritedQueries == VK_FALSE
+        {
+            return false;
+        }
+        true
+    }
+
     pub fn format_properties(&self, format: VkFormat) -> VkFormatProperties {
         let unsupported = VkFormatProperties {
             linearTilingFeatures: 0,

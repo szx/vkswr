@@ -256,7 +256,13 @@ pub unsafe extern "C" fn vkCreateDevice(
     };
     let queue_create_info = queue_create_info.as_ref();
 
-    *pDevice.as_ptr() = LogicalDevice::create(physicalDevice.clone(), queue_create_info);
+    let enabled_features = create_info.pEnabledFeatures.map(|x| x.as_ref());
+
+    *pDevice.as_ptr() =
+        match LogicalDevice::create(physicalDevice, enabled_features, queue_create_info) {
+            Ok(object) => object,
+            Err(err) => return err,
+        };
     VkResult::VK_SUCCESS
 }
 

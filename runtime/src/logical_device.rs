@@ -19,25 +19,32 @@ pub struct LogicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     driver_name: &'static str,
     physical_device: Arc<Mutex<PhysicalDevice>>,
+    enabled_features: VkPhysicalDeviceFeatures,
     queue: Arc<Mutex<Queue>>,
 }
 
 impl LogicalDevice {
     pub fn create(
         physical_device: Arc<Mutex<PhysicalDevice>>,
+        enabled_features: Option<&VkPhysicalDeviceFeatures>,
         queue_create_info: &VkDeviceQueueCreateInfo,
-    ) -> VkDispatchableHandle {
+    ) -> Result<VkDispatchableHandle, VkResult> {
         info!("new LogicalDevice");
+
+        if enabled_features.is_some_and(|x| !physical_device.lock().supports_features(x)) {
+            Err(VkResult::VK_ERROR_FEATURE_NOT_PRESENT)?;
+        }
 
         let queue = Queue::create(physical_device.clone(), queue_create_info);
         let queue = Queue::from_handle(queue).unwrap();
         let logical_device = Self {
             handle: VkDispatchableHandle(None),
             driver_name: "vulkan_software_rasterizer",
-            physical_device,
+            physical_device: physical_device.clone(),
+            enabled_features: *enabled_features.unwrap_or(&physical_device.lock().features()),
             queue,
         };
-        logical_device.register_object()
+        Ok(logical_device.register_object())
     }
 }
 

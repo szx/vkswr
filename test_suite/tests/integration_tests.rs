@@ -55,7 +55,7 @@ fn run_executable(
         out.status.success(),
         "stdout: {}\n\n\nstderr: {}",
         String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr),
+        "SKIP" //String::from_utf8_lossy(&out.stderr),
     );
     Ok(())
 }
@@ -77,6 +77,7 @@ fn run_deqp_vk(case_name: &'static str) -> common::TestResult {
         [
             "--deqp-log-images=disable",
             "--deqp-log-shader-sources=disable",
+            "--deqp-terminate-on-fail=enable",
             "-n",
             case_name.into(),
         ],
@@ -102,4 +103,16 @@ fn run_deqp_vk_api_version_check_entry_points() -> common::TestResult {
 #[test]
 fn run_deqp_vk_api_device_init_create_device_basic() -> common::TestResult {
     run_deqp_vk("dEQP-VK.api.device_init.create_device.basic")
+}
+
+#[ignore] // Pass, long execution.
+#[test]
+fn run_deqp_vk_api_device_init_create_instance_device_intentional_alloc_fail_basic(
+) -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.device_init.create_instance_device_intentional_alloc_fail.basic")
+}
+
+#[test]
+fn run_deqp_vk_api_device_init_create_device_unsupported_features_core() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.device_init.create_device_unsupported_features.core")
 }
