@@ -785,6 +785,15 @@ pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
     result
 }
 
+pub unsafe extern "C" fn vkQueueWaitIdle(queue: VkQueue) -> VkResult {
+    let Some(queue) = Queue::from_handle(queue) else {
+        unreachable!()
+    };
+
+    let result = queue.lock().wait_idle();
+    result
+}
+
 /* VK_KHR_surface extension instance commands */
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -2620,10 +2629,6 @@ pub unsafe extern "C" fn vkCmdCopyMicromapEXT(
     pInfo: Option<NonNull<VkCopyMicromapInfoEXT>>,
 ) {
     unimplemented!("vkCmdCopyMicromapEXT(commandBuffer, pInfo")
-}
-
-pub unsafe extern "C" fn vkQueueWaitIdle(queue: VkQueue) -> VkResult {
-    unimplemented!("vkQueueWaitIdle(queue")
 }
 
 pub unsafe extern "C" fn vkCmdSetRepresentativeFragmentTestEnableNV(
