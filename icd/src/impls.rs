@@ -63,11 +63,11 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
 
     pPhysicalDevices.map_or_else(
         || {
-            *pPhysicalDeviceCount.as_ptr() = PhysicalDevice::physical_device_count() as u32;
+            *pPhysicalDeviceCount.as_ptr() = Instance::physical_device_count() as u32;
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            *pPhysicalDevices.as_ptr() = PhysicalDevice::get();
+            *pPhysicalDevices.as_ptr() = instance.lock().physical_device().lock().get_handle();
             VkResult::VK_SUCCESS
         },
     )

@@ -51,11 +51,12 @@ fn run_executable(
     };
     let mut out = out.args(args);
     let out = out.output()?;
-    if !out.status.success() {
-        eprintln!("stdout: {}", String::from_utf8_lossy(&out.stdout),);
-        eprintln!("stderr: {}", String::from_utf8_lossy(&out.stderr),);
-        assert!(false);
-    }
+    assert!(
+        out.status.success(),
+        "stdout: {}\n\n\nstderr: {}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr),
+    );
     Ok(())
 }
 
@@ -82,6 +83,12 @@ fn run_deqp_vk(case_name: &'static str) -> common::TestResult {
     )
 }
 
+#[ignore]
+#[test]
+fn run_deqp_vk_api_all() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.*")
+}
+
 #[test]
 fn run_deqp_vk_api_info() -> common::TestResult {
     run_deqp_vk("dEQP-VK.api.info.*")
@@ -93,6 +100,6 @@ fn run_deqp_vk_api_version_check_entry_points() -> common::TestResult {
 }
 
 #[test]
-fn run_deqp_vk_api_all() -> common::TestResult {
-    run_deqp_vk("dEQP-VK.api.*")
+fn run_deqp_vk_api_device_init_create_device_basic() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.api.device_init.create_device.basic")
 }

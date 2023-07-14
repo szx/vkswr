@@ -150,7 +150,7 @@ where
     fn register_object(self) -> VkDispatchableHandle {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
         let context = &mut context;
-        let handle = VkDispatchableHandle(NonNull::new(Box::into_raw(Box::new(
+        let handle = VkDispatchableHandle(NonNull::new(Box::leak(Box::new(
             VkDispatchableHandleInner {
                 loader_data: VkLoaderData {
                     loader_magic: VkLoaderData::LOADER_MAGIC,
@@ -158,6 +158,7 @@ where
                 key: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             },
         ))));
+        dbg!(&handle);
         let object = Arc::new(Mutex::new(self));
         Self::get_hash_mut(context).insert(handle, object.clone());
         object.lock().set_handle(handle);
@@ -179,14 +180,13 @@ where
 
 pub trait NonDispatchable<T = Self>
 where
-    Self: Sized,
+    Self: Sized + Send + Sync,
 {
-    fn get_hash<'a>(context: &'a Context)
-        -> &'a HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
+    fn get_hash(context: &Context) -> &HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
 
-    fn get_hash_mut<'a>(
-        context: &'a mut Context,
-    ) -> &'a mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
+    fn get_hash_mut(
+        context: &mut Context,
+    ) -> &mut HashMap<VkNonDispatchableHandle, Arc<Mutex<Self>>>;
 
     fn set_handle(&mut self, handle: VkNonDispatchableHandle);
     fn get_handle(&self) -> VkNonDispatchableHandle;

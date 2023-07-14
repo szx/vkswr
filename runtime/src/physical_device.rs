@@ -18,17 +18,13 @@ pub struct PhysicalDevice {
 }
 
 impl PhysicalDevice {
-    pub fn get() -> VkDispatchableHandle {
+    pub fn create() -> VkDispatchableHandle {
         info!("new PhysicalDevice");
         let physical_device = Self {
             handle: VkDispatchableHandle(None),
             physical_device_name: "vulkan_software_rasterizer physical device",
         };
         physical_device.register_object()
-    }
-
-    pub const fn physical_device_count() -> usize {
-        1
     }
 
     pub fn extension_count() -> usize {
