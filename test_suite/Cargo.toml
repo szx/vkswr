@@ -9,3 +9,7 @@ codegen = { path = "../codegen" }
 libloading = "0.8.0"
 ctor = "0.2.2"
 assert_fs = "1.0.13"
+lazy_static = { workspace = true }
+regex = "1.8.3"
+base64 = "0.21.2"
+viuer = "0.6.2"
