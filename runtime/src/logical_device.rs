@@ -9,8 +9,9 @@ use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard, RawMutex};
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::sync::Arc;
 
 /// Identifier used to associate functions with a `PhysicalDevice`.
@@ -45,6 +46,10 @@ impl LogicalDevice {
             queue,
         };
         Ok(logical_device.register_object())
+    }
+
+    pub fn physical_device(&self) -> MutexGuard<'_, PhysicalDevice> {
+        self.physical_device.lock()
     }
 }
 

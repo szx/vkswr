@@ -40,11 +40,15 @@ impl Buffer {
         object.register_object()
     }
 
-    pub const fn memory_requirements(&self) -> VkMemoryRequirements {
+    pub fn memory_requirements(&self) -> VkMemoryRequirements {
         VkMemoryRequirements {
             size: self.size,
             alignment: 1,
-            memoryTypeBits: 0, // TODO: Acquire MemoryType from PhysicalDevice..
+            memoryTypeBits: self
+                .logical_device
+                .lock()
+                .physical_device()
+                .memory_type_bits_for_buffer(),
         }
     }
 

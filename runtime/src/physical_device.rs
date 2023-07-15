@@ -182,24 +182,37 @@ impl PhysicalDevice {
     pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
         lazy_static! {
             static ref MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
-                let m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
+                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
                     [VkMemoryType {propertyFlags: 0, heapIndex: 0}; VK_MAX_MEMORY_TYPES as usize];
-                // TODO: Fill in memory types.
+                m[0] = VkMemoryType {propertyFlags :
+                    (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT).into(),
+                    heapIndex: 0};
+                m[1] = VkMemoryType {propertyFlags :
+                    (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).into(),
+                    heapIndex: 0};
                 m
             };
             static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
-                let m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
+                let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
                     [VkMemoryHeap {size: 0, flags: 0}; VK_MAX_MEMORY_HEAPS as usize];
-                // TODO: Fill in memory heaps.
+                m[0] = VkMemoryHeap {size: 0, flags: 0}; // HIRO size
                 m
             };
         }
         VkPhysicalDeviceMemoryProperties {
-            memoryTypeCount: 0,
+            memoryTypeCount: 2,
             memoryTypes: *MEMORY_TYPES,
-            memoryHeapCount: 0,
+            memoryHeapCount: 1,
             memoryHeaps: *MEMORY_HEAPS,
         }
+    }
+
+    pub const fn memory_type_bits_for_buffer(&self) -> u32 {
+        (1 << 0) | (1 << 1)
+    }
+
+    pub const fn memory_type_bits_for_image(&self) -> u32 {
+        (1 << 0) | (1 << 1)
     }
 
     pub const fn features(&self) -> VkPhysicalDeviceFeatures {
@@ -2053,6 +2066,27 @@ impl PhysicalDevice {
             VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 => unsupported,
             VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => unsupported,
             VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM => unsupported,
+            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_444_UNORM => unsupported,
+            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 => unsupported,
+            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 => unsupported,
+            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_444_UNORM => unsupported,
+            VkFormat::VK_FORMAT_A4R4G4B4_UNORM_PACK16 => unsupported,
+            VkFormat::VK_FORMAT_A4B4G4R4_UNORM_PACK16 => unsupported,
+            VkFormat::VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK => unsupported,
+            VkFormat::VK_FORMAT_R16G16_S10_5_NV => unsupported,
             VkFormat(185_u32..=1000053999_u32)
             | VkFormat(1000054008_u32..=1000155999_u32)
             | VkFormat(1000156034_u32..=u32::MAX) => unreachable!(),
@@ -2331,6 +2365,27 @@ impl PhysicalDevice {
             VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 => None,
             VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => None,
             VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM => None,
+            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_444_UNORM => None,
+            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 => None,
+            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 => None,
+            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_444_UNORM => None,
+            VkFormat::VK_FORMAT_A4R4G4B4_UNORM_PACK16 => None,
+            VkFormat::VK_FORMAT_A4B4G4R4_UNORM_PACK16 => None,
+            VkFormat::VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK => None,
+            VkFormat::VK_FORMAT_R16G16_S10_5_NV => None,
             VkFormat(185_u32..=1000053999_u32)
             | VkFormat(1000054008_u32..=1000155999_u32)
             | VkFormat(1000156034_u32..=u32::MAX) => unreachable!(),

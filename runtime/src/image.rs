@@ -49,11 +49,15 @@ impl Image {
         self.width as u64 * self.height as u64 * self.format.bytes_per_pixel() as u64
     }
 
-    pub const fn memory_requirements(&self) -> VkMemoryRequirements {
+    pub fn memory_requirements(&self) -> VkMemoryRequirements {
         VkMemoryRequirements {
             size: self.size_in_bytes(),
             alignment: 1,
-            memoryTypeBits: 0, // TODO: Acquire MemoryType from PhysicalDevice..
+            memoryTypeBits: self
+                .logical_device
+                .lock()
+                .physical_device()
+                .memory_type_bits_for_image(),
         }
     }
 
