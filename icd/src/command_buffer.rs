@@ -416,3 +416,22 @@ pub unsafe extern "C" fn vkCmdCopyBuffer(
         .lock()
         .cmd_copy_buffer_to_buffer(srcBuffer, dstBuffer, regions);
 }
+
+pub unsafe extern "C" fn vkCmdExecuteCommands(
+    commandBuffer: VkCommandBuffer,
+    commandBufferCount: u32,
+    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let command_buffers = pCommandBuffers
+        .map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), commandBufferCount as usize)
+        })
+        .iter()
+        .map(|&handle| CommandBuffer::from_handle(handle).unwrap());
+
+    commandBuffer.lock().cmd_execute_commands(command_buffers);
+}

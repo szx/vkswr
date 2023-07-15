@@ -212,4 +212,13 @@ impl CommandBuffer {
         let _ = regions;
         // TODO: Record buffer to buffer copy.
     }
+
+    pub fn cmd_execute_commands(
+        &mut self,
+        command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
+    ) {
+        trace!("CommandBuffer::cmd_execute_commands");
+        let _ = command_buffers;
+        // TODO: Record execute commands.
+    }
 }

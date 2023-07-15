@@ -1924,14 +1924,6 @@ pub unsafe extern "C" fn vkReleaseSwapchainImagesEXT(
     unimplemented!("vkReleaseSwapchainImagesEXT(device, pReleaseInfo")
 }
 
-pub unsafe extern "C" fn vkCmdExecuteCommands(
-    commandBuffer: VkCommandBuffer,
-    commandBufferCount: u32,
-    pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
-) {
-    unimplemented!("vkCmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers")
-}
-
 pub unsafe extern "C" fn vkGetDescriptorSetLayoutHostMappingInfoVALVE(
     device: VkDevice,
     pBindingReference: Option<NonNull<VkDescriptorSetBindingReferenceVALVE>>,
