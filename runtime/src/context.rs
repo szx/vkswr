@@ -32,6 +32,7 @@ pub struct Context {
     device_memories: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::memory::DeviceMemory>>>,
     samplers: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::sampler::Sampler>>>,
     buffers: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::buffer::Buffer>>>,
+    buffer_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::buffer::BufferView>>>,
     descriptor_set_layouts:
         HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::descriptor::DescriptorSetLayout>>>,
     pipeline_layouts: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::pipeline::PipelineLayout>>>,
@@ -60,6 +61,7 @@ impl_dispatchable_trait!(crate::command_buffer::CommandBuffer, command_buffers);
 impl_non_dispatchable_trait!(crate::memory::DeviceMemory, device_memories);
 impl_non_dispatchable_trait!(crate::sampler::Sampler, samplers);
 impl_non_dispatchable_trait!(crate::buffer::Buffer, buffers);
+impl_non_dispatchable_trait!(crate::buffer::BufferView, buffer_views);
 impl_non_dispatchable_trait!(
     crate::descriptor::DescriptorSetLayout,
     descriptor_set_layouts

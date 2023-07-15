@@ -57,3 +57,36 @@ impl Buffer {
         VkResult::VK_SUCCESS
     }
 }
+
+#[derive(Debug)]
+pub struct BufferView {
+    pub(crate) handle: VkNonDispatchableHandle,
+    logical_device: Arc<Mutex<LogicalDevice>>,
+    buffer: Arc<Mutex<Buffer>>,
+    format: VkFormat,
+    size: VkDeviceSize,
+    offset: VkDeviceSize,
+}
+
+impl BufferView {
+    pub fn create(
+        logical_device: Arc<Mutex<LogicalDevice>>,
+        buffer: Arc<Mutex<Buffer>>,
+        format: VkFormat,
+        size: VkDeviceSize,
+        offset: VkDeviceSize,
+    ) -> VkNonDispatchableHandle {
+        info!("new BufferView");
+        let handle = VK_NULL_HANDLE;
+
+        let object = Self {
+            handle,
+            logical_device,
+            buffer,
+            format,
+            size,
+            offset,
+        };
+        object.register_object()
+    }
+}

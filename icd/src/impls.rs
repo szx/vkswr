@@ -2320,14 +2320,6 @@ pub unsafe extern "C" fn vkCmdBindPipelineShaderGroupNV(
     )
 }
 
-pub unsafe extern "C" fn vkDestroyBufferView(
-    device: VkDevice,
-    bufferView: VkBufferView,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-) {
-    unimplemented!("vkDestroyBufferView(device, bufferView, pAllocator")
-}
-
 pub unsafe extern "C" fn vkGetImageViewHandleNVX(
     device: VkDevice,
     pInfo: Option<NonNull<VkImageViewHandleInfoNVX>>,
@@ -4864,15 +4856,6 @@ pub unsafe extern "C" fn vkCmdResetQueryPool(
     queryCount: u32,
 ) {
     unimplemented!("vkCmdResetQueryPool(commandBuffer, queryPool, firstQuery, queryCount")
-}
-
-pub unsafe extern "C" fn vkCreateBufferView(
-    device: VkDevice,
-    pCreateInfo: Option<NonNull<VkBufferViewCreateInfo>>,
-    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
-    pView: Option<NonNull<VkBufferView>>,
-) -> VkResult {
-    unimplemented!("vkCreateBufferView(device, pCreateInfo, pAllocator, pView")
 }
 
 pub unsafe extern "C" fn vkCmdSetConservativeRasterizationModeEXT(

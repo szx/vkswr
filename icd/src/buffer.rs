@@ -43,7 +43,7 @@ pub unsafe extern "C" fn vkDestroyBuffer(
     buffer: VkBuffer,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn vkGetBufferMemoryRequirements(
     buffer: VkBuffer,
     pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn vkBindBufferMemory(
     memory: VkDeviceMemory,
     memoryOffset: VkDeviceSize,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -92,4 +92,51 @@ pub unsafe extern "C" fn vkBindBufferMemory(
 
     let result = buffer.lock().bind_memory(memory, memoryOffset);
     result
+}
+
+pub unsafe extern "C" fn vkCreateBufferView(
+    device: VkDevice,
+    pCreateInfo: Option<NonNull<VkBufferViewCreateInfo>>,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+    pView: Option<NonNull<VkBufferView>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let Some(pCreateInfo) = pCreateInfo else {
+        unreachable!()
+    };
+    let create_info = pCreateInfo.as_ref();
+    let Some(buffer) = Buffer::from_handle(create_info.buffer) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    let Some(pView) = pView else { unreachable!() };
+
+    *pView.as_ptr() = BufferView::create(
+        device,
+        buffer,
+        create_info.format,
+        create_info.offset,
+        create_info.range,
+    );
+
+    VkResult::VK_SUCCESS
+}
+
+pub unsafe extern "C" fn vkDestroyBufferView(
+    device: VkDevice,
+    bufferView: VkBufferView,
+    pAllocator: Option<NonNull<VkAllocationCallbacks>>,
+) {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let _ = pAllocator;
+
+    BufferView::drop_handle(bufferView);
 }
