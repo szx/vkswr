@@ -82,4 +82,17 @@ impl LogicalDevice {
         // TODO: LogicalDevice wait idle.
         VkResult::VK_SUCCESS
     }
+
+    pub const fn flush_memory_ranges(&self, _memory_ranges: &[VkMappedMemoryRange]) -> VkResult {
+        // No-op.
+        VkResult::VK_SUCCESS
+    }
+
+    pub const fn invalidate_memory_ranges(
+        &self,
+        _memory_ranges: &[VkMappedMemoryRange],
+    ) -> VkResult {
+        // No-op.
+        VkResult::VK_SUCCESS
+    }
 }

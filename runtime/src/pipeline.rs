@@ -147,7 +147,7 @@ impl Pipeline {
         let _ = stages;
         let _ = state.vertex_input_state;
         let _ = state.input_assembly_state;
-        assert!(state.tessellation_state.is_none());
+        let _ = state.tessellation_state;
         let _ = state.viewport_state;
         let _ = state.rasterization_state;
         let _ = state.multisample_state;

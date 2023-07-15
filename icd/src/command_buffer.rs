@@ -253,6 +253,30 @@ pub unsafe extern "C" fn vkCmdBindDescriptorSets(
     );
 }
 
+pub unsafe extern "C" fn vkCmdBindVertexBuffers(
+    commandBuffer: VkCommandBuffer,
+    firstBinding: u32,
+    bindingCount: u32,
+    pBuffers: Option<NonNull<VkBuffer>>,
+    pOffsets: Option<NonNull<VkDeviceSize>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let buffers = pBuffers.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), bindingCount as usize)
+    });
+
+    let offsets = pOffsets.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), bindingCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_bind_vertex_buffers(firstBinding, buffers, offsets);
+}
+
 pub unsafe extern "C" fn vkCmdSetViewport(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
@@ -334,4 +358,33 @@ pub unsafe extern "C" fn vkCmdCopyBufferToImage(
     commandBuffer
         .lock()
         .cmd_copy_buffer_to_image(srcBuffer, dstImage, dstImageLayout, regions);
+}
+
+pub unsafe extern "C" fn vkCmdCopyImageToBuffer(
+    commandBuffer: VkCommandBuffer,
+    srcImage: VkImage,
+    srcImageLayout: VkImageLayout,
+    dstBuffer: VkBuffer,
+    regionCount: u32,
+    pRegions: Option<NonNull<VkBufferImageCopy>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(srcImage) = Image::from_handle(srcImage) else {
+        unreachable!()
+    };
+
+    let Some(dstBuffer) = Buffer::from_handle(dstBuffer) else {
+        unreachable!()
+    };
+
+    let regions = pRegions.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_copy_image_to_buffer(srcImage, dstBuffer, srcImageLayout, regions);
 }

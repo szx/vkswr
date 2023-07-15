@@ -90,3 +90,37 @@ pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory)
 
     memory.lock().unmap_host();
 }
+
+pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
+    device: VkDevice,
+    memoryRangeCount: u32,
+    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let memory_ranges = pMemoryRanges.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), memoryRangeCount as usize)
+    });
+
+    let result = device.lock().flush_memory_ranges(memory_ranges);
+    result
+}
+
+pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
+    device: VkDevice,
+    memoryRangeCount: u32,
+    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
+) -> VkResult {
+    let Some(device) = LogicalDevice::from_handle(device) else {
+        unreachable!()
+    };
+
+    let memory_ranges = pMemoryRanges.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), memoryRangeCount as usize)
+    });
+
+    let result = device.lock().invalidate_memory_ranges(memory_ranges);
+    result
+}

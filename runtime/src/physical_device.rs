@@ -182,20 +182,28 @@ impl PhysicalDevice {
     pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
         lazy_static! {
             static ref MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
-                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] =
-                    [VkMemoryType {propertyFlags: 0, heapIndex: 0}; VK_MAX_MEMORY_TYPES as usize];
-                m[0] = VkMemoryType {propertyFlags :
-                    (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT).into(),
-                    heapIndex: 0};
-                m[1] = VkMemoryType {propertyFlags :
-                    (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).into(),
-                    heapIndex: 0};
+                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = [VkMemoryType {
+                    propertyFlags: 0,
+                    heapIndex: 0,
+                };
+                    VK_MAX_MEMORY_TYPES as usize];
+                m[0] = VkMemoryType {
+                    propertyFlags: (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                        | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+                        .into(),
+                    heapIndex: 0,
+                };
+                m[1] = VkMemoryType {
+                    propertyFlags: (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                        .into(),
+                    heapIndex: 0,
+                };
                 m
             };
             static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
                 let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
-                    [VkMemoryHeap {size: 0, flags: 0}; VK_MAX_MEMORY_HEAPS as usize];
-                m[0] = VkMemoryHeap {size: 0, flags: 0}; // HIRO size
+                    [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
+                m[0] = VkMemoryHeap { size: 0, flags: 0 };
                 m
             };
         }

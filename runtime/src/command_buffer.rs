@@ -128,6 +128,19 @@ impl CommandBuffer {
         // TODO: Record descriptor sets bindings.
     }
 
+    pub fn cmd_bind_vertex_buffers(
+        &mut self,
+        first_binding: u32,
+        buffers: &[VkBuffer],
+        offsets: &[VkDeviceSize],
+    ) {
+        trace!("CommandBuffer::cmd_bind_vertex_buffers");
+        let _ = first_binding;
+        let _ = buffers;
+        let _ = offsets;
+        // TODO: Record vertex buffers bindings.
+    }
+
     pub fn cmd_set_viewport(&mut self, first_viewport: u32, viewports: &[VkViewport]) {
         trace!("CommandBuffer::cmd_set_viewport");
         let _ = first_viewport;
@@ -170,5 +183,20 @@ impl CommandBuffer {
         let _ = dst_image_layout;
         let _ = regions;
         // TODO: Record buffer to image copy.
+    }
+
+    pub fn cmd_copy_image_to_buffer(
+        &mut self,
+        src_image: Arc<Mutex<Image>>,
+        dst_buffer: Arc<Mutex<Buffer>>,
+        src_image_layout: VkImageLayout,
+        regions: &[VkBufferImageCopy],
+    ) {
+        trace!("CommandBuffer::cmd_copy_image_to_buffer");
+        let _ = src_image;
+        let _ = dst_buffer;
+        let _ = src_image_layout;
+        let _ = regions;
+        // TODO: Record image to buffer copy.
     }
 }

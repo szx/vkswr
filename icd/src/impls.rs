@@ -2805,14 +2805,6 @@ pub unsafe extern "C" fn vkReleasePerformanceConfigurationINTEL(
     unimplemented!("vkReleasePerformanceConfigurationINTEL(device, configuration")
 }
 
-pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
-    device: VkDevice,
-    memoryRangeCount: u32,
-    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
-) -> VkResult {
-    unimplemented!("vkFlushMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
     physicalDevice: VkPhysicalDevice,
     pTimeDomainCount: Option<NonNull<u32>>,
@@ -3254,24 +3246,6 @@ pub unsafe extern "C" fn vkCmdSetExtraPrimitiveOverestimationSizeEXT(
     extraPrimitiveOverestimationSize: f32,
 ) {
     unimplemented!("vkCmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer, extraPrimitiveOverestimationSize")
-}
-
-pub unsafe extern "C" fn vkCmdBindVertexBuffers(
-    commandBuffer: VkCommandBuffer,
-    firstBinding: u32,
-    bindingCount: u32,
-    pBuffers: Option<NonNull<VkBuffer>>,
-    pOffsets: Option<NonNull<VkDeviceSize>>,
-) {
-    unimplemented!(
-        "vkCmdBindVertexBuffers(
-        commandBuffer,
-        firstBinding,
-        bindingCount,
-        pBuffers,
-        pOffsets,
-    "
-    )
 }
 
 pub unsafe extern "C" fn vkCmdPushConstants(
@@ -3884,26 +3858,6 @@ pub unsafe extern "C" fn vkImportSemaphoreZirconHandleFUCHSIA(
     pImportSemaphoreZirconHandleInfo: Option<NonNull<VkImportSemaphoreZirconHandleInfoFUCHSIA>>,
 ) -> VkResult {
     unimplemented!("vkImportSemaphoreZirconHandleFUCHSIA(device, pImportSemaphoreZirconHandleInfo")
-}
-
-pub unsafe extern "C" fn vkCmdCopyImageToBuffer(
-    commandBuffer: VkCommandBuffer,
-    srcImage: VkImage,
-    srcImageLayout: VkImageLayout,
-    dstBuffer: VkBuffer,
-    regionCount: u32,
-    pRegions: Option<NonNull<VkBufferImageCopy>>,
-) {
-    unimplemented!(
-        "vkCmdCopyImageToBuffer(
-        commandBuffer,
-        srcImage,
-        srcImageLayout,
-        dstBuffer,
-        regionCount,
-        pRegions,
-    "
-    )
 }
 
 pub unsafe extern "C" fn vkGetRayTracingShaderGroupStackSizeKHR(
@@ -5222,14 +5176,6 @@ pub unsafe extern "C" fn vkWaitSemaphores(
     timeout: u64,
 ) -> VkResult {
     unimplemented!("vkWaitSemaphores(device, pWaitInfo, timeout")
-}
-
-pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
-    device: VkDevice,
-    memoryRangeCount: u32,
-    pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
-) -> VkResult {
-    unimplemented!("vkInvalidateMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges")
 }
 
 pub unsafe extern "C" fn vkGetSemaphoreSciSyncObjNV(
