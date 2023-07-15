@@ -243,3 +243,16 @@ fn run_deqp_vk_memory_requirements_core_image_regular_tiling_linear() -> common:
         false,
     )
 }
+
+#[test]
+fn run_deqp_vk_memory_mapping_suballocation_random_0() -> common::TestResult {
+    run_deqp_vk("dEQP-VK.memory.mapping.suballocation.random.0", false)
+}
+
+#[test]
+fn run_deqp_vk_memory_pipeline_barrier_host_write_transfer_src_1024() -> common::TestResult {
+    run_deqp_vk(
+        "dEQP-VK.memory.pipeline_barrier.host_write_transfer_src.1024",
+        false,
+    )
+}

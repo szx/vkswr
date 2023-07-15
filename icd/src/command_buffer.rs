@@ -388,3 +388,31 @@ pub unsafe extern "C" fn vkCmdCopyImageToBuffer(
         .lock()
         .cmd_copy_image_to_buffer(srcImage, dstBuffer, srcImageLayout, regions);
 }
+
+pub unsafe extern "C" fn vkCmdCopyBuffer(
+    commandBuffer: VkCommandBuffer,
+    srcBuffer: VkBuffer,
+    dstBuffer: VkBuffer,
+    regionCount: u32,
+    pRegions: Option<NonNull<VkBufferCopy>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(srcBuffer) = Buffer::from_handle(srcBuffer) else {
+        unreachable!()
+    };
+
+    let Some(dstBuffer) = Buffer::from_handle(dstBuffer) else {
+        unreachable!()
+    };
+
+    let regions = pRegions.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_copy_buffer_to_buffer(srcBuffer, dstBuffer, regions);
+}

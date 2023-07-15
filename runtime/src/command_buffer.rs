@@ -199,4 +199,17 @@ impl CommandBuffer {
         let _ = regions;
         // TODO: Record image to buffer copy.
     }
+
+    pub fn cmd_copy_buffer_to_buffer(
+        &mut self,
+        src_buffer: Arc<Mutex<Buffer>>,
+        dst_buffer: Arc<Mutex<Buffer>>,
+        regions: &[VkBufferCopy],
+    ) {
+        trace!("CommandBuffer::cmd_copy_buffer_to_buffer");
+        let _ = src_buffer;
+        let _ = dst_buffer;
+        let _ = regions;
+        // TODO: Record buffer to buffer copy.
+    }
 }

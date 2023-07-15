@@ -60,7 +60,7 @@ impl DeviceMemory {
                 } else {
                     return Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED);
                 };
-                let ptr = self.data[offset..size].as_mut_ptr();
+                let ptr = self.data[offset..offset + size].as_mut_ptr();
                 let ptr = NonNull::new_unchecked(ptr as *mut std::ffi::c_void);
                 Ok(ptr)
             },

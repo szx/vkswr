@@ -167,7 +167,7 @@ impl PhysicalDevice {
                 standardSampleLocations: 0,
                 optimalBufferCopyOffsetAlignment: 0,
                 optimalBufferCopyRowPitchAlignment: 0,
-                nonCoherentAtomSize: 0,
+                nonCoherentAtomSize: 1,
             },
             sparseProperties: VkPhysicalDeviceSparseProperties {
                 residencyStandard2DBlockShape: 0,
@@ -196,21 +196,25 @@ impl PhysicalDevice {
                 m[1] = VkMemoryType {
                     propertyFlags: (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
                         .into(),
-                    heapIndex: 0,
+                    heapIndex: 1,
                 };
                 m
             };
             static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
                 let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
                     [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
-                m[0] = VkMemoryHeap { size: 0, flags: 0 };
+                m[0] = VkMemoryHeap { size: 10 * 1024 * 1024, flags: 0 };
+                m[0] = VkMemoryHeap {
+                    size: 10 * 1024 * 1024, // TODO: maxMemoryAllocationSize?
+                    flags: VkMemoryHeapFlagBits::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT.into(),
+                };
                 m
             };
         }
         VkPhysicalDeviceMemoryProperties {
             memoryTypeCount: 2,
             memoryTypes: *MEMORY_TYPES,
-            memoryHeapCount: 1,
+            memoryHeapCount: 2,
             memoryHeaps: *MEMORY_HEAPS,
         }
     }

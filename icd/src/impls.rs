@@ -1643,16 +1643,6 @@ pub unsafe extern "C" fn vkCmdSetStencilReference(
     unimplemented!("vkCmdSetStencilReference(commandBuffer, faceMask, reference")
 }
 
-pub unsafe extern "C" fn vkCmdCopyBuffer(
-    commandBuffer: VkCommandBuffer,
-    srcBuffer: VkBuffer,
-    dstBuffer: VkBuffer,
-    regionCount: u32,
-    pRegions: Option<NonNull<VkBufferCopy>>,
-) {
-    unimplemented!("vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, regionCount, pRegions")
-}
-
 pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties2(
     physicalDevice: VkPhysicalDevice,
     pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties2>>,
