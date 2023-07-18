@@ -2,7 +2,7 @@
 
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
-use crate::memory::{DeviceMemory, MemoryBinding};
+use crate::memory::{MemoryAllocation, MemoryBinding};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 pub struct Image {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
-    format: VkFormat,
+    pub(crate) format: VkFormat,
     width: u32,
     height: u32,
     binding: Option<MemoryBinding>,
@@ -78,9 +78,20 @@ impl Image {
         }
     }
 
-    pub fn bind_memory(&mut self, memory: Arc<Mutex<DeviceMemory>>, offset: u64) -> VkResult {
-        self.binding = Some(MemoryBinding(memory, offset));
+    pub fn bind_memory(&mut self, memory: Arc<Mutex<MemoryAllocation>>, offset: u64) -> VkResult {
+        self.binding = Some(MemoryBinding {
+            memory,
+            offset,
+            size: self.size_in_bytes().saturating_sub(offset),
+        });
         VkResult::VK_SUCCESS
+    }
+
+    pub fn gpu_image(&self) -> gpu::Image {
+        let memory = self.binding.as_ref().unwrap();
+        gpu::Image {
+            memory_allocation: memory.memory.lock().gpu_memory_allocation,
+        }
     }
 }
 

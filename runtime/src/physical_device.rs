@@ -1,7 +1,8 @@
 //! PhysicalDevice
 
 use crate::context::Dispatchable;
-use crate::memory::{DeviceMemory, MemoryBinding};
+use crate::memory::{MemoryAllocation, MemoryBinding};
+use gpu::Gpu;
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
@@ -15,6 +16,7 @@ use std::sync::Arc;
 pub struct PhysicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     physical_device_name: &'static str,
+    pub(crate) gpu: Gpu,
 }
 
 impl PhysicalDevice {
@@ -23,6 +25,7 @@ impl PhysicalDevice {
         let physical_device = Self {
             handle: VkDispatchableHandle(None),
             physical_device_name: "vulkan_software_rasterizer physical device",
+            gpu: Gpu::new(),
         };
         physical_device.register_object()
     }
@@ -203,9 +206,12 @@ impl PhysicalDevice {
             static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
                 let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
                     [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
-                m[0] = VkMemoryHeap { size: 10 * 1024 * 1024, flags: 0 };
                 m[0] = VkMemoryHeap {
-                    size: 10 * 1024 * 1024, // TODO: maxMemoryAllocationSize?
+                    size: gpu::Gpu::memory_size_in_bytes() / 2,
+                    flags: 0,
+                };
+                m[0] = VkMemoryHeap {
+                    size: gpu::Gpu::memory_size_in_bytes() / 2,
                     flags: VkMemoryHeapFlagBits::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT.into(),
                 };
                 m

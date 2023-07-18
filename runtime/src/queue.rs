@@ -2,7 +2,7 @@
 
 use crate::command_buffer::CommandBuffer;
 use crate::context::Dispatchable;
-use crate::memory::{DeviceMemory, MemoryBinding};
+use crate::memory::{MemoryAllocation, MemoryBinding};
 use crate::physical_device::PhysicalDevice;
 use crate::semaphore::Semaphore;
 use crate::swapchain::Swapchain;
@@ -11,6 +11,7 @@ use itertools::izip;
 use log::*;
 use parking_lot::Mutex;
 use std::fmt::Debug;
+use std::ops::DerefMut;
 use std::sync::Arc;
 
 /// Queue associated with `LogicalDevice`.
@@ -45,11 +46,13 @@ impl Queue {
         command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
     ) {
         info!("Queue::submit");
-        let _ = command_buffers.into_iter();
         let _ = wait_semaphores.into_iter();
         let _ = wait_semaphores_stage_flags.into_iter();
         let _ = signal_semaphores.into_iter();
-        // TODO: Queue submit.
+        for command_buffer in command_buffers {
+            let gpu = &mut self.physical_device.lock().gpu;
+            gpu.submit(command_buffer.lock().gpu_command_buffer());
+        }
     }
 
     pub fn present<'a>(

@@ -6,6 +6,7 @@ members = [
     "test_suite",
     "codegen",
     "runtime",
+    "gpu"
 ]
 
 [workspace.dependencies]

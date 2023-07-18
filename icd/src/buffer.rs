@@ -4,7 +4,7 @@ use headers::vk_decls::*;
 use runtime::buffer::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::logical_device::LogicalDevice;
-use runtime::memory::DeviceMemory;
+use runtime::memory::MemoryAllocation;
 use runtime::*;
 
 pub unsafe extern "C" fn vkCreateBuffer(
@@ -86,7 +86,7 @@ pub unsafe extern "C" fn vkBindBufferMemory(
         unreachable!()
     };
 
-    let Some(memory) = DeviceMemory::from_handle(memory) else {
+    let Some(memory) = MemoryAllocation::from_handle(memory) else {
         unreachable!()
     };
 

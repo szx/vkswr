@@ -4,7 +4,7 @@ use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::*;
 use runtime::logical_device::LogicalDevice;
-use runtime::memory::DeviceMemory;
+use runtime::memory::MemoryAllocation;
 use runtime::*;
 use std::ops::Deref;
 
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn vkBindImageMemory(
         unreachable!()
     };
 
-    let Some(memory) = DeviceMemory::from_handle(memory) else {
+    let Some(memory) = MemoryAllocation::from_handle(memory) else {
         unreachable!()
     };
 

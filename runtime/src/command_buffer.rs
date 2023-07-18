@@ -44,6 +44,7 @@ pub struct CommandBuffer {
     pub(crate) handle: VkDispatchableHandle,
     level: VkCommandBufferLevel,
     command_pool: Arc<Mutex<CommandPool>>,
+    gpu_command_buffer: gpu::CommandBuffer,
 }
 
 impl CommandBuffer {
@@ -59,8 +60,13 @@ impl CommandBuffer {
             handle,
             level,
             command_pool,
+            gpu_command_buffer: gpu::CommandBuffer::new(),
         };
         object.register_object()
+    }
+
+    pub fn gpu_command_buffer(&mut self) -> gpu::CommandBuffer {
+        std::mem::replace(&mut self.gpu_command_buffer, gpu::CommandBuffer::new())
     }
 
     pub fn begin(&mut self) {
@@ -178,11 +184,35 @@ impl CommandBuffer {
         regions: &[VkBufferImageCopy],
     ) {
         trace!("CommandBuffer::cmd_copy_buffer_to_image");
-        let _ = src_buffer;
-        let _ = dst_image;
         let _ = dst_image_layout;
-        let _ = regions;
-        // TODO: Record buffer to image copy.
+        let src_buffer = src_buffer.lock();
+        let dst_image = dst_image.lock();
+        for region in regions {
+            self.gpu_command_buffer
+                .record(gpu::Command::CopyBufferToImage {
+                    src_buffer: src_buffer.gpu_buffer(),
+                    dst_image: dst_image.gpu_image(),
+                    region: gpu::RegionCopyBufferImage {
+                        buffer_offset: region.bufferOffset,
+                        buffer_row_len: region.bufferRowLength,
+                        buffer_image_height: region.bufferImageHeight,
+                        image_mip_level: region.imageSubresource.mipLevel,
+                        image_base_array_level: region.imageSubresource.baseArrayLayer,
+                        image_array_level_count: region.imageSubresource.layerCount,
+                        image_offset: gpu::Offset3d {
+                            x: region.imageOffset.x,
+                            y: region.imageOffset.y,
+                            z: region.imageOffset.z,
+                        },
+                        image_extent: gpu::Extent3d {
+                            width: region.imageExtent.width,
+                            height: region.imageExtent.height,
+                            depth: region.imageExtent.depth,
+                        },
+                        bytes_per_pixel: dst_image.format.bytes_per_pixel(),
+                    },
+                })
+        }
     }
 
     pub fn cmd_copy_image_to_buffer(
@@ -193,11 +223,35 @@ impl CommandBuffer {
         regions: &[VkBufferImageCopy],
     ) {
         trace!("CommandBuffer::cmd_copy_image_to_buffer");
-        let _ = src_image;
-        let _ = dst_buffer;
         let _ = src_image_layout;
-        let _ = regions;
-        // TODO: Record image to buffer copy.
+        let src_image = src_image.lock();
+        let dst_buffer = dst_buffer.lock();
+        for region in regions {
+            self.gpu_command_buffer
+                .record(gpu::Command::CopyImageToBuffer {
+                    src_image: src_image.gpu_image(),
+                    dst_buffer: dst_buffer.gpu_buffer(),
+                    region: gpu::RegionCopyBufferImage {
+                        buffer_offset: region.bufferOffset,
+                        buffer_row_len: region.bufferRowLength,
+                        buffer_image_height: region.bufferImageHeight,
+                        image_mip_level: region.imageSubresource.mipLevel,
+                        image_base_array_level: region.imageSubresource.baseArrayLayer,
+                        image_array_level_count: region.imageSubresource.layerCount,
+                        image_offset: gpu::Offset3d {
+                            x: region.imageOffset.x,
+                            y: region.imageOffset.y,
+                            z: region.imageOffset.z,
+                        },
+                        image_extent: gpu::Extent3d {
+                            width: region.imageExtent.width,
+                            height: region.imageExtent.height,
+                            depth: region.imageExtent.depth,
+                        },
+                        bytes_per_pixel: src_image.format.bytes_per_pixel(),
+                    },
+                })
+        }
     }
 
     pub fn cmd_copy_buffer_to_buffer(
@@ -207,10 +261,19 @@ impl CommandBuffer {
         regions: &[VkBufferCopy],
     ) {
         trace!("CommandBuffer::cmd_copy_buffer_to_buffer");
-        let _ = src_buffer;
-        let _ = dst_buffer;
         let _ = regions;
-        // TODO: Record buffer to buffer copy.
+        for region in regions {
+            self.gpu_command_buffer
+                .record(gpu::Command::CopyBufferToBuffer {
+                    src_buffer: src_buffer.lock().gpu_buffer(),
+                    dst_buffer: dst_buffer.lock().gpu_buffer(),
+                    region: gpu::RegionCopyBufferBuffer {
+                        src_offset: region.srcOffset,
+                        dst_offset: region.dstOffset,
+                        size: region.size,
+                    },
+                })
+        }
     }
 
     pub fn cmd_execute_commands(
@@ -218,7 +281,11 @@ impl CommandBuffer {
         command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
     ) {
         trace!("CommandBuffer::cmd_execute_commands");
-        let _ = command_buffers;
-        // TODO: Record execute commands.
+        for command_buffer in command_buffers {
+            self.gpu_command_buffer
+                .record(gpu::Command::ExecuteCommands {
+                    command_buffer: command_buffer.lock().gpu_command_buffer.clone(),
+                })
+        }
     }
 }

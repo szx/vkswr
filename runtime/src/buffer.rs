@@ -2,7 +2,7 @@
 
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
-use crate::memory::{DeviceMemory, MemoryBinding};
+use crate::memory::{MemoryAllocation, MemoryBinding};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -52,9 +52,20 @@ impl Buffer {
         }
     }
 
-    pub fn bind_memory(&mut self, memory: Arc<Mutex<DeviceMemory>>, offset: u64) -> VkResult {
-        self.binding = Some(MemoryBinding(memory, offset));
+    pub fn bind_memory(&mut self, memory: Arc<Mutex<MemoryAllocation>>, offset: u64) -> VkResult {
+        self.binding = Some(MemoryBinding {
+            memory,
+            offset,
+            size: self.size.saturating_sub(offset),
+        });
         VkResult::VK_SUCCESS
+    }
+
+    pub fn gpu_buffer(&self) -> gpu::Buffer {
+        let memory = self.binding.as_ref().unwrap();
+        gpu::Buffer {
+            memory_allocation: memory.memory.lock().gpu_memory_allocation,
+        }
     }
 }
 

@@ -3,7 +3,7 @@
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
-use crate::memory::{DeviceMemory, MemoryBinding};
+use crate::memory::{MemoryAllocation, MemoryBinding};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;

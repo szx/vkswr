@@ -28,7 +28,7 @@ pub unsafe extern "C" fn vkAllocateMemory(
         unreachable!()
     };
 
-    *pMemory.as_ptr() = DeviceMemory::create(
+    *pMemory.as_ptr() = MemoryAllocation::create(
         device,
         allocate_info.allocationSize,
         allocate_info.memoryTypeIndex,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn vkFreeMemory(
 
     let _ = pAllocator;
 
-    DeviceMemory::drop_handle(memory);
+    MemoryAllocation::drop_handle(memory);
 }
 
 pub unsafe extern "C" fn vkMapMemory(
@@ -63,13 +63,13 @@ pub unsafe extern "C" fn vkMapMemory(
         unreachable!()
     };
 
-    let Some(memory) = DeviceMemory::from_handle(memory) else {
+    let Some(memory) = MemoryAllocation::from_handle(memory) else {
         unreachable!()
     };
 
     let Some(pData) = ppData else { unreachable!() };
 
-    let result = match memory.lock().map_host(offset as usize, size as usize) {
+    let result = match memory.lock().map_host(offset, size) {
         Ok(ptr) => {
             *pData.as_ptr() = ptr;
             VkResult::VK_SUCCESS
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory)
         unreachable!()
     };
 
-    let Some(memory) = DeviceMemory::from_handle(memory) else {
+    let Some(memory) = MemoryAllocation::from_handle(memory) else {
         unreachable!()
     };
 

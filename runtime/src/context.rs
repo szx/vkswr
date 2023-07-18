@@ -29,7 +29,8 @@ pub struct Context {
     command_pools: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::command_buffer::CommandPool>>>,
     command_buffers:
         HashMap<VkDispatchableHandle, Arc<Mutex<crate::command_buffer::CommandBuffer>>>,
-    device_memories: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::memory::DeviceMemory>>>,
+    memory_allocations:
+        HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::memory::MemoryAllocation>>>,
     samplers: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::sampler::Sampler>>>,
     buffers: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::buffer::Buffer>>>,
     buffer_views: HashMap<VkNonDispatchableHandle, Arc<Mutex<crate::buffer::BufferView>>>,
@@ -58,7 +59,7 @@ impl_non_dispatchable_trait!(crate::image::Image, images);
 impl_non_dispatchable_trait!(crate::image::ImageView, image_views);
 impl_non_dispatchable_trait!(crate::command_buffer::CommandPool, command_pools);
 impl_dispatchable_trait!(crate::command_buffer::CommandBuffer, command_buffers);
-impl_non_dispatchable_trait!(crate::memory::DeviceMemory, device_memories);
+impl_non_dispatchable_trait!(crate::memory::MemoryAllocation, memory_allocations);
 impl_non_dispatchable_trait!(crate::sampler::Sampler, samplers);
 impl_non_dispatchable_trait!(crate::buffer::Buffer, buffers);
 impl_non_dispatchable_trait!(crate::buffer::BufferView, buffer_views);
