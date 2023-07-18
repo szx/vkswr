@@ -2,7 +2,6 @@
 
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
-use gpu::MemoryAddress;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;

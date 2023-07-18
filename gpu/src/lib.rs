@@ -1,16 +1,20 @@
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug)]
 pub struct Gpu {
-    memory: Vec<u8>,
-    pub used_memory: u64,
+    // TODO: Usa bitmap allocator.
+    memory_allocations: HashMap<u64, Vec<u8>>,
+    memory_allocation_index: AtomicU64,
 }
 
 impl Gpu {
     pub fn new() -> Self {
         Self {
-            memory: vec![0; Self::memory_size_in_bytes() as usize],
-            used_memory: 0,
+            memory_allocations: HashMap::default(),
+            memory_allocation_index: AtomicU64::new(1),
         }
     }
 
@@ -19,16 +23,14 @@ impl Gpu {
     }
 
     pub fn allocate_memory(&mut self, size: u64) -> MemoryAllocation {
-        // TODO: Use multithreaded allocator.
-        self.used_memory += size;
-        let address = MemoryAddress {
-            index: self.used_memory,
-        };
-        MemoryAllocation { address, size }
+        let handle = self.memory_allocation_index.fetch_add(1, Ordering::Relaxed);
+        self.memory_allocations
+            .insert(handle, vec![0; size as usize]);
+        MemoryAllocation { handle, size }
     }
 
     pub fn free_memory(&mut self, memory_allocation: MemoryAllocation) {
-        // TODO: Use multithreaded allocator.
+        self.memory_allocations.remove(&memory_allocation.handle);
     }
 
     pub fn map_host(
@@ -37,8 +39,11 @@ impl Gpu {
         offset: u64,
         size: u64,
     ) -> NonNull<std::ffi::c_void> {
-        let offset = memory_allocation.address.index + offset;
-        let ptr = self.memory[offset as usize..(offset + size) as usize].as_mut_ptr();
+        let memory = self
+            .memory_allocations
+            .get_mut(&memory_allocation.handle)
+            .unwrap();
+        let ptr = memory[offset as usize..(offset + size) as usize].as_mut_ptr();
         unsafe { NonNull::new_unchecked(ptr as *mut std::ffi::c_void) }
     }
 
@@ -135,10 +140,10 @@ impl Gpu {
         dst_offset: u64,
         size: u64,
     ) {
-        let src_offset = src.address.index + src_offset;
-        let dst_offset = dst.address.index + dst_offset;
-        let src = self.memory[src_offset as usize..(src_offset + size) as usize].as_mut_ptr();
-        let dst = self.memory[dst_offset as usize..(dst_offset + size) as usize].as_mut_ptr();
+        let src = self.memory_allocations.get_mut(&src.handle).unwrap();
+        let src = src[src_offset as usize..(src_offset + size) as usize].as_mut_ptr();
+        let dst = self.memory_allocations.get_mut(&dst.handle).unwrap();
+        let dst = dst[dst_offset as usize..(dst_offset + size) as usize].as_mut_ptr();
         unsafe {
             std::ptr::copy(src, dst, size as usize);
         }
@@ -216,13 +221,8 @@ pub struct Image {
 
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryAllocation {
-    address: MemoryAddress,
+    handle: u64,
     pub size: u64,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct MemoryAddress {
-    index: u64,
 }
 
 #[derive(Debug, Copy, Clone)]
