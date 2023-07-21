@@ -10,6 +10,7 @@ crate-type = ["lib"]
 log = { workspace = true }
 xcb = { workspace = true }
 lazy_static = { workspace = true }
+gpu = { path = "../gpu" }
 
 [build-dependencies]
 codegen = { path = "../codegen" }

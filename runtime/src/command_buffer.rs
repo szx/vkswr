@@ -6,6 +6,7 @@ use crate::image::Image;
 use crate::logical_device::LogicalDevice;
 use crate::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use headers::vk_decls::*;
+use itertools::izip;
 use log::*;
 use parking_lot::{Mutex, RwLockWriteGuard};
 use std::fmt::Debug;
@@ -45,6 +46,7 @@ pub struct CommandBuffer {
     level: VkCommandBufferLevel,
     command_pool: Arc<Mutex<CommandPool>>,
     gpu_command_buffer: gpu::CommandBuffer,
+    gpu_bound_render_target_indices: Vec<gpu::RenderTargetIndex>,
 }
 
 impl CommandBuffer {
@@ -61,6 +63,7 @@ impl CommandBuffer {
             level,
             command_pool,
             gpu_command_buffer: gpu::CommandBuffer::new(),
+            gpu_bound_render_target_indices: vec![],
         };
         object.register_object()
     }
@@ -92,18 +95,80 @@ impl CommandBuffer {
         clear_values: &[VkClearValue],
         contents: VkSubpassContents,
     ) {
-        trace!("CommandBuffer::cmd_begin_render_pass");
-        let _ = render_pass;
-        let _ = framebuffer;
-        let _ = render_area;
-        let _ = clear_values;
+        let render_pass = render_pass.lock();
+        let descriptions = render_pass.attachments.clone();
+        drop(render_pass);
+        let framebuffer = framebuffer.lock();
+        let image_views = framebuffer.attachments.clone();
+        drop(framebuffer);
         let _ = contents;
-        // TODO: Record render pass start.
+
+        let render_area = gpu::RenderArea {
+            extent: gpu::Extent2d {
+                width: render_area.extent.width,
+                height: render_area.extent.height,
+            },
+            offset: gpu::Offset2d {
+                x: render_area.offset.x,
+                y: render_area.offset.y,
+            },
+        };
+
+        izip!(descriptions.iter(), image_views.iter(), clear_values.iter())
+            .enumerate()
+            .for_each(|(index, (description, image_view, clear_value))| {
+                let index = gpu::RenderTargetIndex(index);
+                assert!(self.gpu_bound_render_target_indices.is_empty());
+                self.gpu_bound_render_target_indices.push(index);
+
+                self.gpu_command_buffer
+                    .record(gpu::Command::BindRenderTarget {
+                        render_target: gpu::RenderTarget {
+                            index,
+                            format: description.format.into(),
+                            samples: description.samples.into(),
+                            image: image_view.lock().image.lock().gpu_image(),
+                        },
+                    });
+
+                match description.load_op {
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD => {
+                        // No-op.
+                    }
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR => {
+                        self.gpu_command_buffer
+                            .record(gpu::Command::ClearRenderTarget {
+                                index,
+                                render_area,
+                                color: (*clear_value).into(),
+                            });
+                    }
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE
+                    | VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_NONE_EXT => {
+                        // No-op.
+                    }
+                    _ => unreachable!(),
+                }
+
+                match description.store_op {
+                    VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE => {
+                        // No-op.
+                    }
+                    VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE
+                    | VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_NONE => {
+                        // No-op.
+                    }
+                    _ => unreachable!(),
+                };
+                // TODO: Stencil commands support.
+            });
     }
 
     pub fn cmd_end_render_pass(&mut self) {
-        trace!("CommandBuffer::cmd_end_render_pass");
-        // TODO: Record render pass finish.
+        for index in self.gpu_bound_render_target_indices.drain(..) {
+            self.gpu_command_buffer
+                .record(gpu::Command::UnbindRenderTarget { index });
+        }
     }
 
     pub fn cmd_bind_pipeline(
@@ -183,7 +248,6 @@ impl CommandBuffer {
         dst_image_layout: VkImageLayout,
         regions: &[VkBufferImageCopy],
     ) {
-        trace!("CommandBuffer::cmd_copy_buffer_to_image");
         let _ = dst_image_layout;
         let src_buffer = src_buffer.lock();
         let dst_image = dst_image.lock();
@@ -222,7 +286,6 @@ impl CommandBuffer {
         src_image_layout: VkImageLayout,
         regions: &[VkBufferImageCopy],
     ) {
-        trace!("CommandBuffer::cmd_copy_image_to_buffer");
         let _ = src_image_layout;
         let src_image = src_image.lock();
         let dst_buffer = dst_buffer.lock();
@@ -260,7 +323,6 @@ impl CommandBuffer {
         dst_buffer: Arc<Mutex<Buffer>>,
         regions: &[VkBufferCopy],
     ) {
-        trace!("CommandBuffer::cmd_copy_buffer_to_buffer");
         let _ = regions;
         for region in regions {
             self.gpu_command_buffer
@@ -280,7 +342,6 @@ impl CommandBuffer {
         &mut self,
         command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
     ) {
-        trace!("CommandBuffer::cmd_execute_commands");
         for command_buffer in command_buffers {
             self.gpu_command_buffer
                 .record(gpu::Command::ExecuteCommands {

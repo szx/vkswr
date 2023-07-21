@@ -43,30 +43,54 @@ impl PipelineLayout {
 pub struct RenderPass {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
+    pub(crate) attachments: Arc<[AttachmentDescription]>,
+    // TODO: dependencies: Arc<[VkSubpassDependency]>,
+    subpasses: Arc<[SubpassDescription]>,
 }
 
 impl RenderPass {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
-        attachments: Option<&[VkAttachmentDescription]>,
-        dependencies: Option<&[VkSubpassDependency]>,
-        subpasses: Option<&[VkSubpassDescription]>,
+        attachments: &[AttachmentDescription],
+        dependencies: &[VkSubpassDependency],
+        subpasses: &[SubpassDescription],
     ) -> VkNonDispatchableHandle {
         info!("new RenderPass");
         let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = attachments;
         let _ = dependencies;
-        let _ = subpasses;
 
         let object = Self {
             handle,
             logical_device,
+            attachments: attachments.into(),
+            subpasses: subpasses.into(),
         };
         object.register_object()
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AttachmentDescription {
+    pub flags: VkAttachmentDescriptionFlagBits,
+    pub format: VkFormat,
+    pub samples: VkSampleCountFlagBits,
+    pub load_op: VkAttachmentLoadOp,
+    pub store_op: VkAttachmentStoreOp,
+    pub stencil_load_pp: VkAttachmentLoadOp,
+    pub stencil_store_op: VkAttachmentStoreOp,
+    pub initial_layout: VkImageLayout,
+    pub final_layout: VkImageLayout,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubpassDescription {
+    pub flags: VkSubpassDescriptionFlagBits,
+    pub pipeline_bind_point: VkPipelineBindPoint,
+    pub input_attachments: Arc<[VkAttachmentReference]>,
+    pub color_attachments: Arc<[VkAttachmentReference]>,
+    pub resolve_attachments: Arc<[VkAttachmentReference]>,
+    pub depth_stencil_attachment: Option<VkAttachmentReference>,
+    pub preserve_attachments: Arc<[u32]>,
 }
 
 #[derive(Debug)]
@@ -180,6 +204,12 @@ pub struct GraphicsPipelineStateCreateInfo<'a> {
 pub struct Framebuffer {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
+    flags: VkFramebufferCreateFlagBits,
+    width: u32,
+    height: u32,
+    layers: u32,
+    pub(crate) attachments: Arc<[Arc<Mutex<ImageView>>]>,
+    render_pass: Arc<Mutex<RenderPass>>,
 }
 
 impl Framebuffer {
@@ -194,17 +224,17 @@ impl Framebuffer {
     ) -> VkNonDispatchableHandle {
         info!("new Framebuffer");
         let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = width;
-        let _ = height;
-        let _ = layers;
-        let _ = attachments;
-        let _ = render_pass;
+        assert_eq!(layers, 1);
 
         let object = Self {
             handle,
             logical_device,
+            flags: flags.into(),
+            width,
+            height,
+            layers,
+            attachments: attachments.into(),
+            render_pass,
         };
         object.register_object()
     }

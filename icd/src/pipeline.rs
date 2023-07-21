@@ -68,15 +68,68 @@ pub unsafe extern "C" fn vkCreateRenderPass(
         unreachable!()
     };
     let create_info = pCreateInfo.as_ref();
+
     let attachments = create_info
         .pAttachments
-        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.attachmentCount as usize));
-    let dependencies = create_info
-        .pDependencies
-        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.dependencyCount as usize));
+        .map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), create_info.attachmentCount as usize)
+        })
+        .iter()
+        .map(|x| AttachmentDescription {
+            flags: x.flags.into(),
+            format: x.format,
+            samples: x.samples,
+            load_op: x.loadOp,
+            store_op: x.storeOp,
+            stencil_load_pp: x.stencilLoadOp,
+            stencil_store_op: x.stencilStoreOp,
+            initial_layout: x.initialLayout,
+            final_layout: x.finalLayout,
+        })
+        .collect::<Vec<_>>();
+    let attachments = &attachments[..];
+
+    let dependencies = create_info.pDependencies.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr(), create_info.dependencyCount as usize)
+    });
+
     let subpasses = create_info
         .pSubpasses
-        .map(|x| std::slice::from_raw_parts(x.as_ptr(), create_info.subpassCount as usize));
+        .map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), create_info.subpassCount as usize)
+        })
+        .iter()
+        .map(|vk| SubpassDescription {
+            flags: vk.flags.into(),
+            pipeline_bind_point: vk.pipelineBindPoint,
+            input_attachments: vk
+                .pInputAttachments
+                .map_or(&[] as &[_], |x| {
+                    std::slice::from_raw_parts(x.as_ptr(), vk.inputAttachmentCount as usize)
+                })
+                .into(),
+            color_attachments: vk
+                .pColorAttachments
+                .map_or(&[] as &[_], |x| {
+                    std::slice::from_raw_parts(x.as_ptr(), vk.colorAttachmentCount as usize)
+                })
+                .into(),
+            resolve_attachments: vk
+                .pResolveAttachments
+                .map_or(&[] as &[_], |x| {
+                    std::slice::from_raw_parts(x.as_ptr(), vk.colorAttachmentCount as usize)
+                })
+                .into(),
+            depth_stencil_attachment: vk.pDepthStencilAttachment.map(|x| *x.as_ptr()),
+            preserve_attachments: vk
+                .pPreserveAttachments
+                .map_or(&[] as &[_], |x| {
+                    std::slice::from_raw_parts(x.as_ptr(), vk.preserveAttachmentCount as usize)
+                })
+                .into(),
+        })
+        .collect::<Vec<_>>();
+    let subpasses = &subpasses[..];
 
     let _ = pAllocator;
 
@@ -84,13 +137,7 @@ pub unsafe extern "C" fn vkCreateRenderPass(
         unreachable!()
     };
 
-    *pRenderPass.as_ptr() = RenderPass::create(
-        device,
-        create_info.flags,
-        attachments,
-        dependencies,
-        subpasses,
-    );
+    *pRenderPass.as_ptr() = RenderPass::create(device, attachments, dependencies, subpasses);
 
     VkResult::VK_SUCCESS
 }

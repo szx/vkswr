@@ -449,6 +449,7 @@ name = "headers"
 version = "0.1.0"
 dependencies = [
  "codegen",
+ "gpu",
  "lazy_static",
  "log",
  "xcb",

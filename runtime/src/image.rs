@@ -91,6 +91,11 @@ impl Image {
         let memory = self.binding.as_ref().unwrap();
         gpu::Image {
             memory_allocation: memory.memory.lock().gpu_memory_allocation,
+            extent: gpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth: 1,
+            },
         }
     }
 }
@@ -99,7 +104,7 @@ impl Image {
 pub struct ImageView {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
-    image: Arc<Mutex<Image>>,
+    pub(crate) image: Arc<Mutex<Image>>,
 }
 
 impl ImageView {
