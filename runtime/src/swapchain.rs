@@ -4,6 +4,7 @@ use crate::context::NonDispatchable;
 use crate::fence::Fence;
 use crate::image::*;
 use crate::logical_device::LogicalDevice;
+use crate::memory::MemoryAllocation;
 use crate::semaphore::Semaphore;
 use headers::vk_decls::*;
 use log::*;
@@ -18,6 +19,7 @@ pub struct Swapchain {
     flags: VkSwapchainCreateFlagsKHR,
     surface: VkSurfaceKHR,
     pub images: Vec<Arc<Mutex<Image>>>,
+    pub memory_allocations: Vec<Arc<Mutex<MemoryAllocation>>>,
     color_space: VkColorSpaceKHR,
     present_mode: VkPresentModeKHR,
 }
@@ -35,6 +37,7 @@ impl Swapchain {
 
         let image_count = create_info.minImageCount;
         let mut images = Vec::with_capacity(image_count as usize);
+        let mut memory_allocations = Vec::with_capacity(image_count as usize);
         for _ in 0..image_count {
             let image = Image::create(
                 logical_device.clone(),
@@ -47,7 +50,16 @@ impl Swapchain {
             let Some(image) = Image::from_handle(image) else {
                 unreachable!()
             };
+            let memory_allocation =
+                MemoryAllocation::create(logical_device.clone(), image.lock().size_in_bytes(), 0);
+            let Some(memory_allocation) = MemoryAllocation::from_handle(memory_allocation) else {
+                unreachable!()
+            };
+
+            image.lock().bind_memory(memory_allocation.clone(), 0);
+
             images.push(image);
+            memory_allocations.push(memory_allocation);
         }
 
         let color_space = create_info.imageColorSpace;
@@ -71,6 +83,7 @@ impl Swapchain {
             flags,
             surface,
             images,
+            memory_allocations,
             color_space,
             present_mode,
         };
