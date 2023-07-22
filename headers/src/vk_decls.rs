@@ -442,7 +442,7 @@ impl From<VkFormat> for gpu::Format {
             VkFormat::VK_FORMAT_R64G64B64A64_SFLOAT => unimplemented!(),
             VkFormat::VK_FORMAT_B10G11R11_UFLOAT_PACK32 => unimplemented!(),
             VkFormat::VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 => unimplemented!(),
-            VkFormat::VK_FORMAT_D16_UNORM => unimplemented!(),
+            VkFormat::VK_FORMAT_D16_UNORM => Self::D16Unorm,
             VkFormat::VK_FORMAT_X8_D24_UNORM_PACK32 => unimplemented!(),
             VkFormat::VK_FORMAT_D32_SFLOAT => unimplemented!(),
             VkFormat::VK_FORMAT_S8_UINT => unimplemented!(),

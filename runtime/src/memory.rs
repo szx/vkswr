@@ -100,10 +100,3 @@ impl Drop for MemoryAllocation {
             .free_memory(self.gpu_memory_allocation);
     }
 }
-
-#[derive(Debug)]
-pub struct MemoryBinding {
-    pub memory: Arc<Mutex<MemoryAllocation>>,
-    pub offset: u64,
-    pub size: u64,
-}

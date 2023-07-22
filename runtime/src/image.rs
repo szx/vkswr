@@ -2,7 +2,7 @@
 
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
-use crate::memory::{MemoryAllocation, MemoryBinding};
+use crate::memory::MemoryAllocation;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -16,7 +16,7 @@ pub struct Image {
     pub(crate) format: VkFormat,
     width: u32,
     height: u32,
-    binding: Option<MemoryBinding>,
+    gpu_binding: gpu::MemoryBinding,
 }
 
 impl Image {
@@ -40,7 +40,7 @@ impl Image {
             format,
             width,
             height,
-            binding: None,
+            gpu_binding: Default::default(),
         };
         image.register_object()
     }
@@ -79,18 +79,18 @@ impl Image {
     }
 
     pub fn bind_memory(&mut self, memory: Arc<Mutex<MemoryAllocation>>, offset: u64) -> VkResult {
-        self.binding = Some(MemoryBinding {
-            memory,
+        self.gpu_binding.store(
+            memory.lock().gpu_memory_allocation,
             offset,
-            size: self.size_in_bytes().saturating_sub(offset),
-        });
+            self.size_in_bytes().saturating_sub(offset),
+        );
         VkResult::VK_SUCCESS
     }
 
     pub fn gpu_image(&self) -> gpu::Image {
-        let memory = self.binding.as_ref().unwrap();
+        let binding = self.gpu_binding.clone();
         gpu::Image {
-            memory_allocation: memory.memory.lock().gpu_memory_allocation,
+            binding,
             extent: gpu::Extent3d {
                 width: self.width,
                 height: self.height,

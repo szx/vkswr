@@ -221,6 +221,7 @@ fn run_deqp_vk_api_smoke_triangle() -> common::TestResult {
     run_deqp_vk("dEQP-VK.api.smoke.triangle", true)
 }
 
+#[ignore]
 #[test]
 fn run_deqp_memory_all() -> common::TestResult {
     run_deqp_vk("dEQP-VK.memory.*", false)

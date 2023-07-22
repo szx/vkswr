@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct Gpu {
     // TODO: Usa bitmap allocator.
-    memory_allocations: HashMap<u64, Vec<u8>>,
+    memory_allocations: HashMap<MemoryBindingHandle, Vec<u8>>,
     memory_allocation_index: AtomicU64,
     render_targets: HashMap<RenderTargetIndex, RenderTarget>,
 }
@@ -25,7 +26,8 @@ impl Gpu {
     }
 
     pub fn allocate_memory(&mut self, size: u64) -> MemoryAllocation {
-        let handle = self.memory_allocation_index.fetch_add(1, Ordering::Relaxed);
+        let handle =
+            MemoryBindingHandle(self.memory_allocation_index.fetch_add(1, Ordering::Relaxed));
         self.memory_allocations
             .insert(handle, vec![0; size as usize]);
         MemoryAllocation { handle, size }
@@ -101,24 +103,23 @@ impl Gpu {
 
     fn copy_bytes(
         &mut self,
-        src: MemoryAllocation,
-        dst: MemoryAllocation,
+        src_binding: &MemoryBinding,
+        dst_binding: &MemoryBinding,
         src_offset: u64,
         dst_offset: u64,
         size: u64,
     ) {
-        let src = self
+        let [src, dst] = self
             .memory_allocations
-            .get_mut(&src.handle)
+            .get_many_mut([
+                &MemoryBindingHandle(src_binding.memory_handle.load(Ordering::Relaxed)),
+                &MemoryBindingHandle(dst_binding.memory_handle.load(Ordering::Relaxed)),
+            ])
             .unwrap_or_else(|| unreachable!());
-        let src = src[src_offset as usize..(src_offset + size) as usize].as_mut_ptr();
-        let dst = self
-            .memory_allocations
-            .get_mut(&dst.handle)
-            .unwrap_or_else(|| unreachable!());
+        let src = src[src_offset as usize..(src_offset + size) as usize].as_ptr();
         let dst = dst[dst_offset as usize..(dst_offset + size) as usize].as_mut_ptr();
         unsafe {
-            std::ptr::copy(src, dst, size as usize);
+            std::ptr::copy_nonoverlapping(src, dst, size as usize);
         }
     }
 
@@ -143,8 +144,8 @@ impl Gpu {
         let src_offset = region.buffer_offset;
         let dst_offset = 0;
         self.copy_bytes(
-            src_buffer.memory_allocation,
-            dst_image.memory_allocation,
+            &src_buffer.binding,
+            &dst_image.binding,
             src_offset,
             dst_offset,
             size as u64,
@@ -172,8 +173,8 @@ impl Gpu {
         let src_offset = 0;
         let dst_offset = region.buffer_offset;
         self.copy_bytes(
-            src_image.memory_allocation,
-            dst_buffer.memory_allocation,
+            &src_image.binding,
+            &dst_buffer.binding,
             src_offset,
             dst_offset,
             size as u64,
@@ -187,8 +188,8 @@ impl Gpu {
         region: RegionCopyBufferBuffer,
     ) {
         self.copy_bytes(
-            src_buffer.memory_allocation,
-            dst_buffer.memory_allocation,
+            &src_buffer.binding,
+            &dst_buffer.binding,
             region.src_offset,
             region.dst_offset,
             region.size,
@@ -216,7 +217,9 @@ impl Gpu {
         let dst_offset = rt.image.extent.width * area.offset.y as u32 * bytes_per_pixel as u32;
         let dst = self
             .memory_allocations
-            .get_mut(&rt.image.memory_allocation.handle)
+            .get_mut(&MemoryBindingHandle(
+                rt.image.binding.memory_handle.load(Ordering::Relaxed),
+            ))
             .unwrap_or_else(|| unreachable!());
         let mut dst = dst[dst_offset as usize..].as_mut_ptr();
         let src = color.to_bytes(rt.format);
@@ -317,6 +320,7 @@ pub enum Format {
     R8Unorm,
     R8g8b8a8Unorm,
     A2b10g10r10UnormPack32,
+    D16Unorm,
 }
 
 impl Format {
@@ -325,11 +329,12 @@ impl Format {
             Format::R8Unorm => 1,
             Format::R8g8b8a8Unorm => 4,
             Format::A2b10g10r10UnormPack32 => 4,
+            Format::D16Unorm => 2,
         }
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct RenderTarget {
     pub index: RenderTargetIndex,
     pub format: Format,
@@ -348,21 +353,49 @@ pub struct RenderArea {
     pub offset: Offset2d,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Buffer {
-    pub memory_allocation: MemoryAllocation,
+    pub binding: MemoryBinding,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Image {
-    pub memory_allocation: MemoryAllocation,
+    pub binding: MemoryBinding,
     pub extent: Extent3d,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MemoryBinding {
+    /// Thanks to Arc cloned resource binding points to the same MemoryAllocation
+    memory_handle: Arc<AtomicU64>,
+    pub offset: u64,
+    pub size: u64,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryAllocation {
-    handle: u64,
+    handle: MemoryBindingHandle,
     pub size: u64,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+struct MemoryBindingHandle(pub u64);
+
+impl MemoryBinding {
+    pub fn new() -> Self {
+        Self {
+            memory_handle: Arc::new(Default::default()),
+            offset: 0,
+            size: 0,
+        }
+    }
+
+    pub fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64) {
+        self.memory_handle
+            .store(memory_allocation.handle.0, Ordering::Relaxed);
+        self.offset = offset;
+        self.size = size;
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -406,6 +439,11 @@ impl Color {
             let val = f32::from_bits(val);
             (val * 255.0f32).round() as u8
         };
+        let unorm_16 = |result: &mut [u8], val: u32| {
+            let val = f32::from_bits(val);
+            let val = (val * 65535.0f32).round() as u16;
+            result.copy_from_slice(&val.to_ne_bytes());
+        };
         match format {
             Format::R8Unorm => {
                 // TODO: Clearer way to put numbers into Vec during swizzling.
@@ -419,6 +457,9 @@ impl Color {
             }
             Format::A2b10g10r10UnormPack32 => {
                 unimplemented!()
+            }
+            Format::D16Unorm => {
+                unorm_16(&mut result[0..2], self.r);
             }
         }
         result

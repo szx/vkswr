@@ -1,7 +1,7 @@
 //! Instance
 
 use crate::context::Dispatchable;
-use crate::memory::{MemoryAllocation, MemoryBinding};
+use crate::memory::MemoryAllocation;
 use crate::physical_device::PhysicalDevice;
 use headers::c_char_array;
 use headers::vk_decls::*;

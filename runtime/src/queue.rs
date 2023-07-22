@@ -2,7 +2,7 @@
 
 use crate::command_buffer::CommandBuffer;
 use crate::context::Dispatchable;
-use crate::memory::{MemoryAllocation, MemoryBinding};
+use crate::memory::MemoryAllocation;
 use crate::physical_device::PhysicalDevice;
 use crate::semaphore::Semaphore;
 use crate::swapchain::Swapchain;
@@ -51,7 +51,7 @@ impl Queue {
         let _ = signal_semaphores.into_iter();
         for command_buffer in command_buffers {
             let gpu = &mut self.physical_device.lock().gpu;
-            gpu.submit(command_buffer.lock().gpu_command_buffer());
+            gpu.submit(command_buffer.lock().gpu_command_buffer_for_submit());
         }
     }
 

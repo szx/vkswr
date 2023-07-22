@@ -68,7 +68,7 @@ impl CommandBuffer {
         object.register_object()
     }
 
-    pub fn gpu_command_buffer(&mut self) -> gpu::CommandBuffer {
+    pub fn gpu_command_buffer_for_submit(&mut self) -> gpu::CommandBuffer {
         std::mem::replace(&mut self.gpu_command_buffer, gpu::CommandBuffer::new())
     }
 
@@ -114,11 +114,11 @@ impl CommandBuffer {
             },
         };
 
+        assert!(self.gpu_bound_render_target_indices.is_empty());
         izip!(descriptions.iter(), image_views.iter(), clear_values.iter())
             .enumerate()
             .for_each(|(index, (description, image_view, clear_value))| {
                 let index = gpu::RenderTargetIndex(index);
-                assert!(self.gpu_bound_render_target_indices.is_empty());
                 self.gpu_bound_render_target_indices.push(index);
 
                 self.gpu_command_buffer

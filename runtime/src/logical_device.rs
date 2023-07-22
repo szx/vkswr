@@ -2,7 +2,7 @@
 
 use crate::context::Dispatchable;
 use crate::fence::Fence;
-use crate::memory::{MemoryAllocation, MemoryBinding};
+use crate::memory::MemoryAllocation;
 use crate::physical_device::PhysicalDevice;
 use crate::queue::Queue;
 use headers::c_char_array;
