@@ -130,8 +130,16 @@ impl Gpu {
         region: RegionCopyBufferImage,
     ) {
         // TODO: Complete buffer to image copy algorithm.
-        assert_eq!(region.buffer_offset, 0);
-        assert_eq!(region.buffer_image_height, 0);
+        let buffer_image_height = if region.buffer_image_height == 0 {
+            region.image_extent.height
+        } else {
+            region.buffer_image_height
+        };
+        let buffer_row_len = if region.buffer_row_len == 0 {
+            region.image_extent.width
+        } else {
+            region.buffer_row_len
+        };
         assert_eq!(region.image_offset.x, 0);
         assert_eq!(region.image_offset.y, 0);
         assert_eq!(region.image_offset.z, 0);
@@ -140,7 +148,7 @@ impl Gpu {
         assert_eq!(region.image_array_level_count, 1);
         assert_eq!(region.image_extent.depth, 1);
         let size =
-            region.image_extent.width * region.image_extent.height * region.bytes_per_pixel as u32;
+            buffer_row_len * buffer_image_height * region.image_format.bytes_per_pixel() as u32;
         let src_offset = region.buffer_offset;
         let dst_offset = 0;
         self.copy_bytes(
@@ -160,7 +168,16 @@ impl Gpu {
     ) {
         // TODO: Complete buffer to image copy algorithm.
         assert_eq!(region.buffer_offset, 0);
-        assert_eq!(region.buffer_image_height, 0);
+        let buffer_image_height = if region.buffer_image_height == 0 {
+            region.image_extent.height
+        } else {
+            region.buffer_image_height
+        };
+        let buffer_row_len = if region.buffer_row_len == 0 {
+            region.image_extent.width
+        } else {
+            region.buffer_row_len
+        };
         assert_eq!(region.image_offset.x, 0);
         assert_eq!(region.image_offset.y, 0);
         assert_eq!(region.image_offset.z, 0);
@@ -169,7 +186,7 @@ impl Gpu {
         assert_eq!(region.image_array_level_count, 1);
         assert_eq!(region.image_extent.depth, 1);
         let size =
-            region.image_extent.width * region.image_extent.height * region.bytes_per_pixel as u32;
+            buffer_row_len * buffer_image_height * region.image_format.bytes_per_pixel() as u32;
         let src_offset = 0;
         let dst_offset = region.buffer_offset;
         self.copy_bytes(
@@ -304,8 +321,7 @@ pub struct RegionCopyBufferImage {
     pub image_array_level_count: u32,
     pub image_offset: Offset3d,
     pub image_extent: Extent3d,
-
-    pub bytes_per_pixel: u8, // TODO: Replace with image_format
+    pub image_format: Format,
 }
 
 #[derive(Debug, Copy, Clone)]

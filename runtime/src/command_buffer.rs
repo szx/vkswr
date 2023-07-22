@@ -273,7 +273,7 @@ impl CommandBuffer {
                             height: region.imageExtent.height,
                             depth: region.imageExtent.depth,
                         },
-                        bytes_per_pixel: dst_image.format.bytes_per_pixel(),
+                        image_format: dst_image.format.into(),
                     },
                 })
         }
@@ -311,7 +311,7 @@ impl CommandBuffer {
                             height: region.imageExtent.height,
                             depth: region.imageExtent.depth,
                         },
-                        bytes_per_pixel: src_image.format.bytes_per_pixel(),
+                        image_format: src_image.format.into(),
                     },
                 })
         }
