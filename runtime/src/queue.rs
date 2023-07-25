@@ -61,15 +61,28 @@ impl Queue {
         swapchains: impl IntoIterator<Item = Arc<Mutex<Swapchain>>>,
         image_indices: impl IntoIterator<Item = &'a u32>,
         results: impl IntoIterator<Item = &'a mut VkResult>,
-    ) {
-        info!("Queue::present");
-
-        for (swapchain, image_index, result) in izip!(swapchains, image_indices, results) {
-            // TODO: Queue present.
-            let _ = wait_semaphores;
-            let _ = swapchain;
-            let _ = image_index;
-            *result = VkResult::VK_SUCCESS;
+    ) -> Result<VkResult, VkResult> {
+        let _ = wait_semaphores.into_iter();
+        let mut swapchains = swapchains.into_iter();
+        let mut image_indices = image_indices.into_iter();
+        let mut results = results.into_iter();
+        let mut last_failure = Ok(VkResult::VK_SUCCESS);
+        loop {
+            let (Some(swapchain), Some(image_index), result) =
+                (swapchains.next(), image_indices.next(), results.next())
+            else {
+                return last_failure;
+            };
+            let last_result = swapchain.lock().present(*image_index);
+            if let Some(result) = result {
+                *result = match last_result {
+                    Ok(result) => result,
+                    Err(result) => result,
+                };
+            }
+            if last_failure.is_ok() && last_result.is_err() {
+                last_failure = last_result;
+            }
         }
     }
 

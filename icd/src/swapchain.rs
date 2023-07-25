@@ -154,9 +154,12 @@ pub unsafe extern "C" fn vkQueuePresentKHR(
         std::slice::from_raw_parts_mut(x.as_ptr(), present_info.swapchainCount as usize)
     });
 
-    queue
+    let result = queue
         .lock()
         .present(wait_semaphores, swapchains, image_indices, results);
-
-    VkResult::VK_SUCCESS
+    // TODO: Refactor unwrapping Result<T, T>
+    match result {
+        Ok(result) => result,
+        Err(result) => result,
+    }
 }

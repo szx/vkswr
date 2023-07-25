@@ -6,6 +6,7 @@ use crate::image::*;
 use crate::logical_device::LogicalDevice;
 use crate::memory::MemoryAllocation;
 use crate::semaphore::Semaphore;
+use crate::surface::Surface;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -17,7 +18,8 @@ pub struct Swapchain {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkSwapchainCreateFlagsKHR,
-    surface: VkSurfaceKHR,
+    surface: Arc<Mutex<Surface>>,
+    extent: gpu::Extent3d,
     pub images: Vec<Arc<Mutex<Image>>>,
     pub memory_allocations: Vec<Arc<Mutex<MemoryAllocation>>>,
     color_space: VkColorSpaceKHR,
@@ -33,18 +35,25 @@ impl Swapchain {
         let handle = VK_NULL_HANDLE;
 
         let flags = create_info.flags;
-        let surface = create_info.surface;
+        let Some(surface) = Surface::from_handle(create_info.surface) else {
+            unreachable!()
+        };
 
         let image_count = create_info.minImageCount;
+        let extent = gpu::Extent3d {
+            width: create_info.imageExtent.width,
+            height: create_info.imageExtent.height,
+            depth: create_info.imageArrayLayers,
+        };
         let mut images = Vec::with_capacity(image_count as usize);
         let mut memory_allocations = Vec::with_capacity(image_count as usize);
         for _ in 0..image_count {
             let image = Image::create(
                 logical_device.clone(),
                 create_info.imageFormat,
-                create_info.imageExtent.width,
-                create_info.imageExtent.height,
-                create_info.imageArrayLayers,
+                extent.width,
+                extent.height,
+                extent.depth,
                 create_info.imageUsage,
             );
             let Some(image) = Image::from_handle(image) else {
@@ -82,6 +91,7 @@ impl Swapchain {
             logical_device,
             flags,
             surface,
+            extent,
             images,
             memory_allocations,
             color_space,
@@ -101,6 +111,11 @@ impl Swapchain {
         let _ = semaphore;
         let _ = fence;
         0
+    }
+
+    pub fn present(&mut self, image_index: u32) -> Result<VkResult, VkResult> {
+        let memory_allocation = self.memory_allocations[image_index as usize].clone();
+        self.surface.lock().present(memory_allocation, self.extent)
     }
 }
 

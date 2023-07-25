@@ -9,7 +9,7 @@ The current goal is implementation of Vulkan Core 1.0 API in software.
 - [ ] vkcube
   - [x] Entry points.
   - [ ] Rendering.
-  - [ ] Presentation.
+  - [x] Presentation.
 - [ ] dEQP-VK tests
   - [ ] dEQP-VK.api.*
     - [x] dEQP-VK.api.info.*

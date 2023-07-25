@@ -78,7 +78,7 @@ fn run_vulkaninfo() -> common::TestResult {
 
 #[test]
 fn run_vkcube() -> common::TestResult {
-    run_executable("vkcube", None::<&str>, [], || {})
+    run_executable("vkcube", None::<&str>, ["--c", "600"], || {})
 }
 
 fn run_deqp_vk(case_name: &'static str, log_images: bool) -> common::TestResult {
