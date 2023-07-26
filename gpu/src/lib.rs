@@ -4,12 +4,18 @@ use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+pub const MAX_VERTEX_ATTRIBUTES: u32 = 16;
+pub const MAX_VERTEX_BINDINGS: u32 = 16;
+
 #[derive(Default)]
 pub struct Gpu {
     // TODO: Usa bitmap allocator.
     memory_allocations: HashMap<MemoryBindingHandle, Vec<u8>>,
     memory_allocation_index: AtomicU64,
+
     render_targets: HashMap<RenderTargetIndex, RenderTarget>,
+
+    vertex_input_state: VertexInputState,
 }
 
 impl Gpu {
@@ -18,6 +24,7 @@ impl Gpu {
             memory_allocations: HashMap::default(),
             memory_allocation_index: AtomicU64::new(1),
             render_targets: HashMap::default(),
+            vertex_input_state: Default::default(),
         }
     }
 
@@ -96,6 +103,9 @@ impl Gpu {
                     color,
                 } => {
                     self.clear_render_target(index, render_area, color);
+                }
+                Command::SetVertexInputState { vertex_input_state } => {
+                    self.set_vertex_input_state(vertex_input_state);
                 }
             }
         }
@@ -252,6 +262,10 @@ impl Gpu {
             }
         }
     }
+
+    fn set_vertex_input_state(&mut self, vertex_input_state: VertexInputState) {
+        self.vertex_input_state = vertex_input_state;
+    }
 }
 
 impl Debug for Gpu {
@@ -308,6 +322,9 @@ pub enum Command {
         render_area: RenderArea,
         color: Color,
     },
+    SetVertexInputState {
+        vertex_input_state: VertexInputState,
+    },
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -334,7 +351,9 @@ pub struct RegionCopyBufferBuffer {
 #[derive(Debug, Copy, Clone)]
 pub enum Format {
     R8Unorm,
-    R8g8b8a8Unorm,
+    R8G8Unorm,
+    R8G8B8A8Unorm,
+    R32G32B32A32Sfloat,
     A2b10g10r10UnormPack32,
     D16Unorm,
 }
@@ -343,7 +362,9 @@ impl Format {
     pub const fn bytes_per_pixel(&self) -> u8 {
         match *self {
             Format::R8Unorm => 1,
-            Format::R8g8b8a8Unorm => 4,
+            Format::R8G8Unorm => 2,
+            Format::R8G8B8A8Unorm => 4,
+            Format::R32G32B32A32Sfloat => 16,
             Format::A2b10g10r10UnormPack32 => 4,
             Format::D16Unorm => 2,
         }
@@ -362,6 +383,40 @@ pub struct RenderTarget {
 pub struct RenderTargetIndex(pub usize);
 
 // TODO: struct RenderInput for Vulkan input attachments.
+
+#[derive(Debug, Clone, Default)]
+pub struct VertexInputState {
+    pub attributes: [Option<VertexAttribute>; MAX_VERTEX_ATTRIBUTES as usize],
+    pub bindings: [Option<VertexBinding>; MAX_VERTEX_BINDINGS as usize],
+}
+
+#[derive(Debug, Clone)]
+pub struct VertexAttribute {
+    /// Shader input location.
+    pub location: u32,
+    /// Binding number used to fetch data from.
+    pub binding: u32,
+    /// Describes vertex attribute data.
+    pub format: Format,
+    /// Offset within element of binding.
+    pub offset: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct VertexBinding {
+    /// Binding number.
+    pub binding: u32,
+    /// Stride between elements.
+    pub stride: u32,
+    /// Specifies whether element is vertex of instance.
+    pub input_rate: VertexInputRate,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum VertexInputRate {
+    Vertex,
+    Instance,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct RenderArea {
@@ -460,16 +515,29 @@ impl Color {
             let val = (val * 65535.0f32).round() as u16;
             result.copy_from_slice(&val.to_ne_bytes());
         };
+        let sfloat_32 = |result: &mut [u8], val: u32| {
+            let val = f32::from_bits(val);
+            result.copy_from_slice(&val.to_ne_bytes());
+        };
         match format {
             Format::R8Unorm => {
-                // TODO: Clearer way to put numbers into Vec during swizzling.
-                result[0] = self.r as u8;
+                result[0] = unorm_8(self.r);
             }
-            Format::R8g8b8a8Unorm => {
+            Format::R8G8Unorm => {
+                result[0] = unorm_8(self.r);
+                result[1] = unorm_8(self.g);
+            }
+            Format::R8G8B8A8Unorm => {
                 result[0] = unorm_8(self.r);
                 result[1] = unorm_8(self.g);
                 result[2] = unorm_8(self.b);
                 result[3] = unorm_8(self.a);
+            }
+            Format::R32G32B32A32Sfloat => {
+                sfloat_32(&mut result[0..4], self.r);
+                sfloat_32(&mut result[4..8], self.r);
+                sfloat_32(&mut result[8..12], self.r);
+                sfloat_32(&mut result[12..16], self.r);
             }
             Format::A2b10g10r10UnormPack32 => {
                 unimplemented!()

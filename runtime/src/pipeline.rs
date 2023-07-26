@@ -1,9 +1,11 @@
 //! Pipeline
 
+use crate::command_buffer::CommandBuffer;
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
 use crate::memory::MemoryAllocation;
+use crate::physical_device::PhysicalDevice;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -154,50 +156,34 @@ pub struct Pipeline {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
+
+    pub(crate) vertex_input_state: gpu::VertexInputState,
 }
 
 impl Pipeline {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
-        stages: &[VkPipelineShaderStageCreateInfo],
-        state: GraphicsPipelineStateCreateInfo,
+        vertex_input_state: Option<gpu::VertexInputState>,
     ) -> VkNonDispatchableHandle {
         info!("new Pipeline");
         let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = stages;
-        let _ = state.vertex_input_state;
-        let _ = state.input_assembly_state;
-        let _ = state.tessellation_state;
-        let _ = state.viewport_state;
-        let _ = state.rasterization_state;
-        let _ = state.multisample_state;
-        let _ = state.depth_stencil_state;
-        let _ = state.color_blend_state;
-        let _ = state.dynamic_state;
 
         let object = Self {
             handle,
             logical_device,
             pipeline_cache,
+            vertex_input_state: vertex_input_state.unwrap_or_default(),
         };
         object.register_object()
     }
-}
 
-pub struct GraphicsPipelineStateCreateInfo<'a> {
-    pub vertex_input_state: Option<&'a VkPipelineVertexInputStateCreateInfo>,
-    pub input_assembly_state: Option<&'a VkPipelineInputAssemblyStateCreateInfo>,
-    pub tessellation_state: Option<&'a VkPipelineTessellationStateCreateInfo>,
-    pub viewport_state: Option<&'a VkPipelineViewportStateCreateInfo>,
-    pub rasterization_state: Option<&'a VkPipelineRasterizationStateCreateInfo>,
-    pub multisample_state: Option<&'a VkPipelineMultisampleStateCreateInfo>,
-    pub depth_stencil_state: Option<&'a VkPipelineDepthStencilStateCreateInfo>,
-    pub color_blend_state: Option<&'a VkPipelineColorBlendStateCreateInfo>,
-    pub dynamic_state: Option<&'a VkPipelineDynamicStateCreateInfo>,
+    pub fn bind_states(&self, command_buffer: &mut gpu::CommandBuffer) {
+        command_buffer.record(gpu::Command::SetVertexInputState {
+            vertex_input_state: self.vertex_input_state.clone(),
+        });
+        // TODO: Record rest of pipeline state.
+    }
 }
 
 #[derive(Debug)]

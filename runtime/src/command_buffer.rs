@@ -176,10 +176,11 @@ impl CommandBuffer {
         bind_point: VkPipelineBindPoint,
         pipeline: Arc<Mutex<Pipeline>>,
     ) {
-        trace!("CommandBuffer::cmd_bind_pipeline");
-        let _ = bind_point;
-        let _ = pipeline;
-        // TODO: Record pipeline binding.
+        if bind_point == VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS {
+            pipeline.lock().bind_states(&mut self.gpu_command_buffer);
+        } else {
+            unreachable!();
+        }
     }
 
     pub fn cmd_bind_descriptor_sets(

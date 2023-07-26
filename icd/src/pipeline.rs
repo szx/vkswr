@@ -4,6 +4,7 @@ use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::ImageView;
 use runtime::logical_device::LogicalDevice;
+use runtime::physical_device::PhysicalDevice;
 use runtime::pipeline::*;
 use runtime::*;
 
@@ -275,25 +276,19 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
             .map_or(&[] as &[VkPipelineShaderStageCreateInfo], |x| {
                 std::slice::from_raw_parts(x.as_ptr(), create_info.stageCount as usize)
             });
-        let state = GraphicsPipelineStateCreateInfo {
-            vertex_input_state: create_info.pVertexInputState.map(|x| x.as_ref()),
-            input_assembly_state: create_info.pInputAssemblyState.map(|x| x.as_ref()),
-            tessellation_state: create_info.pTessellationState.map(|x| x.as_ref()),
-            viewport_state: create_info.pViewportState.map(|x| x.as_ref()),
-            rasterization_state: create_info.pRasterizationState.map(|x| x.as_ref()),
-            multisample_state: create_info.pMultisampleState.map(|x| x.as_ref()),
-            depth_stencil_state: create_info.pDepthStencilState.map(|x| x.as_ref()),
-            color_blend_state: create_info.pColorBlendState.map(|x| x.as_ref()),
-            dynamic_state: create_info.pDynamicState.map(|x| x.as_ref()),
-        };
-
-        *pipeline = Pipeline::create(
-            device.clone(),
-            pipelineCache.clone(),
-            create_info.flags,
-            stages,
-            state,
-        );
+        let vertex_input_state = create_info
+            .pVertexInputState
+            .map(|x| PhysicalDevice::parse_vertex_input_state(*x.as_ref()));
+        // TODO: Parse rest of Vulkan pipeline states.
+        let input_assembly_state = create_info.pInputAssemblyState.map(|x| x.as_ref());
+        let tessellation_state = create_info.pTessellationState.map(|x| x.as_ref());
+        let viewport_state = create_info.pViewportState.map(|x| x.as_ref());
+        let rasterization_state = create_info.pRasterizationState.map(|x| x.as_ref());
+        let multisample_state = create_info.pMultisampleState.map(|x| x.as_ref());
+        let depth_stencil_state = create_info.pDepthStencilState.map(|x| x.as_ref());
+        let color_blend_state = create_info.pColorBlendState.map(|x| x.as_ref());
+        let dynamic_state = create_info.pDynamicState.map(|x| x.as_ref());
+        *pipeline = Pipeline::create(device.clone(), pipelineCache.clone(), vertex_input_state);
     }
 
     VkResult::VK_SUCCESS

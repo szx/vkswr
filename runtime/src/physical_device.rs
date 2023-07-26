@@ -2,7 +2,6 @@
 
 use crate::context::Dispatchable;
 use crate::memory::MemoryAllocation;
-use gpu::Gpu;
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
@@ -16,7 +15,7 @@ use std::sync::Arc;
 pub struct PhysicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     physical_device_name: &'static str,
-    pub(crate) gpu: Gpu,
+    pub(crate) gpu: gpu::Gpu,
 }
 
 impl PhysicalDevice {
@@ -25,7 +24,7 @@ impl PhysicalDevice {
         let physical_device = Self {
             handle: VkDispatchableHandle(None),
             physical_device_name: "vulkan_software_rasterizer physical device",
-            gpu: Gpu::new(),
+            gpu: gpu::Gpu::new(),
         };
         physical_device.register_object()
     }
@@ -94,8 +93,8 @@ impl PhysicalDevice {
                 maxDescriptorSetSampledImages: 0,
                 maxDescriptorSetStorageImages: 0,
                 maxDescriptorSetInputAttachments: 0,
-                maxVertexInputAttributes: 0,
-                maxVertexInputBindings: 0,
+                maxVertexInputAttributes: gpu::MAX_VERTEX_ATTRIBUTES,
+                maxVertexInputBindings: gpu::MAX_VERTEX_BINDINGS,
                 maxVertexInputAttributeOffset: 0,
                 maxVertexInputBindingStride: 0,
                 maxVertexOutputComponents: 0,
@@ -2473,6 +2472,69 @@ impl PhysicalDevice {
             supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
                 .into(),
             supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.into(),
+        }
+    }
+}
+
+impl PhysicalDevice {
+    pub unsafe fn parse_vertex_input_state(
+        vertex_input_state: VkPipelineVertexInputStateCreateInfo,
+    ) -> gpu::VertexInputState {
+        let vk_attributes =
+            vertex_input_state
+                .pVertexAttributeDescriptions
+                .map_or(&[] as &[_], |x| {
+                    std::slice::from_raw_parts(
+                        x.as_ptr(),
+                        vertex_input_state.vertexAttributeDescriptionCount as usize,
+                    )
+                });
+        let vk_bindings = vertex_input_state
+            .pVertexBindingDescriptions
+            .map_or(&[] as &[_], |x| {
+                std::slice::from_raw_parts(
+                    x.as_ptr(),
+                    vertex_input_state.vertexBindingDescriptionCount as usize,
+                )
+            });
+        let mut vertex_input_state = gpu::VertexInputState::default();
+        for vk_attribute in vk_attributes {
+            let Some(attribute) = vertex_input_state
+                .attributes
+                .get_mut(vk_attribute.location as usize)
+            else {
+                unreachable!()
+            };
+            *attribute = Some(gpu::VertexAttribute {
+                location: vk_attribute.location,
+                binding: vk_attribute.binding,
+                format: vk_attribute.format.into(),
+                offset: vk_attribute.offset,
+            });
+        }
+        for vk_binding in vk_bindings {
+            let Some(binding) = vertex_input_state
+                .bindings
+                .get_mut(vk_binding.binding as usize)
+            else {
+                unreachable!()
+            };
+            *binding = Some(gpu::VertexBinding {
+                binding: vk_binding.binding,
+                stride: vk_binding.binding,
+                input_rate: Self::parse_vertex_input_rate(vk_binding.inputRate),
+            });
+        }
+        vertex_input_state
+    }
+
+    pub(crate) fn parse_vertex_input_rate(
+        vertex_input_rate: VkVertexInputRate,
+    ) -> gpu::VertexInputRate {
+        match vertex_input_rate {
+            VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX => gpu::VertexInputRate::Vertex,
+            VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE => gpu::VertexInputRate::Instance,
+            _ => unreachable!(),
         }
     }
 }
