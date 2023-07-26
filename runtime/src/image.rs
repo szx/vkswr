@@ -87,9 +87,9 @@ impl Image {
         VkResult::VK_SUCCESS
     }
 
-    pub fn gpu_image(&self) -> gpu::Image {
+    pub fn descriptor(&self) -> gpu::DescriptorImage {
         let binding = self.gpu_binding.clone();
-        gpu::Image {
+        gpu::DescriptorImage {
             binding,
             extent: gpu::Extent3d {
                 width: self.width,

@@ -60,9 +60,9 @@ impl Buffer {
         VkResult::VK_SUCCESS
     }
 
-    pub fn gpu_buffer(&self) -> gpu::Buffer {
+    pub fn descriptor(&self) -> gpu::DescriptorBuffer {
         let binding = self.gpu_binding.clone();
-        gpu::Buffer { binding }
+        gpu::DescriptorBuffer { binding }
     }
 }
 

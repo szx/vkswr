@@ -127,7 +127,7 @@ impl CommandBuffer {
                             index,
                             format: description.format.into(),
                             samples: description.samples.into(),
-                            image: image_view.lock().image.lock().gpu_image(),
+                            image: image_view.lock().image.lock().descriptor(),
                         },
                     });
 
@@ -200,17 +200,20 @@ impl CommandBuffer {
         // TODO: Record descriptor sets bindings.
     }
 
-    pub fn cmd_bind_vertex_buffers(
+    pub fn cmd_bind_vertex_buffer(
         &mut self,
-        first_binding: u32,
-        buffers: &[VkBuffer],
-        offsets: &[VkDeviceSize],
+        binding: u32,
+        buffer: Arc<Mutex<Buffer>>,
+        offset: VkDeviceSize,
     ) {
-        trace!("CommandBuffer::cmd_bind_vertex_buffers");
-        let _ = first_binding;
-        let _ = buffers;
-        let _ = offsets;
-        // TODO: Record vertex buffers bindings.
+        self.gpu_command_buffer
+            .record(gpu::Command::BindVertexBuffer {
+                vertex_buffer: gpu::VertexBuffer {
+                    binding: gpu::VertexBindingNumber(binding),
+                    buffer: buffer.lock().descriptor(),
+                    offset,
+                },
+            });
     }
 
     pub fn cmd_set_viewport(&mut self, first_viewport: u32, viewports: &[VkViewport]) {
@@ -255,8 +258,8 @@ impl CommandBuffer {
         for region in regions {
             self.gpu_command_buffer
                 .record(gpu::Command::CopyBufferToImage {
-                    src_buffer: src_buffer.gpu_buffer(),
-                    dst_image: dst_image.gpu_image(),
+                    src_buffer: src_buffer.descriptor(),
+                    dst_image: dst_image.descriptor(),
                     region: gpu::RegionCopyBufferImage {
                         buffer_offset: region.bufferOffset,
                         buffer_row_len: region.bufferRowLength,
@@ -293,8 +296,8 @@ impl CommandBuffer {
         for region in regions {
             self.gpu_command_buffer
                 .record(gpu::Command::CopyImageToBuffer {
-                    src_image: src_image.gpu_image(),
-                    dst_buffer: dst_buffer.gpu_buffer(),
+                    src_image: src_image.descriptor(),
+                    dst_buffer: dst_buffer.descriptor(),
                     region: gpu::RegionCopyBufferImage {
                         buffer_offset: region.bufferOffset,
                         buffer_row_len: region.bufferRowLength,
@@ -328,8 +331,8 @@ impl CommandBuffer {
         for region in regions {
             self.gpu_command_buffer
                 .record(gpu::Command::CopyBufferToBuffer {
-                    src_buffer: src_buffer.lock().gpu_buffer(),
-                    dst_buffer: dst_buffer.lock().gpu_buffer(),
+                    src_buffer: src_buffer.lock().descriptor(),
+                    dst_buffer: dst_buffer.lock().descriptor(),
                     region: gpu::RegionCopyBufferBuffer {
                         src_offset: region.srcOffset,
                         dst_offset: region.dstOffset,

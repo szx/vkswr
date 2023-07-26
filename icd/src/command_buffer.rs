@@ -272,9 +272,17 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers(
         std::slice::from_raw_parts(x.as_ptr(), bindingCount as usize)
     });
 
-    commandBuffer
-        .lock()
-        .cmd_bind_vertex_buffers(firstBinding, buffers, offsets);
+    let mut command_buffer = commandBuffer.lock();
+    for (binding, &buffer, &offset) in itertools::izip!(
+        (firstBinding..firstBinding + bindingCount),
+        buffers,
+        offsets
+    ) {
+        let Some(buffer) = Buffer::from_handle(buffer) else {
+            unreachable!()
+        };
+        command_buffer.cmd_bind_vertex_buffer(binding, buffer, offset);
+    }
 }
 
 pub unsafe extern "C" fn vkCmdSetViewport(

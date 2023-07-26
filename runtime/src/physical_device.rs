@@ -2507,7 +2507,7 @@ impl PhysicalDevice {
             };
             *attribute = Some(gpu::VertexAttribute {
                 location: vk_attribute.location,
-                binding: vk_attribute.binding,
+                binding: gpu::VertexBindingNumber(vk_attribute.binding),
                 format: vk_attribute.format.into(),
                 offset: vk_attribute.offset,
             });
@@ -2520,7 +2520,7 @@ impl PhysicalDevice {
                 unreachable!()
             };
             *binding = Some(gpu::VertexBinding {
-                binding: vk_binding.binding,
+                binding: gpu::VertexBindingNumber(vk_binding.binding),
                 stride: vk_binding.binding,
                 input_rate: Self::parse_vertex_input_rate(vk_binding.inputRate),
             });

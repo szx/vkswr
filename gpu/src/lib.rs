@@ -1,5 +1,6 @@
 use hashbrown::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::ops::{Index, IndexMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -14,6 +15,7 @@ pub struct Gpu {
     memory_allocation_index: AtomicU64,
 
     render_targets: HashMap<RenderTargetIndex, RenderTarget>,
+    vertex_buffers: [Option<VertexBuffer>; MAX_VERTEX_BINDINGS as usize],
 
     vertex_input_state: VertexInputState,
 }
@@ -24,6 +26,7 @@ impl Gpu {
             memory_allocations: HashMap::default(),
             memory_allocation_index: AtomicU64::new(1),
             render_targets: HashMap::default(),
+            vertex_buffers: Default::default(),
             vertex_input_state: Default::default(),
         }
     }
@@ -107,6 +110,9 @@ impl Gpu {
                 Command::SetVertexInputState { vertex_input_state } => {
                     self.set_vertex_input_state(vertex_input_state);
                 }
+                Command::BindVertexBuffer { vertex_buffer } => {
+                    self.bind_vertex_buffer(vertex_buffer);
+                }
             }
         }
     }
@@ -135,8 +141,8 @@ impl Gpu {
 
     fn copy_buffer_to_image(
         &mut self,
-        src_buffer: Buffer,
-        dst_image: Image,
+        src_buffer: DescriptorBuffer,
+        dst_image: DescriptorImage,
         region: RegionCopyBufferImage,
     ) {
         // TODO: Complete buffer to image copy algorithm.
@@ -172,8 +178,8 @@ impl Gpu {
 
     fn copy_image_to_buffer(
         &mut self,
-        src_image: Image,
-        dst_buffer: Buffer,
+        src_image: DescriptorImage,
+        dst_buffer: DescriptorBuffer,
         region: RegionCopyBufferImage,
     ) {
         // TODO: Complete buffer to image copy algorithm.
@@ -210,8 +216,8 @@ impl Gpu {
 
     fn copy_buffer_to_buffer(
         &mut self,
-        src_buffer: Buffer,
-        dst_buffer: Buffer,
+        src_buffer: DescriptorBuffer,
+        dst_buffer: DescriptorBuffer,
         region: RegionCopyBufferBuffer,
     ) {
         self.copy_bytes(
@@ -266,6 +272,11 @@ impl Gpu {
     fn set_vertex_input_state(&mut self, vertex_input_state: VertexInputState) {
         self.vertex_input_state = vertex_input_state;
     }
+
+    fn bind_vertex_buffer(&mut self, vertex_buffer: VertexBuffer) {
+        let index = vertex_buffer.binding;
+        self.vertex_buffers[index] = Some(vertex_buffer);
+    }
 }
 
 impl Debug for Gpu {
@@ -294,18 +305,18 @@ impl CommandBuffer {
 #[derive(Debug, Clone)]
 pub enum Command {
     CopyBufferToImage {
-        src_buffer: Buffer,
-        dst_image: Image,
+        src_buffer: DescriptorBuffer,
+        dst_image: DescriptorImage,
         region: RegionCopyBufferImage,
     },
     CopyImageToBuffer {
-        src_image: Image,
-        dst_buffer: Buffer,
+        src_image: DescriptorImage,
+        dst_buffer: DescriptorBuffer,
         region: RegionCopyBufferImage,
     },
     CopyBufferToBuffer {
-        src_buffer: Buffer,
-        dst_buffer: Buffer,
+        src_buffer: DescriptorBuffer,
+        dst_buffer: DescriptorBuffer,
         region: RegionCopyBufferBuffer,
     },
     ExecuteCommands {
@@ -324,6 +335,9 @@ pub enum Command {
     },
     SetVertexInputState {
         vertex_input_state: VertexInputState,
+    },
+    BindVertexBuffer {
+        vertex_buffer: VertexBuffer,
     },
 }
 
@@ -376,7 +390,7 @@ pub struct RenderTarget {
     pub index: RenderTargetIndex,
     pub format: Format,
     pub samples: u32,
-    pub image: Image,
+    pub image: DescriptorImage,
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
@@ -395,7 +409,7 @@ pub struct VertexAttribute {
     /// Shader input location.
     pub location: u32,
     /// Binding number used to fetch data from.
-    pub binding: u32,
+    pub binding: VertexBindingNumber,
     /// Describes vertex attribute data.
     pub format: Format,
     /// Offset within element of binding.
@@ -405,7 +419,7 @@ pub struct VertexAttribute {
 #[derive(Debug, Clone)]
 pub struct VertexBinding {
     /// Binding number.
-    pub binding: u32,
+    pub binding: VertexBindingNumber,
     /// Stride between elements.
     pub stride: u32,
     /// Specifies whether element is vertex of instance.
@@ -413,9 +427,40 @@ pub struct VertexBinding {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct VertexBindingNumber(pub u32);
+
+// TODO: impl_index_trait!()
+impl Index<VertexBindingNumber> for [Option<VertexBuffer>] {
+    type Output = Option<VertexBuffer>;
+
+    fn index(&self, index: VertexBindingNumber) -> &Self::Output {
+        let Some(value) = self.get(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+impl IndexMut<VertexBindingNumber> for [Option<VertexBuffer>] {
+    fn index_mut(&mut self, index: VertexBindingNumber) -> &mut Self::Output {
+        let Some(value) = self.get_mut(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum VertexInputRate {
     Vertex,
     Instance,
+}
+
+#[derive(Debug, Clone)]
+pub struct VertexBuffer {
+    pub binding: VertexBindingNumber,
+    pub buffer: DescriptorBuffer,
+    pub offset: u64,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -425,12 +470,12 @@ pub struct RenderArea {
 }
 
 #[derive(Debug, Clone)]
-pub struct Buffer {
+pub struct DescriptorBuffer {
     pub binding: MemoryBinding,
 }
 
 #[derive(Debug, Clone)]
-pub struct Image {
+pub struct DescriptorImage {
     pub binding: MemoryBinding,
     pub extent: Extent3d,
 }
