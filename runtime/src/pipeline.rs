@@ -1,15 +1,12 @@
 //! Pipeline
 
-use crate::command_buffer::CommandBuffer;
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
-use crate::memory::MemoryAllocation;
-use crate::physical_device::PhysicalDevice;
+use gpu::InputAssemblyState;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -158,6 +155,7 @@ pub struct Pipeline {
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 
     pub(crate) vertex_input_state: gpu::VertexInputState,
+    pub(crate) input_assembly_state: gpu::InputAssemblyState,
 }
 
 impl Pipeline {
@@ -165,6 +163,7 @@ impl Pipeline {
         logical_device: Arc<Mutex<LogicalDevice>>,
         pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
         vertex_input_state: Option<gpu::VertexInputState>,
+        input_assembly_state: Option<InputAssemblyState>,
     ) -> VkNonDispatchableHandle {
         info!("new Pipeline");
         let handle = VK_NULL_HANDLE;
@@ -174,6 +173,7 @@ impl Pipeline {
             logical_device,
             pipeline_cache,
             vertex_input_state: vertex_input_state.unwrap_or_default(),
+            input_assembly_state: input_assembly_state.unwrap_or_default(),
         };
         object.register_object()
     }
@@ -181,6 +181,9 @@ impl Pipeline {
     pub fn bind_states(&self, command_buffer: &mut gpu::CommandBuffer) {
         command_buffer.record(gpu::Command::SetVertexInputState {
             vertex_input_state: self.vertex_input_state.clone(),
+        });
+        command_buffer.record(gpu::Command::SetInputAssemblyState {
+            input_assembly_state: self.input_assembly_state.clone(),
         });
         // TODO: Record rest of pipeline state.
     }

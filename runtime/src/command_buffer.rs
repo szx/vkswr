@@ -8,7 +8,7 @@ use crate::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
 use headers::vk_decls::*;
 use itertools::izip;
 use log::*;
-use parking_lot::{Mutex, RwLockWriteGuard};
+use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -209,7 +209,7 @@ impl CommandBuffer {
         self.gpu_command_buffer
             .record(gpu::Command::BindVertexBuffer {
                 vertex_buffer: gpu::VertexBuffer {
-                    binding: gpu::VertexBindingNumber(binding),
+                    binding_number: gpu::VertexBindingNumber(binding),
                     buffer: buffer.lock().descriptor(),
                     offset,
                 },
@@ -237,12 +237,12 @@ impl CommandBuffer {
         first_vertex: u32,
         first_instance: u32,
     ) {
-        trace!("CommandBuffer::cmd_draw");
-        let _ = vertex_count;
-        let _ = instance_count;
-        let _ = first_vertex;
-        let _ = first_instance;
-        // TODO: Record draw.
+        self.gpu_command_buffer.record(gpu::Command::DrawPrimitive {
+            vertex_count,
+            instance_count,
+            first_vertex,
+            first_instance,
+        });
     }
 
     pub fn cmd_copy_buffer_to_image(

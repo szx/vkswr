@@ -555,12 +555,12 @@ impl From<VkFormat> for gpu::Format {
 impl From<VkClearValue> for gpu::Color {
     fn from(value: VkClearValue) -> Self {
         unsafe {
-            Self {
-                r: value.color.uint32[0],
-                g: value.color.uint32[1],
-                b: value.color.uint32[2],
-                a: value.color.uint32[3],
-            }
+            Self::from_raw(
+                value.color.uint32[0],
+                value.color.uint32[1],
+                value.color.uint32[2],
+                value.color.uint32[3],
+            )
         }
     }
 }

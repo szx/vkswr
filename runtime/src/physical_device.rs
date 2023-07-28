@@ -1,14 +1,11 @@
 //! PhysicalDevice
 
 use crate::context::Dispatchable;
-use crate::memory::MemoryAllocation;
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
-use parking_lot::Mutex;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 /// Performs rendering operations.
 #[derive(Debug)]
@@ -95,8 +92,8 @@ impl PhysicalDevice {
                 maxDescriptorSetInputAttachments: 0,
                 maxVertexInputAttributes: gpu::MAX_VERTEX_ATTRIBUTES,
                 maxVertexInputBindings: gpu::MAX_VERTEX_BINDINGS,
-                maxVertexInputAttributeOffset: 0,
-                maxVertexInputBindingStride: 0,
+                maxVertexInputAttributeOffset: gpu::MAX_VERTEX_ATTRIBUTE_OFFSET,
+                maxVertexInputBindingStride: gpu::MAX_VERTEX_BINDING_STRIDE,
                 maxVertexOutputComponents: 0,
                 maxTessellationGenerationLevel: 0,
                 maxTessellationPatchSize: 0,
@@ -2520,7 +2517,7 @@ impl PhysicalDevice {
                 unreachable!()
             };
             *binding = Some(gpu::VertexBinding {
-                binding: gpu::VertexBindingNumber(vk_binding.binding),
+                number: gpu::VertexBindingNumber(vk_binding.binding),
                 stride: vk_binding.binding,
                 input_rate: Self::parse_vertex_input_rate(vk_binding.inputRate),
             });
@@ -2534,6 +2531,56 @@ impl PhysicalDevice {
         match vertex_input_rate {
             VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX => gpu::VertexInputRate::Vertex,
             VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE => gpu::VertexInputRate::Instance,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn parse_input_assembly_state(
+        input_assembly_state: VkPipelineInputAssemblyStateCreateInfo,
+    ) -> gpu::InputAssemblyState {
+        gpu::InputAssemblyState {
+            topology: Self::parse_primitive_topology(input_assembly_state.topology),
+            primitive_restart: input_assembly_state.primitiveRestartEnable != 0,
+        }
+    }
+
+    pub(crate) fn parse_primitive_topology(
+        topology: VkPrimitiveTopology,
+    ) -> gpu::PrimitiveTopology {
+        match topology {
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_POINT_LIST => {
+                gpu::PrimitiveTopology::PointList
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_LIST => {
+                gpu::PrimitiveTopology::LineList
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_STRIP => {
+                gpu::PrimitiveTopology::LineStrip
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST => {
+                gpu::PrimitiveTopology::TriangleList
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP => {
+                gpu::PrimitiveTopology::TriangleStrip
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN => {
+                gpu::PrimitiveTopology::TriangleFan
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY => {
+                gpu::PrimitiveTopology::LineListWithAdjacency
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY => {
+                gpu::PrimitiveTopology::LineStripWithAdjacency
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY => {
+                gpu::PrimitiveTopology::TriangleListWithAdjacency
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY => {
+                gpu::PrimitiveTopology::TriangleStripWithAdjacency
+            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_PATCH_LIST => {
+                gpu::PrimitiveTopology::PatchList
+            }
             _ => unreachable!(),
         }
     }
