@@ -203,11 +203,11 @@ impl PhysicalDevice {
                 let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
                     [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
                 m[0] = VkMemoryHeap {
-                    size: gpu::Gpu::memory_size_in_bytes() / 2,
+                    size: gpu::Memory::memory_size_in_bytes() / 2,
                     flags: 0,
                 };
                 m[0] = VkMemoryHeap {
-                    size: gpu::Gpu::memory_size_in_bytes() / 2,
+                    size: gpu::Memory::memory_size_in_bytes() / 2,
                     flags: VkMemoryHeapFlagBits::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT.into(),
                 };
                 m

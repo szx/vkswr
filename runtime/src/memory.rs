@@ -39,6 +39,7 @@ impl MemoryAllocation {
                 .lock()
                 .physical_device()
                 .gpu
+                .memory
                 .allocate_memory(size),
             state: MemoryAllocationState::HostUnmapped,
         };
@@ -64,11 +65,13 @@ impl MemoryAllocation {
                 } else {
                     return Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED);
                 };
-                let ptr = self.logical_device.lock().physical_device().gpu.map_host(
-                    self.gpu_memory_allocation,
-                    offset,
-                    size,
-                );
+                let ptr = self
+                    .logical_device
+                    .lock()
+                    .physical_device()
+                    .gpu
+                    .memory
+                    .map_host(self.gpu_memory_allocation, offset, size);
                 Ok(ptr)
             },
         }
@@ -82,6 +85,7 @@ impl MemoryAllocation {
                     .lock()
                     .physical_device()
                     .gpu
+                    .memory
                     .unmap_host(self.gpu_memory_allocation);
             }
             MemoryAllocationState::HostUnmapped => {
@@ -97,6 +101,7 @@ impl Drop for MemoryAllocation {
             .lock()
             .physical_device()
             .gpu
+            .memory
             .free_memory(self.gpu_memory_allocation);
     }
 }
