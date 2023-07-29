@@ -1,8 +1,8 @@
-# vulkan_software_rasterizer
+# VkSWR
 
-Vulkan ICD written solely for learning purposes.
+Vulkan ICD written in Rust.
 
-The current goal is implementation of Vulkan Core 1.0 API in software.
+The current goal is to fully implement the Vulkan Core 1.0 API with a software renderer.
 
 ## Goals
 - [x] vulkaninfo
