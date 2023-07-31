@@ -8,3 +8,4 @@ crate-type = ["lib"]
 
 [dependencies]
 hashbrown = "0.13.2"
+itertools = { workspace = true }

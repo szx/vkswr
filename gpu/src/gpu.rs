@@ -1,6 +1,6 @@
 use crate::{
-    Color, Format, GraphicsPipeline, InputAssemblyState, Memory, MemoryBinding, RenderArea,
-    RenderTarget, RenderTargetIndex, VertexBuffer, VertexInputState,
+    Color, Format, GraphicsPipeline, InputAssemblyState, Memory, MemoryBinding, RasterizationState,
+    RenderArea, RenderTarget, RenderTargetIndex, VertexBuffer, VertexInputState, ViewportState,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -74,6 +74,15 @@ impl Gpu {
                 } => {
                     self.graphics_pipeline
                         .set_input_assembly_state(input_assembly_state);
+                }
+                Command::SetViewportState { viewport_state } => {
+                    self.graphics_pipeline.set_viewport_state(viewport_state);
+                }
+                Command::SetRasterizationState {
+                    rasterization_state,
+                } => {
+                    self.graphics_pipeline
+                        .set_rasterization_state(rasterization_state);
                 }
                 Command::BindVertexBuffer { vertex_buffer } => {
                     self.graphics_pipeline.bind_vertex_buffer(vertex_buffer);
@@ -247,6 +256,12 @@ pub enum Command {
     SetInputAssemblyState {
         input_assembly_state: InputAssemblyState,
     },
+    SetViewportState {
+        viewport_state: ViewportState,
+    },
+    SetRasterizationState {
+        rasterization_state: RasterizationState,
+    },
     BindVertexBuffer {
         vertex_buffer: VertexBuffer,
     },
@@ -267,8 +282,8 @@ pub struct RegionCopyBufferImage {
     pub image_mip_level: u32,
     pub image_base_array_level: u32,
     pub image_array_level_count: u32,
-    pub image_offset: Offset3d,
-    pub image_extent: Extent3d,
+    pub image_offset: Offset3<i32>,
+    pub image_extent: Extent3<u32>,
     pub image_format: Format,
 }
 
@@ -287,31 +302,37 @@ pub struct DescriptorBuffer {
 #[derive(Debug, Clone)]
 pub struct DescriptorImage {
     pub binding: MemoryBinding,
-    pub extent: Extent3d,
+    pub extent: Extent3<u32>,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Offset3d {
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Offset3<T> {
+    pub x: T,
+    pub y: T,
+    pub z: T,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Offset2d {
-    pub x: i32,
-    pub y: i32,
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Offset2<T> {
+    pub x: T,
+    pub y: T,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Extent3d {
-    pub width: u32,
-    pub height: u32,
-    pub depth: u32,
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Extent3<T> {
+    pub width: T,
+    pub height: T,
+    pub depth: T,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Extent2d {
-    pub width: u32,
-    pub height: u32,
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Extent2<T> {
+    pub width: T,
+    pub height: T,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Range2<T> {
+    pub min: T,
+    pub max: T,
 }

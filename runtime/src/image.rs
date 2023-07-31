@@ -91,7 +91,7 @@ impl Image {
         let binding = self.gpu_binding.clone();
         gpu::DescriptorImage {
             binding,
-            extent: gpu::Extent3d {
+            extent: gpu::Extent3::<u32> {
                 width: self.width,
                 height: self.height,
                 depth: 1,

@@ -6,9 +6,11 @@
 
 use std::fmt::{Debug, Formatter};
 use std::hash::Hasher;
+use std::marker::PhantomData;
 use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
 use xcb;
+use xcb::x::Blanking::Default;
 
 /// ICD has to return pointer to struct with the first field being VkLoaderData.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -556,11 +558,55 @@ impl From<VkClearValue> for gpu::Color {
     fn from(value: VkClearValue) -> Self {
         unsafe {
             Self::from_raw(
-                value.color.uint32[0],
-                value.color.uint32[1],
-                value.color.uint32[2],
-                value.color.uint32[3],
+                value.color.uint32[0] as u64,
+                value.color.uint32[1] as u64,
+                value.color.uint32[2] as u64,
+                value.color.uint32[3] as u64,
             )
+        }
+    }
+}
+
+impl From<VkPolygonMode> for gpu::PolygonMode {
+    fn from(value: VkPolygonMode) -> Self {
+        match value {
+            VkPolygonMode::VK_POLYGON_MODE_FILL => Self::Fill,
+            VkPolygonMode::VK_POLYGON_MODE_LINE => Self::Line,
+            VkPolygonMode::VK_POLYGON_MODE_POINT => Self::Point,
+            VkPolygonMode::VK_POLYGON_MODE_FILL_RECTANGLE_NV => Self::FillRectangle,
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub struct VkFlag<T>(pub u32, PhantomData<T>);
+impl<T> VkFlag<T> {
+    pub fn new(value: impl Into<u32>) -> Self {
+        Self {
+            0: value.into(),
+            1: PhantomData,
+        }
+    }
+}
+
+impl From<VkFlag<VkCullModeFlags>> for gpu::CullMode {
+    fn from(value: VkFlag<VkCullModeFlags>) -> Self {
+        match value.0.into() {
+            VkCullModeFlagBits::VK_CULL_MODE_NONE => Self::None,
+            VkCullModeFlagBits::VK_CULL_MODE_FRONT_BIT => Self::Front,
+            VkCullModeFlagBits::VK_CULL_MODE_BACK_BIT => Self::Back,
+            VkCullModeFlagBits::VK_CULL_MODE_FRONT_AND_BACK => Self::FrontAndBack,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<VkFrontFace> for gpu::FrontFace {
+    fn from(value: VkFrontFace) -> Self {
+        match value.into() {
+            VkFrontFace::VK_FRONT_FACE_COUNTER_CLOCKWISE => Self::CounterClockwise,
+            VkFrontFace::VK_FRONT_FACE_CLOCKWISE => Self::Clockwise,
+            _ => unreachable!(),
         }
     }
 }

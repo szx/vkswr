@@ -1,9 +1,10 @@
 use crate::{
-    Color, DescriptorBuffer, DescriptorImage, Extent2d, Format, Fragment, Memory, Offset2d,
-    MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
-    MAX_VERTEX_BINDING_STRIDE,
+    Color, DescriptorBuffer, DescriptorImage, Extent2, Format, Fragment, Memory, Offset2, Range2,
+    Vertex, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
+    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use hashbrown::HashMap;
+use itertools::Itertools;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default)]
@@ -13,6 +14,8 @@ pub struct GraphicsPipeline {
 
     vertex_input_state: VertexInputState,
     input_assembly_state: InputAssemblyState,
+    viewport_state: ViewportState,
+    rasterization_state: RasterizationState,
 }
 
 impl GraphicsPipeline {
@@ -22,6 +25,8 @@ impl GraphicsPipeline {
             vertex_buffers: Default::default(),
             vertex_input_state: Default::default(),
             input_assembly_state: Default::default(),
+            viewport_state: Default::default(),
+            rasterization_state: Default::default(),
         }
     }
 
@@ -72,6 +77,14 @@ impl GraphicsPipeline {
 
     pub fn set_input_assembly_state(&mut self, input_assembly_state: InputAssemblyState) {
         self.input_assembly_state = input_assembly_state;
+    }
+
+    pub fn set_viewport_state(&mut self, viewport_state: ViewportState) {
+        self.viewport_state = viewport_state;
+    }
+
+    pub fn set_rasterization_state(&mut self, rasterization_state: RasterizationState) {
+        self.rasterization_state = rasterization_state;
     }
 
     pub fn bind_vertex_buffer(&mut self, vertex_buffer: VertexBuffer) {
@@ -126,11 +139,10 @@ impl GraphicsPipeline {
             .to_vec();
         assert_eq!(bytes.len() % element_stride as usize, 0);
         // TODO: Determine vertex element components in shader?
-        // TODO: Use VertexElement instead of color.
         let vertices = bytes
             .chunks_exact(element_stride as usize)
             .take(vertex_count as usize)
-            .map(|element| Color::from_bytes(element_format, element));
+            .map(|element| Vertex::from_bytes(element_format, element));
         // TODO: vertex shader
         // TODO: tesselation assembler
         // TODO: tesselation control shader
@@ -138,16 +150,30 @@ impl GraphicsPipeline {
         // TODO: tesselation evaluation shader
         // TODO: geometry assembler
         // TODO: geometry shader
-        // TODO: primitive assembler
+
+        // Primitive assembler.
+        assert_eq!(
+            self.input_assembly_state.topology,
+            PrimitiveTopology::TriangleList
+        );
+        let primitives = vertices.clone().chunks(3); // TODO: remove clones after generating fragments
+        let primitives = primitives
+            .into_iter()
+            .filter_map(|v| {
+                let v = v.collect::<Vec<_>>();
+                Triangle::new(v[0], v[1], v[2]) // TODO: CullMode.
+            })
+            .collect::<Vec<_>>();
 
         // TODO: rasterization
+        // TODO: generate fragments from vertivec
         let fragments = vertices
             .map(|color| Fragment {
-                position: Color::from_sfloat(
-                    color.sfloat_32(0),
-                    color.sfloat_32(1),
-                    color.sfloat_32(2),
-                    color.sfloat_32(3),
+                position: Color::from_sfloat32(
+                    color.sfloat32(0),
+                    color.sfloat32(1),
+                    color.sfloat32(2),
+                    color.sfloat32(3),
                 ),
                 color,
             })
@@ -165,31 +191,45 @@ impl GraphicsPipeline {
             unreachable!()
         };
         // TODO: Fragment shader should write directly to render target.
+        let Some(viewport) = self.viewport_state.viewports[ViewportIndex(0)].as_ref() else {
+            // TODO: Use all set viewports.
+            unreachable!();
+        };
+        assert_eq!(viewport.offset.x, 0.0f32);
+        assert_eq!(viewport.offset.y, 0.0f32);
+        // TODO: Scissors.
+        let (viewport_x, viewport_y) = (viewport.offset.x, viewport.offset.y);
+        let (viewport_width, viewport_height) = (viewport.extent.width, viewport.extent.height);
+        dbg!(viewport_width);
         for fragment in fragments {
             let width = rt.image.extent.width;
             let height = rt.image.extent.height;
-            let (viewport_x, viewport_y) = (0u32, 0u32); // TODO: Use viewport state.
-            let (viewport_width, viewport_height) = (height, width);
             let position = Color::from_bytes(
                 rt.format,
                 fragment.position.to_bytes(element_format).as_slice(),
             );
             let color = fragment.color.to_bytes(rt.format);
 
-            let x = position.sfloat_32(0);
-            let y = position.sfloat_32(1);
-            let z = position.sfloat_32(2);
-            let w = position.sfloat_32(3);
+            let x = position.sfloat32(0);
+            let y = position.sfloat32(1);
+            let z = position.sfloat32(2);
+            let w = position.sfloat32(3);
             let x_ndc = x / w;
             let y_ndc = y / w;
             let z_ndc = z / w; // TODO: Depth test.
-            let x_screen = viewport_x + (0.5 * (x_ndc + 1.0) * (viewport_width as f32)) as u32;
-            let y_screen = viewport_y + (0.5 * (y_ndc + 1.0) * (viewport_height as f32)) as u32;
+            let x_screen = (0.5 * (x_ndc + 1.0)).mul_add(viewport_width, viewport_x) as u32;
+            let y_screen = (0.5 * (y_ndc + 1.0)).mul_add(viewport_height, viewport_y) as u32;
             let dst_offset =
                 ((x_screen + y_screen * width) * rt.format.bytes_per_pixel() as u32) as u64;
             memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct RenderArea {
+    pub extent: Extent2<u32>,
+    pub offset: Offset2<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -233,7 +273,7 @@ pub struct VertexBinding {
     pub input_rate: VertexInputRate,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VertexBindingNumber(pub u32);
 
 // TODO: impl_index_trait!()
@@ -269,7 +309,7 @@ pub struct InputAssemblyState {
     pub primitive_restart: bool,
 }
 
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub enum PrimitiveTopology {
     #[default]
     PointList,
@@ -285,6 +325,107 @@ pub enum PrimitiveTopology {
     PatchList,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ViewportState {
+    pub viewports: [Option<Viewport>; MAX_VIEWPORTS as usize],
+    pub scissors: [Option<Scissor>; MAX_VIEWPORTS as usize],
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Viewport {
+    pub offset: Offset2<f32>,
+    pub extent: Extent2<f32>,
+    pub depth: Range2<f32>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Scissor {
+    pub render_area: RenderArea,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ViewportIndex(pub u32);
+
+// TODO: impl_index_trait!()
+impl Index<ViewportIndex> for [Option<Viewport>] {
+    type Output = Option<Viewport>;
+
+    fn index(&self, index: ViewportIndex) -> &Self::Output {
+        let Some(value) = self.get(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+impl IndexMut<ViewportIndex> for [Option<Viewport>] {
+    fn index_mut(&mut self, index: ViewportIndex) -> &mut Self::Output {
+        let Some(value) = self.get_mut(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+impl Index<ViewportIndex> for [Option<Scissor>] {
+    type Output = Option<Scissor>;
+
+    fn index(&self, index: ViewportIndex) -> &Self::Output {
+        let Some(value) = self.get(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+impl IndexMut<ViewportIndex> for [Option<Scissor>] {
+    fn index_mut(&mut self, index: ViewportIndex) -> &mut Self::Output {
+        let Some(value) = self.get_mut(index.0 as usize) else {
+            unreachable!()
+        };
+        value
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RasterizationState {
+    pub depth_clamp_enable: bool,
+    pub rasterizer_discard_enable: bool,
+    pub polygon_mode: PolygonMode,
+    pub cull_mode: CullMode,
+    pub front_face: FrontFace,
+    pub depth_bias_enable: bool,
+    pub depth_bias_constant_factor: f32,
+    pub depth_bias_clamp: f32,
+    pub depth_bias_slope_factor: f32,
+    pub line_width: f32,
+}
+
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub enum PolygonMode {
+    #[default]
+    Fill,
+    Line,
+    Point,
+    FillRectangle,
+}
+
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub enum CullMode {
+    #[default]
+    None,
+    Front,
+    Back,
+    FrontAndBack,
+}
+
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub enum FrontFace {
+    #[default]
+    CounterClockwise,
+    Clockwise,
+}
+
 #[derive(Debug, Clone)]
 pub struct VertexBuffer {
     pub binding_number: VertexBindingNumber,
@@ -293,7 +434,35 @@ pub struct VertexBuffer {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct RenderArea {
-    pub extent: Extent2d,
-    pub offset: Offset2d,
+pub struct Triangle {
+    vertices: [Vertex; 3],
+}
+
+impl Triangle {
+    /// Performs face culling.
+    pub const fn new(v0: Vertex, v1: Vertex, v2: Vertex) -> Option<Self> {
+        Some(Self {
+            vertices: [v0, v1, v2],
+        })
+    }
+}
+
+impl Index<usize> for Triangle {
+    type Output = Vertex;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0..=2 => &self.vertices[index],
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl IndexMut<usize> for Triangle {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0..=2 => &mut self.vertices[index],
+            _ => unreachable!(),
+        }
+    }
 }

@@ -284,8 +284,12 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
             .map(|x| PhysicalDevice::parse_input_assembly_state(*x.as_ref()));
         // TODO: Parse rest of Vulkan pipeline states.
         let tessellation_state = create_info.pTessellationState.map(|x| x.as_ref());
-        let viewport_state = create_info.pViewportState.map(|x| x.as_ref());
-        let rasterization_state = create_info.pRasterizationState.map(|x| x.as_ref());
+        let viewport_state = create_info
+            .pViewportState
+            .map(|x| PhysicalDevice::parse_viewport_state(*x.as_ref()));
+        let rasterization_state = create_info
+            .pRasterizationState
+            .map(|x| PhysicalDevice::parse_rasterization_state(*x.as_ref()));
         let multisample_state = create_info.pMultisampleState.map(|x| x.as_ref());
         let depth_stencil_state = create_info.pDepthStencilState.map(|x| x.as_ref());
         let color_blend_state = create_info.pColorBlendState.map(|x| x.as_ref());
@@ -295,6 +299,8 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
             pipelineCache.clone(),
             vertex_input_state,
             input_assembly_state,
+            viewport_state,
+            rasterization_state,
         );
     }
 

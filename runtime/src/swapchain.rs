@@ -19,7 +19,7 @@ pub struct Swapchain {
     logical_device: Arc<Mutex<LogicalDevice>>,
     flags: VkSwapchainCreateFlagsKHR,
     surface: Arc<Mutex<Surface>>,
-    extent: gpu::Extent3d,
+    extent: gpu::Extent3<u32>,
     pub images: Vec<Arc<Mutex<Image>>>,
     pub memory_allocations: Vec<Arc<Mutex<MemoryAllocation>>>,
     color_space: VkColorSpaceKHR,
@@ -40,7 +40,7 @@ impl Swapchain {
         };
 
         let image_count = create_info.minImageCount;
-        let extent = gpu::Extent3d {
+        let extent = gpu::Extent3 {
             width: create_info.imageExtent.width,
             height: create_info.imageExtent.height,
             depth: create_info.imageArrayLayers,

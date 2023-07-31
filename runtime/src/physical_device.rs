@@ -123,9 +123,12 @@ impl PhysicalDevice {
                 maxDrawIndirectCount: 0,
                 maxSamplerLodBias: 0.0,
                 maxSamplerAnisotropy: 0.0,
-                maxViewports: 0,
-                maxViewportDimensions: [0, 0],
-                viewportBoundsRange: [0.0, 0.0],
+                maxViewports: gpu::MAX_VIEWPORTS,
+                maxViewportDimensions: [
+                    gpu::MAX_VIEWPORT_DIMENSIONS.0,
+                    gpu::MAX_VIEWPORT_DIMENSIONS.1,
+                ],
+                viewportBoundsRange: [gpu::VIEWPORT_BOUNDS_RANGE.0, gpu::VIEWPORT_BOUNDS_RANGE.0],
                 viewportSubPixelBits: 0,
                 minMemoryMapAlignment: 0,
                 minTexelBufferOffsetAlignment: 0,
@@ -2582,6 +2585,73 @@ impl PhysicalDevice {
                 gpu::PrimitiveTopology::PatchList
             }
             _ => unreachable!(),
+        }
+    }
+
+    pub unsafe fn parse_viewport_state(
+        viewport_state: VkPipelineViewportStateCreateInfo,
+    ) -> gpu::ViewportState {
+        let vk_viewports = viewport_state.pViewports.map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), viewport_state.viewportCount as usize)
+        });
+        let vk_scissors = viewport_state.pScissors.map_or(&[] as &[_], |x| {
+            std::slice::from_raw_parts(x.as_ptr(), viewport_state.scissorCount as usize)
+        });
+
+        let mut viewport_state = gpu::ViewportState::default();
+        for (i, vk_viewport) in vk_viewports.iter().enumerate() {
+            let Some(viewport) = viewport_state.viewports.get_mut(i) else {
+                unreachable!()
+            };
+            *viewport = Some(gpu::Viewport {
+                offset: gpu::Offset2 {
+                    x: vk_viewport.x,
+                    y: vk_viewport.y,
+                },
+                extent: gpu::Extent2 {
+                    width: vk_viewport.width,
+                    height: vk_viewport.height,
+                },
+                depth: gpu::Range2 {
+                    min: vk_viewport.minDepth,
+                    max: vk_viewport.maxDepth,
+                },
+            });
+        }
+        for (i, vk_scissor) in vk_scissors.iter().enumerate() {
+            let Some(scissor) = viewport_state.scissors.get_mut(i) else {
+                unreachable!()
+            };
+            *scissor = Some(gpu::Scissor {
+                render_area: gpu::RenderArea {
+                    extent: gpu::Extent2 {
+                        width: vk_scissor.extent.width,
+                        height: vk_scissor.extent.height,
+                    },
+                    offset: gpu::Offset2 {
+                        x: vk_scissor.offset.x,
+                        y: vk_scissor.offset.y,
+                    },
+                },
+            });
+        }
+        viewport_state
+    }
+
+    pub fn parse_rasterization_state(
+        rasterization_state: VkPipelineRasterizationStateCreateInfo,
+    ) -> gpu::RasterizationState {
+        gpu::RasterizationState {
+            depth_clamp_enable: rasterization_state.depthClampEnable != 0,
+            rasterizer_discard_enable: rasterization_state.rasterizerDiscardEnable != 0,
+            polygon_mode: rasterization_state.polygonMode.into(),
+            cull_mode: VkFlag::new(rasterization_state.cullMode).into(),
+            front_face: rasterization_state.frontFace.into(),
+            depth_bias_enable: rasterization_state.depthBiasEnable != 0,
+            depth_bias_constant_factor: rasterization_state.depthBiasConstantFactor,
+            depth_bias_clamp: rasterization_state.depthBiasClamp,
+            depth_bias_slope_factor: rasterization_state.depthBiasSlopeFactor,
+            line_width: rasterization_state.lineWidth,
         }
     }
 }

@@ -24,70 +24,86 @@ impl Format {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Texel {
+pub struct Vector4 {
     /// Bit representation of components.
-    components: [u32; 4],
+    components: [u64; 4],
 }
 
-impl Texel {
-    pub const fn from_raw(r: u32, g: u32, b: u32, a: u32) -> Self {
+impl Vector4 {
+    pub const fn from_raw(r: u64, g: u64, b: u64, a: u64) -> Self {
         Self {
             components: [r, g, b, a],
         }
     }
 
-    pub fn from_sfloat(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub fn from_sfloat32(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self {
             components: [
-                f32::to_bits(r),
-                f32::to_bits(g),
-                f32::to_bits(b),
-                f32::to_bits(a),
+                f32::to_bits(r) as u64,
+                f32::to_bits(g) as u64,
+                f32::to_bits(b) as u64,
+                f32::to_bits(a) as u64,
             ],
         }
     }
 
-    pub fn sfloat_32(&self, index: impl std::slice::SliceIndex<[u32], Output = u32>) -> f32 {
-        f32::from_bits(self.components[index])
+    pub fn from_sfloat_64(r: f64, g: f64, b: f64, a: f64) -> Self {
+        Self {
+            components: [
+                f64::to_bits(r) as u64,
+                f64::to_bits(g) as u64,
+                f64::to_bits(b) as u64,
+                f64::to_bits(a) as u64,
+            ],
+        }
     }
 
-    pub fn unorm_8(&self, index: impl std::slice::SliceIndex<[u32], Output = u32>) -> u8 {
-        let value = f32::from_bits(self.components[index]);
+    pub fn sfloat32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
+        f32::from_bits(self.components[index] as u32)
+    }
+
+    pub fn unorm8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+        let value = f32::from_bits(self.components[index] as u32);
         (value * 255.0f32).round() as u8
     }
 
-    pub fn unorm_16(&self, index: impl std::slice::SliceIndex<[u32], Output = u32>) -> u16 {
-        let value = f32::from_bits(self.components[index]);
+    pub fn unorm16(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u16 {
+        let value = f32::from_bits(self.components[index] as u32);
         (value * 65535.0f32).round() as u16
+    }
+
+    pub fn unorm32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
+        let value = f64::from_bits(self.components[index]);
+        (value * 4294967295.0f64).round() as u64
     }
 
     pub fn to_bytes(&self, format: Format) -> Vec<u8> {
         let mut result = vec![0u8; format.bytes_per_pixel() as usize];
         match format {
             Format::R8Unorm => {
-                result[0] = self.unorm_8(0);
+                result[0] = self.unorm8(0);
             }
             Format::R8G8Unorm => {
-                result[0] = self.unorm_8(0);
-                result[1] = self.unorm_8(1);
+                result[0] = self.unorm8(0);
+                result[1] = self.unorm8(1);
             }
             Format::R8G8B8A8Unorm => {
-                result[0] = self.unorm_8(0);
-                result[1] = self.unorm_8(1);
-                result[2] = self.unorm_8(2);
-                result[3] = self.unorm_8(3);
+                result[0] = self.unorm8(0);
+                result[1] = self.unorm8(1);
+                result[2] = self.unorm8(2);
+                result[3] = self.unorm8(3);
             }
             Format::R32G32B32A32Sfloat => {
-                result[0..4].copy_from_slice(&self.sfloat_32(0).to_ne_bytes());
-                result[4..8].copy_from_slice(&self.sfloat_32(1).to_ne_bytes());
-                result[8..12].copy_from_slice(&self.sfloat_32(2).to_ne_bytes());
-                result[12..16].copy_from_slice(&self.sfloat_32(3).to_ne_bytes());
+                result[0..4].copy_from_slice(&self.sfloat32(0).to_ne_bytes());
+                result[4..8].copy_from_slice(&self.sfloat32(1).to_ne_bytes());
+                result[8..12].copy_from_slice(&self.sfloat32(2).to_ne_bytes());
+                result[12..16].copy_from_slice(&self.sfloat32(3).to_ne_bytes());
             }
             Format::A2b10g10r10UnormPack32 => {
                 unimplemented!()
             }
             Format::D16Unorm => {
-                result[0..2].copy_from_slice(&self.unorm_16(0).to_ne_bytes());
+                result[0..2].copy_from_slice(&self.unorm16(0).to_ne_bytes());
             }
         }
         result
@@ -107,9 +123,10 @@ impl Texel {
             let range_len = s.len();
             let (bytes_start, bytes_end) = (s.start.min(bytes.len()), s.end.min(bytes.len()));
             let bytes_len = bytes_end - bytes_start;
-            let mut raw = [0_u8; 4];
+            let mut raw = [0_u8; std::mem::size_of::<u64>()];
             if cfg!(target_endian = "big") {
-                raw[4 - bytes_len..].copy_from_slice(&bytes[bytes_start..bytes_end]);
+                let size = raw.len();
+                raw[size - bytes_len..].copy_from_slice(&bytes[bytes_start..bytes_end]);
             } else {
                 raw[..bytes_len].copy_from_slice(&bytes[bytes_start..bytes_end]);
             }
@@ -118,13 +135,18 @@ impl Texel {
                     raw[..range_len]
                         .try_into()
                         .unwrap_or_else(|_| unreachable!()),
-                ) as u32,
+                ) as u64,
                 2 => u16::from_ne_bytes(
                     raw[..range_len]
                         .try_into()
                         .unwrap_or_else(|_| unreachable!()),
-                ) as u32,
+                ) as u64,
                 4 => u32::from_ne_bytes(
+                    raw[..range_len]
+                        .try_into()
+                        .unwrap_or_else(|_| unreachable!()),
+                ) as u64,
+                16 => u64::from_ne_bytes(
                     raw[..range_len]
                         .try_into()
                         .unwrap_or_else(|_| unreachable!()),
@@ -143,8 +165,10 @@ impl Texel {
     }
 }
 
-pub type Color = Texel;
-pub type Position = Texel; // TODO: Replace Texel with Vector4?
+pub type Vertex = Vector4;
+pub type Texel = Vector4;
+pub type Color = Vector4;
+pub type Position = Vector4;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Fragment {

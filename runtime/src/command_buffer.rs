@@ -104,11 +104,11 @@ impl CommandBuffer {
         let _ = contents;
 
         let render_area = gpu::RenderArea {
-            extent: gpu::Extent2d {
+            extent: gpu::Extent2::<u32> {
                 width: render_area.extent.width,
                 height: render_area.extent.height,
             },
-            offset: gpu::Offset2d {
+            offset: gpu::Offset2::<i32> {
                 x: render_area.offset.x,
                 y: render_area.offset.y,
             },
@@ -267,12 +267,12 @@ impl CommandBuffer {
                         image_mip_level: region.imageSubresource.mipLevel,
                         image_base_array_level: region.imageSubresource.baseArrayLayer,
                         image_array_level_count: region.imageSubresource.layerCount,
-                        image_offset: gpu::Offset3d {
+                        image_offset: gpu::Offset3::<i32> {
                             x: region.imageOffset.x,
                             y: region.imageOffset.y,
                             z: region.imageOffset.z,
                         },
-                        image_extent: gpu::Extent3d {
+                        image_extent: gpu::Extent3::<u32> {
                             width: region.imageExtent.width,
                             height: region.imageExtent.height,
                             depth: region.imageExtent.depth,
@@ -305,12 +305,12 @@ impl CommandBuffer {
                         image_mip_level: region.imageSubresource.mipLevel,
                         image_base_array_level: region.imageSubresource.baseArrayLayer,
                         image_array_level_count: region.imageSubresource.layerCount,
-                        image_offset: gpu::Offset3d {
+                        image_offset: gpu::Offset3::<i32> {
                             x: region.imageOffset.x,
                             y: region.imageOffset.y,
                             z: region.imageOffset.z,
                         },
-                        image_extent: gpu::Extent3d {
+                        image_extent: gpu::Extent3::<u32> {
                             width: region.imageExtent.width,
                             height: region.imageExtent.height,
                             depth: region.imageExtent.depth,

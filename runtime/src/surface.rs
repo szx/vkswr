@@ -3,7 +3,6 @@
 use crate::context::NonDispatchable;
 use crate::instance::Instance;
 use crate::memory::MemoryAllocation;
-use gpu::Extent3d;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -67,7 +66,7 @@ impl Surface {
     pub fn present(
         &mut self,
         memory_allocation: Arc<Mutex<MemoryAllocation>>,
-        extent: Extent3d,
+        extent: gpu::Extent3<u32>,
     ) -> Result<VkResult, VkResult> {
         let (gc, depth) = if let (Some(gc), Some(depth)) = (self.gc, self.depth) {
             (gc, depth)

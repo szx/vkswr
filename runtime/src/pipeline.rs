@@ -3,7 +3,6 @@
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
-use gpu::InputAssemblyState;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -150,12 +149,14 @@ impl PipelineCache {
 
 #[derive(Debug)]
 pub struct Pipeline {
-    pub(crate) handle: VkNonDispatchableHandle,
+    pub handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 
-    pub(crate) vertex_input_state: gpu::VertexInputState,
-    pub(crate) input_assembly_state: gpu::InputAssemblyState,
+    pub vertex_input_state: gpu::VertexInputState,
+    pub input_assembly_state: gpu::InputAssemblyState,
+    pub viewport_state: gpu::ViewportState,
+    pub rasterization_state: gpu::RasterizationState,
 }
 
 impl Pipeline {
@@ -163,7 +164,9 @@ impl Pipeline {
         logical_device: Arc<Mutex<LogicalDevice>>,
         pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
         vertex_input_state: Option<gpu::VertexInputState>,
-        input_assembly_state: Option<InputAssemblyState>,
+        input_assembly_state: Option<gpu::InputAssemblyState>,
+        viewport_state: Option<gpu::ViewportState>,
+        rasterization_state: Option<gpu::RasterizationState>,
     ) -> VkNonDispatchableHandle {
         info!("new Pipeline");
         let handle = VK_NULL_HANDLE;
@@ -174,6 +177,8 @@ impl Pipeline {
             pipeline_cache,
             vertex_input_state: vertex_input_state.unwrap_or_default(),
             input_assembly_state: input_assembly_state.unwrap_or_default(),
+            viewport_state: viewport_state.unwrap_or_default(),
+            rasterization_state: rasterization_state.unwrap_or_default(),
         };
         object.register_object()
     }
@@ -184,6 +189,12 @@ impl Pipeline {
         });
         command_buffer.record(gpu::Command::SetInputAssemblyState {
             input_assembly_state: self.input_assembly_state.clone(),
+        });
+        command_buffer.record(gpu::Command::SetViewportState {
+            viewport_state: self.viewport_state.clone(),
+        });
+        command_buffer.record(gpu::Command::SetRasterizationState {
+            rasterization_state: self.rasterization_state.clone(),
         });
         // TODO: Record rest of pipeline state.
     }
