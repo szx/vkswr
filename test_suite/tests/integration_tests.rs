@@ -1,7 +1,9 @@
 use base64::Engine;
 use lazy_static::lazy_static;
+use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 
 mod common;
 
@@ -47,7 +49,7 @@ fn run_executable(
         .env("VK_ICD_FILENAMES", icd_json_path)
         .env("VK_LOADER_DEBUG", "error,warn,debug") // error,warn,info,debug,layer,driver
         //.env("ICD_WAIT_FOR_DEBUGGER", "true")
-        .env("RUST_LOG", "trace");
+        .env("RUST_LOG", "debug");
     let out = if let Some(current_dir) = current_dir {
         out.current_dir(current_dir)
     } else {
@@ -81,22 +83,24 @@ fn run_vkcube() -> common::TestResult {
     run_executable("vkcube", None::<&str>, ["--c", "600"], || {})
 }
 
+static IMAGE_OUTPUT_DIR: OnceLock<PathBuf> = OnceLock::new();
+
 fn run_deqp_vk(case_name: &'static str, log_images: bool) -> common::TestResult {
     let print_deqp_vk_image = || {
-        lazy_static! {
-            static ref IMAGE_OUTPUT_DIR: PathBuf = {
-                let path = std::fs::canonicalize(std::path::PathBuf::from(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../assets/deqp-vk"
-                )))
-                .unwrap();
-                std::fs::remove_dir_all(&path).unwrap();
-                std::fs::create_dir(&path).unwrap();
-                path
-            };
-        }
         if log_images {
-            print_deqp_vk_image(case_name, &*IMAGE_OUTPUT_DIR);
+            print_deqp_vk_image(
+                case_name,
+                IMAGE_OUTPUT_DIR.get_or_init(|| {
+                    let path = std::fs::canonicalize(std::path::PathBuf::from(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../assets/deqp-vk"
+                    )))
+                    .unwrap();
+                    std::fs::remove_dir_all(&path).unwrap();
+                    std::fs::create_dir(&path).unwrap();
+                    path
+                }),
+            );
         }
     };
     run_executable(

@@ -36,7 +36,7 @@ impl Vector4 {
         }
     }
 
-    pub fn from_sfloat32(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub fn from_sfloat32_raw(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self {
             components: [
                 f32::to_bits(r) as u64,
@@ -47,7 +47,7 @@ impl Vector4 {
         }
     }
 
-    pub fn from_sfloat_64(r: f64, g: f64, b: f64, a: f64) -> Self {
+    pub fn from_sfloat64_raw(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self {
             components: [
                 f64::to_bits(r),
@@ -58,8 +58,20 @@ impl Vector4 {
         }
     }
 
+    pub fn from_sfloat32(v: Vector4) -> Self {
+        Self::from_sfloat32_raw(v.sfloat32(0), v.sfloat32(1), v.sfloat32(2), v.sfloat32(3))
+    }
+
+    pub fn from_sfloat64(v: Vector4) -> Self {
+        Self::from_sfloat64_raw(v.sfloat64(0), v.sfloat64(1), v.sfloat64(2), v.sfloat64(3))
+    }
+
     pub fn sfloat32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
         f32::from_bits(self.components[index] as u32)
+    }
+
+    pub fn sfloat64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f64 {
+        f64::from_bits(self.components[index])
     }
 
     pub fn unorm8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {

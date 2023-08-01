@@ -1,7 +1,7 @@
 use crate::{
-    Color, DescriptorBuffer, DescriptorImage, Extent2, Format, Fragment, Memory, Offset2, Position,
-    Range2, Vertex, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
-    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
+    draw_line_bresenham, draw_points, Color, DescriptorBuffer, DescriptorImage, Extent2, Format,
+    Fragment, Memory, Offset2, Position, Range2, Vertex, MAX_VERTEX_ATTRIBUTES,
+    MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS, MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use hashbrown::HashMap;
 use itertools::Itertools;
@@ -142,7 +142,8 @@ impl GraphicsPipeline {
         let vertices = bytes
             .chunks_exact(element_stride as usize)
             .take(vertex_count as usize)
-            .map(|element| Vertex::from_bytes(element_format, element));
+            .map(|element| Vertex::from_bytes(element_format, element))
+            .collect::<Vec<_>>();
         // TODO: vertex shader
         // TODO: tesselation assembler
         // TODO: tesselation control shader
@@ -158,8 +159,8 @@ impl GraphicsPipeline {
         };
         assert_eq!(viewport.offset.x, 0.0f32);
         assert_eq!(viewport.offset.y, 0.0f32);
-        let vertices = vertices
-            .clone()
+        let primitive_vertices = vertices
+            .iter()
             .map(|v| {
                 let x = v.sfloat32(0);
                 let y = v.sfloat32(1);
@@ -191,17 +192,8 @@ impl GraphicsPipeline {
                     (p_y / 2.0) * y_ndc + o_y,
                     p_z * z_ndc + o_z,
                 );
-                Vertex::from_sfloat32(x_screen, y_screen, z_screen, 1.0)
+                Vertex::from_sfloat32_raw(x_screen, y_screen, z_screen, 1.0)
             })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            self.input_assembly_state.topology,
-            PrimitiveTopology::TriangleList
-        );
-        let primitives = vertices.chunks(3);
-        let primitives = primitives
-            .into_iter()
-            .map(|v| Triangle::new(v[0], v[1], v[2]))
             .collect::<Vec<_>>();
 
         // Rasterization.
@@ -210,76 +202,47 @@ impl GraphicsPipeline {
             unreachable!()
         };
 
-        let color = Color::from_sfloat32(1.0f32, 1.0f32, 1.0f32, 1.0f32); // TODO: Determine color in vertex shader.
+        // TODO: Determine color in vertex shader.
+        // TODO: Color interpolation.
+        let color = Color::from_sfloat32_raw(1.0f32, 1.0f32, 1.0f32, 1.0f32);
+
         let mut fragments = vec![];
-        for primitive in primitives {
-            match self.rasterization_state.polygon_mode {
-                PolygonMode::Fill | PolygonMode::Line => {
-                    // TODO: Implement PolygonMode::Fill.
-                    let mut draw_line = |v0: &Vertex, v1: &Vertex| {
-                        // Bresenham's line algorithm
-                        // TODO: Replace line segment rasterization with https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#primsrast-lines-basic
-                        let (mut x0, mut y0) = ((v0.sfloat32(0)) as i32, (v0.sfloat32(1)) as i32);
-                        let (mut x1, mut y1) = ((v1.sfloat32(0)) as i32, (v1.sfloat32(1)) as i32);
-                        let steep = if (y1 - y0).abs() > (x1 - x0).abs() {
-                            std::mem::swap(&mut x0, &mut y0);
-                            std::mem::swap(&mut x1, &mut y1);
-                            true
-                        } else {
-                            false
-                        };
-                        if x0 > x1 {
-                            std::mem::swap(&mut x0, &mut x1);
-                            std::mem::swap(&mut y0, &mut y1);
-                        }
-
-                        let d_err = (y1 - y0).abs();
-                        let d_x = x1 - x0;
-                        let y_step = if y0 > y1 { -1_i32 } else { 1 };
-
-                        let mut err = d_x / 2; // Pixel center.
-                        let mut y = y0;
-                        for x in x0..=x1 {
-                            // TODO: z_screen
-                            let (x_fragment, y_fragment) = if steep {
-                                (y as f32, x as f32)
-                            } else {
-                                (x as f32, y as f32)
-                            };
-                            fragments.push(Fragment {
-                                position: Position::from_sfloat32(
-                                    x_fragment, y_fragment, 0.0f32, 1.0f32,
-                                ), // TODO: Get z and w from vertex shader.
-                                color,
-                            });
-                            err -= d_err;
-                            if err < 0 {
-                                y += y_step;
-                                err += d_x;
+        match self.input_assembly_state.topology {
+            PrimitiveTopology::PointList => draw_points(primitive_vertices, &mut fragments, color),
+            PrimitiveTopology::LineList => unimplemented!(),
+            PrimitiveTopology::LineStrip => unimplemented!(),
+            PrimitiveTopology::TriangleList => {
+                assert_eq!(primitive_vertices.len() % 3, 0);
+                for triangle in primitive_vertices.chunks_exact(3) {
+                    let vertices: [Vertex; 3] =
+                        triangle.try_into().unwrap_or_else(|_| unreachable!());
+                    match self.rasterization_state.polygon_mode {
+                        PolygonMode::Fill | PolygonMode::Line => {
+                            // TODO: Implement PolygonMode::Fill.
+                            for i in 0..3 {
+                                draw_line_bresenham(
+                                    vertices[i],
+                                    vertices[(i + 1) % 3],
+                                    &mut fragments,
+                                    color,
+                                );
                             }
                         }
+                        PolygonMode::Point => {
+                            draw_points(vertices, &mut fragments, color);
+                        }
+                        PolygonMode::FillRectangle => unimplemented!(),
                     };
-                    for i in 0..3 {
-                        draw_line(&primitive.vertices[i], &primitive.vertices[(i + 1) % 3]);
-                    }
                 }
-                PolygonMode::Point => {
-                    fragments.push(Fragment {
-                        position: primitive.vertices[0],
-                        color,
-                    });
-                    fragments.push(Fragment {
-                        position: primitive.vertices[1],
-                        color,
-                    });
-                    fragments.push(Fragment {
-                        position: primitive.vertices[2],
-                        color,
-                    });
-                }
-                PolygonMode::FillRectangle => unimplemented!(),
-            };
-        }
+            }
+            PrimitiveTopology::TriangleStrip => unimplemented!(),
+            PrimitiveTopology::TriangleFan => unimplemented!(),
+            PrimitiveTopology::LineListWithAdjacency => unimplemented!(),
+            PrimitiveTopology::LineStripWithAdjacency => unimplemented!(),
+            PrimitiveTopology::TriangleListWithAdjacency => unimplemented!(),
+            PrimitiveTopology::TriangleStripWithAdjacency => unimplemented!(),
+            PrimitiveTopology::PatchList => unimplemented!(),
+        };
 
         // TODO: pre-fragment operations
         // TODO: fragment assembler
@@ -293,9 +256,6 @@ impl GraphicsPipeline {
             let width = rt.image.extent.width;
             let height = rt.image.extent.height;
             let position = fragment.position;
-            dbg!(&position.sfloat32(0));
-            dbg!(&position.sfloat32(1));
-            dbg!(&position.sfloat32(2));
             let color = fragment.color.to_bytes(rt.format);
 
             let dst_offset = ((position.sfloat32(0) + position.sfloat32(1) * width as f32)
@@ -510,37 +470,4 @@ pub struct VertexBuffer {
     pub binding_number: VertexBindingNumber,
     pub buffer: DescriptorBuffer,
     pub offset: u64,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Triangle {
-    vertices: [Vertex; 3],
-}
-
-impl Triangle {
-    pub const fn new(v0: Vertex, v1: Vertex, v2: Vertex) -> Self {
-        Self {
-            vertices: [v0, v1, v2],
-        }
-    }
-}
-
-impl Index<usize> for Triangle {
-    type Output = Vertex;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        match index {
-            0..=2 => &self.vertices[index],
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl IndexMut<usize> for Triangle {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        match index {
-            0..=2 => &mut self.vertices[index],
-            _ => unreachable!(),
-        }
-    }
 }

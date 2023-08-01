@@ -1,4 +1,6 @@
 use hashbrown::HashMap;
+use log::trace;
+use std::ops::Range;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -82,7 +84,26 @@ impl Memory {
         let dst = self.get_memory_mut(dst);
         let size = src.len();
         let src = src.as_ptr();
-        let dst = dst[dst_offset as usize..dst_offset as usize + size].as_mut_ptr();
+
+        if dst_offset as usize >= dst.len()
+            || (dst_offset as usize).checked_add(size).is_none()
+            || dst_offset as usize + size >= dst.len()
+        {
+            trace!(
+                "attempt to write bytes into incorrect range {}..({}+{}) (dst_len={})",
+                dst_offset,
+                dst_offset,
+                size,
+                dst.len()
+            );
+            return;
+        }
+
+        let dst_range = Range {
+            start: dst_offset as usize,
+            end: dst_offset as usize + size,
+        };
+        let dst = dst[dst_range].as_mut_ptr();
         unsafe {
             std::ptr::copy_nonoverlapping(src, dst, size);
         }
