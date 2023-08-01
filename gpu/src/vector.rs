@@ -50,10 +50,10 @@ impl Vector4 {
     pub fn from_sfloat_64(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self {
             components: [
-                f64::to_bits(r) as u64,
-                f64::to_bits(g) as u64,
-                f64::to_bits(b) as u64,
-                f64::to_bits(a) as u64,
+                f64::to_bits(r),
+                f64::to_bits(g),
+                f64::to_bits(b),
+                f64::to_bits(a),
             ],
         }
     }
@@ -75,6 +75,22 @@ impl Vector4 {
     pub fn unorm32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
         let value = f64::from_bits(self.components[index]);
         (value * 4294967295.0f64).round() as u64
+    }
+
+    pub fn uint8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+        self.components[index] as u8
+    }
+
+    pub fn uint16(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u16 {
+        self.components[index] as u16
+    }
+
+    pub fn uint32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u32 {
+        self.components[index] as u32
+    }
+
+    pub fn uint64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
+        self.components[index]
     }
 
     pub fn to_bytes(&self, format: Format) -> Vec<u8> {
