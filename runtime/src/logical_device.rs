@@ -10,12 +10,11 @@ use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
 use parking_lot::{Mutex, MutexGuard, RawMutex};
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
 /// Identifier used to associate functions with a `PhysicalDevice`.
-#[derive(Debug)]
 pub struct LogicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     driver_name: &'static str,
@@ -94,5 +93,16 @@ impl LogicalDevice {
     ) -> VkResult {
         // No-op.
         VkResult::VK_SUCCESS
+    }
+}
+
+impl Debug for LogicalDevice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LogicalDevice")
+            .field("handle", &self.handle)
+            .field("driver_name", &self.driver_name)
+            .field("physical_device", &self.physical_device)
+            .field("queue", &self.queue)
+            .finish()
     }
 }

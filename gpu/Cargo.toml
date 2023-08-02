@@ -10,3 +10,4 @@ crate-type = ["lib"]
 hashbrown = "0.13.2"
 itertools = { workspace = true }
 log = { workspace = true }
+rspirv = "0.11.0"

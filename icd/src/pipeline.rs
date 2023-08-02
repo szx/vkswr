@@ -174,7 +174,9 @@ pub unsafe extern "C" fn vkCreateShaderModule(
     let Some(code) = create_info.pCode else {
         unreachable!()
     };
-    let code = std::slice::from_raw_parts(code.as_ptr(), create_info.codeSize as usize);
+    assert_eq!(create_info.codeSize % 4, 0);
+    let code_size = create_info.codeSize / 4;
+    let code = std::slice::from_raw_parts(code.as_ptr(), code_size as usize);
 
     let _ = pAllocator;
 
@@ -271,11 +273,12 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
     let create_infos = std::slice::from_raw_parts(pCreateInfos.as_ptr(), createInfoCount as usize);
 
     for (create_info, pipeline) in std::iter::zip(create_infos, pipelines) {
-        let stages = create_info
+        let shader_stages = create_info
             .pStages
             .map_or(&[] as &[VkPipelineShaderStageCreateInfo], |x| {
                 std::slice::from_raw_parts(x.as_ptr(), create_info.stageCount as usize)
             });
+        let shader_state = PhysicalDevice::parse_shader_stages(shader_stages);
         let vertex_input_state = create_info
             .pVertexInputState
             .map(|x| PhysicalDevice::parse_vertex_input_state(*x.as_ref()));
@@ -297,6 +300,7 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
         *pipeline = Pipeline::create(
             device.clone(),
             pipelineCache.clone(),
+            shader_state,
             vertex_input_state,
             input_assembly_state,
             viewport_state,

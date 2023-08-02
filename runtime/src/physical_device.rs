@@ -1,18 +1,27 @@
 //! PhysicalDevice
 
-use crate::context::Dispatchable;
+use crate::context::{Dispatchable, NonDispatchable};
+use crate::pipeline::ShaderModule;
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
 /// Performs rendering operations.
-#[derive(Debug)]
 pub struct PhysicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     physical_device_name: &'static str,
     pub(crate) gpu: gpu::Gpu,
+}
+
+impl Debug for PhysicalDevice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhysicalDevice")
+            .field("handle", &self.handle)
+            .field("physical_device_name", &self.physical_device_name)
+            .finish()
+    }
 }
 
 impl PhysicalDevice {
@@ -2653,5 +2662,35 @@ impl PhysicalDevice {
             depth_bias_slope_factor: rasterization_state.depthBiasSlopeFactor,
             line_width: rasterization_state.lineWidth,
         }
+    }
+
+    pub unsafe fn parse_shader_stages(
+        shader_stages: &[VkPipelineShaderStageCreateInfo],
+    ) -> gpu::ShaderState {
+        let mut shader_state = gpu::ShaderState::default();
+        for shader_stage in shader_stages {
+            assert_eq!(shader_stage.flags, 0);
+            let name = shader_stage.pName.unwrap_or_else(|| unreachable!());
+            let name = std::ffi::CStr::from_ptr(name.as_ptr())
+                .to_str()
+                .unwrap_or_else(|_| unreachable!())
+                .to_string();
+            assert_eq!(shader_stage.pSpecializationInfo, None);
+            let module =
+                ShaderModule::from_handle(shader_stage.module).unwrap_or_else(|| unreachable!());
+            let code = module.lock().code.clone();
+
+            let shader = gpu::Shader::new(name, code).unwrap_or_else(|| unreachable!());
+            match shader_stage.stage {
+                VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT => {
+                    shader_state.vertex_shader = Some(shader);
+                }
+                VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT => {
+                    shader_state.fragment_shader = Some(shader);
+                }
+                _ => unimplemented!(),
+            }
+        }
+        shader_state
     }
 }

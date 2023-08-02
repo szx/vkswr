@@ -95,7 +95,7 @@ pub struct SubpassDescription {
 pub struct ShaderModule {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
-    code: Vec<u32>,
+    pub(crate) code: Vec<u32>,
 }
 
 impl ShaderModule {
@@ -153,6 +153,7 @@ pub struct Pipeline {
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 
+    pub shader_state: gpu::ShaderState,
     pub vertex_input_state: gpu::VertexInputState,
     pub input_assembly_state: gpu::InputAssemblyState,
     pub viewport_state: gpu::ViewportState,
@@ -163,6 +164,7 @@ impl Pipeline {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
+        shader_state: gpu::ShaderState,
         vertex_input_state: Option<gpu::VertexInputState>,
         input_assembly_state: Option<gpu::InputAssemblyState>,
         viewport_state: Option<gpu::ViewportState>,
@@ -175,6 +177,7 @@ impl Pipeline {
             handle,
             logical_device,
             pipeline_cache,
+            shader_state,
             vertex_input_state: vertex_input_state.unwrap_or_default(),
             input_assembly_state: input_assembly_state.unwrap_or_default(),
             viewport_state: viewport_state.unwrap_or_default(),
@@ -184,6 +187,9 @@ impl Pipeline {
     }
 
     pub fn bind_states(&self, command_buffer: &mut gpu::CommandBuffer) {
+        command_buffer.record(gpu::Command::SetShaderState {
+            shader_state: self.shader_state.clone(),
+        });
         command_buffer.record(gpu::Command::SetVertexInputState {
             vertex_input_state: self.vertex_input_state.clone(),
         });

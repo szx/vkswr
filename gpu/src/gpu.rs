@@ -1,6 +1,7 @@
 use crate::{
     Color, Format, GraphicsPipeline, InputAssemblyState, Memory, MemoryBinding, RasterizationState,
-    RenderArea, RenderTarget, RenderTargetIndex, VertexBuffer, VertexInputState, ViewportState,
+    RenderArea, RenderTarget, RenderTargetIndex, ShaderState, VertexBuffer, VertexInputState,
+    ViewportState,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -65,6 +66,10 @@ impl Gpu {
                         color,
                     );
                 }
+
+                Command::SetShaderState { shader_state } => {
+                    self.graphics_pipeline.set_shader_state(shader_state);
+                }
                 Command::SetVertexInputState { vertex_input_state } => {
                     self.graphics_pipeline
                         .set_vertex_input_state(vertex_input_state);
@@ -84,6 +89,7 @@ impl Gpu {
                     self.graphics_pipeline
                         .set_rasterization_state(rasterization_state);
                 }
+
                 Command::BindVertexBuffer { vertex_buffer } => {
                     self.graphics_pipeline.bind_vertex_buffer(vertex_buffer);
                 }
@@ -249,6 +255,9 @@ pub enum Command {
         index: RenderTargetIndex,
         render_area: RenderArea,
         color: Color,
+    },
+    SetShaderState {
+        shader_state: ShaderState,
     },
     SetVertexInputState {
         vertex_input_state: VertexInputState,

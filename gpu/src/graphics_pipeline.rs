@@ -1,6 +1,6 @@
 use crate::{
     draw_line_bresenham, draw_points, Color, DescriptorBuffer, DescriptorImage, Extent2, Format,
-    Fragment, Memory, Offset2, Position, Range2, Vertex, MAX_VERTEX_ATTRIBUTES,
+    Fragment, Memory, Offset2, Position, Range2, ShaderState, Vertex, MAX_VERTEX_ATTRIBUTES,
     MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS, MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use hashbrown::HashMap;
@@ -12,6 +12,7 @@ pub struct GraphicsPipeline {
     render_targets: HashMap<RenderTargetIndex, RenderTarget>,
     vertex_buffers: [Option<VertexBuffer>; MAX_VERTEX_BINDINGS as usize],
 
+    shader_state: ShaderState,
     vertex_input_state: VertexInputState,
     input_assembly_state: InputAssemblyState,
     viewport_state: ViewportState,
@@ -23,6 +24,7 @@ impl GraphicsPipeline {
         Self {
             render_targets: HashMap::default(),
             vertex_buffers: Default::default(),
+            shader_state: Default::default(),
             vertex_input_state: Default::default(),
             input_assembly_state: Default::default(),
             viewport_state: Default::default(),
@@ -71,6 +73,10 @@ impl GraphicsPipeline {
         }
     }
 
+    pub fn set_shader_state(&mut self, shader_state: ShaderState) {
+        self.shader_state = shader_state;
+    }
+
     pub fn set_vertex_input_state(&mut self, vertex_input_state: VertexInputState) {
         self.vertex_input_state = vertex_input_state;
     }
@@ -101,50 +107,17 @@ impl GraphicsPipeline {
         first_instance: u32,
     ) {
         // Fetch vertices from vertex buffer using bindings.
-        assert_eq!(instance_count, 1);
-        assert_eq!(first_vertex, 0);
-        assert_eq!(first_instance, 0);
-        let Some(binding) = self.vertex_input_state.bindings[0].as_ref() else {
-            // TODO: Determine used VertexBindings from vertex shader (if any).
-            unreachable!("{:#?}", self.vertex_input_state.bindings)
-        };
-        assert!(binding.stride < MAX_VERTEX_BINDING_STRIDE);
-        assert_eq!(binding.input_rate, VertexInputRate::Vertex);
+        let vertices = self.execute_vertex_input(
+            memory,
+            vertex_count,
+            instance_count,
+            first_vertex,
+            first_instance,
+        );
 
-        let Some(attribute) = self.vertex_input_state.attributes[0].as_ref() else {
-            // TODO: Determine used VertexAttributes from vertex shader (if any).
-            unreachable!()
-        };
-        assert_eq!(attribute.binding, binding.number);
-        assert_eq!(attribute.location, 0);
-        assert!(attribute.offset < MAX_VERTEX_ATTRIBUTE_OFFSET);
+        // Execute vertex shader.
+        let vertices = self.execute_vertex_shader(memory, vertices);
 
-        // Create elements from vertex buffer using attributes.
-        let Some(vertex_buffer) = self.vertex_buffers[binding.number].as_ref() else {
-            unreachable!()
-        };
-        let element_format = attribute.format;
-        let element_size = element_format.bytes_per_pixel() as u32;
-        let element_stride = if binding.stride == 0 {
-            element_size
-        } else {
-            binding.stride
-        };
-        let bytes = memory
-            .read_bytes(
-                &vertex_buffer.buffer.binding,
-                vertex_buffer.offset,
-                vertex_buffer.buffer.binding.size - vertex_buffer.offset,
-            )
-            .to_vec();
-        assert_eq!(bytes.len() % element_stride as usize, 0);
-        // TODO: Determine vertex element components in shader?
-        let vertices = bytes
-            .chunks_exact(element_stride as usize)
-            .take(vertex_count as usize)
-            .map(|element| Vertex::from_bytes(element_format, element))
-            .collect::<Vec<_>>();
-        // TODO: vertex shader
         // TODO: tesselation assembler
         // TODO: tesselation control shader
         // TODO: tesselation primitive generation
@@ -265,6 +238,74 @@ impl GraphicsPipeline {
     }
 }
 
+impl GraphicsPipeline {
+    fn execute_vertex_input(
+        &mut self,
+        memory: &mut Memory,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    ) -> Vec<Vertex> {
+        assert_eq!(instance_count, 1);
+        assert_eq!(first_vertex, 0);
+        assert_eq!(first_instance, 0);
+        let Some(binding) = self.vertex_input_state.bindings[0].as_ref() else {
+            // TODO: Determine used VertexBindings from vertex shader (if any).
+            unreachable!("{:#?}", self.vertex_input_state.bindings)
+        };
+        assert!(binding.stride < MAX_VERTEX_BINDING_STRIDE);
+        assert_eq!(binding.input_rate, VertexInputRate::Vertex);
+
+        let Some(attribute) = self.vertex_input_state.attributes[0].as_ref() else {
+            // TODO: Determine used VertexAttributes from vertex shader (if any).
+            unreachable!()
+        };
+        assert_eq!(attribute.binding, binding.number);
+        assert_eq!(attribute.location, 0);
+        assert!(attribute.offset < MAX_VERTEX_ATTRIBUTE_OFFSET);
+
+        // Create elements from vertex buffer using attributes.
+        let Some(vertex_buffer) = self.vertex_buffers[binding.number].as_ref() else {
+            unreachable!()
+        };
+        let element_format = attribute.format;
+        let element_size = element_format.bytes_per_pixel() as u32;
+        let element_stride = if binding.stride == 0 {
+            element_size
+        } else {
+            binding.stride
+        };
+        let vertex_buffer_size = vertex_buffer.buffer.binding.size - vertex_buffer.offset;
+        assert_eq!(vertex_buffer_size % element_stride as u64, 0);
+
+        let bytes = memory
+            .read_bytes(
+                &vertex_buffer.buffer.binding,
+                vertex_buffer.offset,
+                vertex_buffer_size,
+            )
+            .to_vec(); // TODO: Stream vertex buffer bytes instead of reading all of them?
+
+        // TODO: Determine vertex element components in shader?
+        let vertices = bytes
+            .chunks_exact(element_stride as usize)
+            .take(vertex_count as usize)
+            .map(|element| Vertex::from_bytes(element_format, element))
+            .collect();
+        vertices
+    }
+
+    fn execute_vertex_shader(&self, memory: &mut Memory, vertices: Vec<Vertex>) -> Vec<Vertex> {
+        let shader = self
+            .shader_state
+            .vertex_shader
+            .as_ref()
+            .unwrap_or_else(|| unreachable!());
+        shader.execute_vertex_shader(vertices)
+    }
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct RenderArea {
     pub extent: Extent2<u32>,
@@ -336,7 +377,7 @@ impl IndexMut<VertexBindingNumber> for [Option<VertexBuffer>] {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum VertexInputRate {
     Vertex,
     Instance,
@@ -348,7 +389,7 @@ pub struct InputAssemblyState {
     pub primitive_restart: bool,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub enum PrimitiveTopology {
     #[default]
     PointList,
@@ -440,7 +481,7 @@ pub struct RasterizationState {
     pub line_width: f32,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub enum PolygonMode {
     #[default]
     Fill,
@@ -449,7 +490,7 @@ pub enum PolygonMode {
     FillRectangle,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub enum CullMode {
     #[default]
     None,
@@ -458,7 +499,7 @@ pub enum CullMode {
     FrontAndBack,
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub enum FrontFace {
     #[default]
     CounterClockwise,
