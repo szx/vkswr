@@ -135,10 +135,10 @@ impl GraphicsPipeline {
         let primitive_vertices = vertices
             .iter()
             .map(|v| {
-                let x = v.sfloat32(0);
-                let y = v.sfloat32(1);
-                let z = v.sfloat32(2);
-                let w = v.sfloat32(3);
+                let x = v.get_as_sfloat32(0);
+                let y = v.get_as_sfloat32(1);
+                let z = v.get_as_sfloat32(2);
+                let w = v.get_as_sfloat32(3);
                 // Perspective division.
                 let x_ndc = x / w;
                 let y_ndc = y / w;
@@ -231,7 +231,8 @@ impl GraphicsPipeline {
             let position = fragment.position;
             let color = fragment.color.to_bytes(rt.format);
 
-            let dst_offset = ((position.sfloat32(0) + position.sfloat32(1) * width as f32)
+            let dst_offset = ((position.get_as_sfloat32(0)
+                + position.get_as_sfloat32(1) * width as f32)
                 * rt.format.bytes_per_pixel() as f32) as u64;
             memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.
         }

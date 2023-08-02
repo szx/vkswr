@@ -4,8 +4,14 @@ pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>
     // Bresenham's line algorithm
     // TODO: Replace line segment rasterization with
     //       https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#primsrast-lines-basic
-    let (mut x0, mut y0) = ((v0.sfloat32(0)) as i32, (v0.sfloat32(1)) as i32);
-    let (mut x1, mut y1) = ((v1.sfloat32(0)) as i32, (v1.sfloat32(1)) as i32);
+    let (mut x0, mut y0) = (
+        (v0.get_as_sfloat32(0)) as i32,
+        (v0.get_as_sfloat32(1)) as i32,
+    );
+    let (mut x1, mut y1) = (
+        (v1.get_as_sfloat32(0)) as i32,
+        (v1.get_as_sfloat32(1)) as i32,
+    );
     let steep = if (y1 - y0).abs() > (x1 - x0).abs() {
         std::mem::swap(&mut x0, &mut y0);
         std::mem::swap(&mut x1, &mut y1);

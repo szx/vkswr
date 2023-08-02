@@ -59,79 +59,99 @@ impl Vector4 {
     }
 
     pub fn from_sfloat32(v: Vector4) -> Self {
-        Self::from_sfloat32_raw(v.sfloat32(0), v.sfloat32(1), v.sfloat32(2), v.sfloat32(3))
+        Self::from_sfloat32_raw(
+            v.get_as_sfloat32(0),
+            v.get_as_sfloat32(1),
+            v.get_as_sfloat32(2),
+            v.get_as_sfloat32(3),
+        )
     }
 
     pub fn from_sfloat64(v: Vector4) -> Self {
-        Self::from_sfloat64_raw(v.sfloat64(0), v.sfloat64(1), v.sfloat64(2), v.sfloat64(3))
+        Self::from_sfloat64_raw(
+            v.get_as_sfloat64(0),
+            v.get_as_sfloat64(1),
+            v.get_as_sfloat64(2),
+            v.get_as_sfloat64(3),
+        )
     }
 
-    pub fn sfloat32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
+    pub fn get_as_sfloat32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
         f32::from_bits(self.components[index] as u32)
     }
 
-    pub fn sfloat64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f64 {
+    pub fn get_as_sfloat64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f64 {
         f64::from_bits(self.components[index])
     }
 
-    pub fn unorm8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+    pub fn get_as_unorm8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
+        // NOTE: https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#fundamentals-fixedfpconv
+        let c = self.components[index] as f32;
+        let divisor = 2.0f32.powi(8) - 1.0f32;
+        c / divisor
+    }
+
+    pub fn get_as_uint8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+        self.components[index] as u8
+    }
+
+    pub fn to_sfloat32_bytes(
+        &self,
+        index: impl std::slice::SliceIndex<[u64], Output = u64>,
+    ) -> [u8; 4] {
+        f32::from_bits(self.components[index] as u32).to_ne_bytes()
+    }
+
+    pub fn to_unorm8_byte(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
         let value = f32::from_bits(self.components[index] as u32);
         (value * 255.0f32).round() as u8
     }
 
-    pub fn unorm16(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u16 {
+    pub fn to_unorm16_bytes(
+        &self,
+        index: impl std::slice::SliceIndex<[u64], Output = u64>,
+    ) -> [u8; 2] {
         let value = f32::from_bits(self.components[index] as u32);
-        (value * 65535.0f32).round() as u16
+        let value = (value * 65535.0f32).round() as u16;
+        value.to_ne_bytes()
     }
 
-    pub fn unorm32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
-        let value = f64::from_bits(self.components[index]);
-        (value * 4294967295.0f64).round() as u64
-    }
-
-    pub fn uint8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
-        self.components[index] as u8
-    }
-
-    pub fn uint16(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u16 {
-        self.components[index] as u16
-    }
-
-    pub fn uint32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u32 {
-        self.components[index] as u32
-    }
-
-    pub fn uint64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
-        self.components[index]
+    pub fn to_unorm32_bytes(
+        &self,
+        index: impl std::slice::SliceIndex<[u64], Output = u64>,
+    ) -> [u8; 4] {
+        let value = f32::from_bits(self.components[index] as u32);
+        let value = (value * 4294967295.0f32).round() as u32;
+        value.to_ne_bytes()
     }
 
     pub fn to_bytes(&self, format: Format) -> Vec<u8> {
         let mut result = vec![0u8; format.bytes_per_pixel() as usize];
         match format {
             Format::R8Unorm => {
-                result[0] = self.unorm8(0);
+                result[0] = self.to_unorm8_byte(0);
             }
             Format::R8G8Unorm => {
-                result[0] = self.unorm8(0);
-                result[1] = self.unorm8(1);
+                result[0] = self.to_unorm8_byte(0);
+                result[1] = self.to_unorm8_byte(1);
             }
             Format::R8G8B8A8Unorm => {
-                result[0] = self.unorm8(0);
-                result[1] = self.unorm8(1);
-                result[2] = self.unorm8(2);
-                result[3] = self.unorm8(3);
+                result[0] = self.to_unorm8_byte(0);
+                result[1] = self.to_unorm8_byte(1);
+                result[2] = self.to_unorm8_byte(2);
+                result[3] = self.to_unorm8_byte(3);
             }
             Format::R32G32B32A32Sfloat => {
-                result[0..4].copy_from_slice(&self.sfloat32(0).to_ne_bytes());
-                result[4..8].copy_from_slice(&self.sfloat32(1).to_ne_bytes());
-                result[8..12].copy_from_slice(&self.sfloat32(2).to_ne_bytes());
-                result[12..16].copy_from_slice(&self.sfloat32(3).to_ne_bytes());
+                result[0..4].copy_from_slice(&self.to_sfloat32_bytes(0));
+                result[4..8].copy_from_slice(&self.to_sfloat32_bytes(1));
+                result[8..12].copy_from_slice(&self.to_sfloat32_bytes(2));
+                result[12..16].copy_from_slice(&self.to_sfloat32_bytes(3));
             }
             Format::A2b10g10r10UnormPack32 => {
                 unimplemented!()
             }
             Format::D16Unorm => {
-                result[0..2].copy_from_slice(&self.unorm16(0).to_ne_bytes());
+                result[0..2].copy_from_slice(&self.to_unorm16_bytes(0));
             }
         }
         result
