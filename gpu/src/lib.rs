@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod consts;
 pub mod gpu;
 pub mod graphics_pipeline;
@@ -5,6 +7,8 @@ pub mod memory;
 pub mod rasterization;
 pub mod shader;
 pub mod vector;
+
+mod spirv;
 
 pub use consts::*;
 pub use gpu::*;

@@ -2680,7 +2680,9 @@ impl PhysicalDevice {
                 ShaderModule::from_handle(shader_stage.module).unwrap_or_else(|| unreachable!());
             let code = module.lock().code.clone();
 
-            let shader = gpu::Shader::new(&name, code).unwrap_or_else(|| unreachable!());
+            // TODO: let shader = gpu::Shader::new(&name, code).unwrap_or_else(|| unreachable!());
+            let shader = gpu::Shader::empty();
+
             match shader_stage.stage {
                 VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT => {
                     shader_state.vertex_shader = Some(shader);

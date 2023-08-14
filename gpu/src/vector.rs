@@ -23,7 +23,7 @@ impl Format {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Vector4 {
     /// Bit representation of components.
     components: [u64; 4],
@@ -87,12 +87,20 @@ impl Vector4 {
     pub fn get_as_unorm8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> f32 {
         // NOTE: https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#fundamentals-fixedfpconv
         let c = self.components[index] as f32;
-        let divisor = 2.0f32.powi(8) - 1.0f32;
+        let divisor = (2_u32.pow(8) - 1) as f32;
         c / divisor
     }
 
     pub fn get_as_uint8(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
         self.components[index] as u8
+    }
+
+    pub fn get_as_uint32(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u32 {
+        self.components[index] as u32
+    }
+
+    pub fn get_as_uint64(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u64 {
+        self.components[index]
     }
 
     pub fn to_sfloat32_bytes(

@@ -1,7 +1,8 @@
 use crate::{
     draw_line_bresenham, draw_points, Color, DescriptorBuffer, DescriptorImage, Extent2, Format,
-    Fragment, Memory, Offset2, Position, Range2, ShaderState, Vertex, MAX_VERTEX_ATTRIBUTES,
-    MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS, MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
+    Fragment, Memory, Offset2, Position, Range2, ShaderState, Vertex, VertexShaderOutput,
+    MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
+    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use hashbrown::HashMap;
 use itertools::Itertools;
@@ -115,8 +116,15 @@ impl GraphicsPipeline {
             first_instance,
         );
 
-        // Execute vertex shader.
-        let vertices = self.execute_vertex_shader(memory, vertices);
+        // TODO: Execute vertex shader.
+        //       let vertices = self.execute_vertex_shader(&self.vertex_input_state, vertices);
+        let vertices = vertices
+            .iter()
+            .map(|vertex| VertexShaderOutput {
+                position: *vertex,
+                point_size: 1.0,
+            })
+            .collect::<Vec<_>>();
 
         // TODO: tesselation assembler
         // TODO: tesselation control shader
@@ -135,6 +143,8 @@ impl GraphicsPipeline {
         let primitive_vertices = vertices
             .iter()
             .map(|v| {
+                let v = v.position;
+
                 let x = v.get_as_sfloat32(0);
                 let y = v.get_as_sfloat32(1);
                 let z = v.get_as_sfloat32(2);
@@ -297,13 +307,17 @@ impl GraphicsPipeline {
         vertices
     }
 
-    fn execute_vertex_shader(&self, memory: &mut Memory, vertices: Vec<Vertex>) -> Vec<Vertex> {
+    fn execute_vertex_shader(
+        &self,
+        vertex_input_state: &VertexInputState,
+        vertices: Vec<Vertex>,
+    ) -> Vec<VertexShaderOutput> {
         let shader = self
             .shader_state
             .vertex_shader
             .as_ref()
             .unwrap_or_else(|| unreachable!());
-        shader.execute_vertex_shader(vertices)
+        shader.execute_vertex_shader(vertex_input_state, vertices)
     }
 }
 
@@ -332,7 +346,7 @@ pub struct VertexInputState {
     pub bindings: [Option<VertexBinding>; MAX_VERTEX_BINDINGS as usize],
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VertexAttribute {
     /// Shader input location.
     pub location: u32,
@@ -344,7 +358,7 @@ pub struct VertexAttribute {
     pub offset: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct VertexBinding {
     /// Binding number.
     pub number: VertexBindingNumber,
