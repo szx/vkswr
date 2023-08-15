@@ -8,8 +8,6 @@ pub mod rasterization;
 pub mod shader;
 pub mod vector;
 
-mod spirv;
-
 pub use consts::*;
 pub use gpu::*;
 pub use graphics_pipeline::*;

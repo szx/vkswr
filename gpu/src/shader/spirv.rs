@@ -1,7 +1,3 @@
-use crate::shader::VariableBacking as ShaderVariableBacking;
-use crate::shader::VariableKind as ShaderVariableKind;
-use crate::shader::VariableStorage as ShaderVariableStorage;
-
 use hashbrown::HashMap;
 use log::{debug, error};
 use rspirv::binary::Disassemble;
@@ -11,14 +7,14 @@ use rspirv::dr::{
 use rspirv::spirv as spirv_;
 
 #[derive(Debug, Clone)]
-pub struct Spirv {
-    pub entry_point: EntryPoint,
-    pub objects: HashMap<ObjectId, Object>,
-    pub functions: HashMap<ObjectId, Function>,
+pub(crate) struct Spirv {
+    pub(crate) entry_point: EntryPoint,
+    pub(crate) objects: HashMap<ObjectId, Object>,
+    pub(crate) functions: HashMap<ObjectId, Function>,
 }
 
 impl Spirv {
-    pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
+    pub(crate) fn new(name: &str, code: Vec<u32>) -> Option<Self> {
         let mut loader = rspirv::dr::Loader::new();
         assert_eq!(rspirv::spirv::MAGIC_NUMBER, code[0]);
         rspirv::binary::parse_words(&code, &mut loader)
@@ -41,326 +37,17 @@ impl Spirv {
             functions,
         })
     }
-
-    fn get_type(&self, id: &ObjectId) -> &Type {
-        match self.objects.get(id) {
-            Some(Object::Type(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_constant(&self, id: &ObjectId) -> &Constant {
-        match self.objects.get(id) {
-            Some(Object::Constant(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_variable(&self, id: &ObjectId) -> &Variable {
-        match self.objects.get(id) {
-            Some(Object::Variable(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_shader_var_decl(
-        &self,
-        type_id: &ObjectId,
-        storage: ShaderVariableStorage,
-        backing: ShaderVariableBacking,
-    ) -> crate::shader::VariableDecl {
-        let (kind, component_count, storage, backing) = match self.get_type(type_id) {
-            Type::Float { width } => {
-                assert_eq!(*width, 32);
-                (ShaderVariableKind::F32, 1, storage, backing)
-            }
-            Type::Int { width, signedness } => {
-                assert_eq!(*width, 32);
-                if !signedness {
-                    (ShaderVariableKind::U32, 1, storage, backing)
-                } else {
-                    (ShaderVariableKind::I32, 1, storage, backing)
-                }
-            }
-            Type::Void => (ShaderVariableKind::Void, 0, storage, backing),
-            Type::Function(_) => {
-                unimplemented!()
-            }
-            Type::Vector {
-                component_type,
-                component_count,
-            } => {
-                let component_type = self.get_shader_var_decl(component_type, storage, backing);
-                if component_type.component_count == 1 {
-                    (
-                        component_type.kind,
-                        *component_count,
-                        component_type.storage,
-                        component_type.backing,
-                    )
-                } else {
-                    unimplemented!("Matrix?")
-                }
-            }
-            Type::Struct {
-                member_types,
-                decorations,
-            } => {
-                let members = member_types
-                    .iter()
-                    .map(|MemberType { type_, decorations }| {
-                        self.get_shader_var_decl(type_, storage, (*decorations).into())
-                    })
-                    .collect();
-                assert_eq!(decorations.block, true);
-                (
-                    ShaderVariableKind::Struct,
-                    member_types.len() as u32,
-                    storage,
-                    ShaderVariableBacking::Struct { members },
-                )
-            }
-            Type::Pointer {
-                storage_class,
-                type_,
-            } => {
-                let type_ = self.get_shader_var_decl(type_, (*storage_class).into(), backing);
-                (
-                    ShaderVariableKind::Pointer,
-                    1,
-                    storage,
-                    ShaderVariableBacking::Pointer {
-                        kind: Box::new(type_),
-                    },
-                )
-            }
-        };
-
-        crate::shader::VariableDecl {
-            kind,
-            component_count,
-            storage,
-            backing,
-        }
-    }
-
-    pub fn shader_instructions(&self) -> Option<Vec<crate::shader::Instruction>> {
-        let mut scalar_variables = vec![];
-        let mut composite_variables = vec![];
-        let mut pointer_variables = vec![];
-
-        for (id, object) in &self.objects {
-            match object {
-                Object::Type(_) => continue,
-                Object::Constant(constant) => match constant {
-                    Constant::Scalar { type_, value } => {
-                        let decl = self.get_shader_var_decl(
-                            type_,
-                            ShaderVariableStorage::Constant,
-                            ShaderVariableBacking::Memory,
-                        );
-                        let id = (*id).into();
-                        scalar_variables
-                            .push(crate::shader::Instruction::VariableDecl { id, decl });
-                        scalar_variables.push(crate::shader::Instruction::StoreImm32 {
-                            dst: id,
-                            imm: *value,
-                        });
-                    }
-                    Constant::Composite {
-                        type_,
-                        constituents,
-                    } => {
-                        let decl = self.get_shader_var_decl(
-                            type_,
-                            ShaderVariableStorage::Constant,
-                            ShaderVariableBacking::Memory,
-                        );
-                        let id = (*id).into();
-                        composite_variables
-                            .push(crate::shader::Instruction::VariableDecl { id, decl });
-                        let values = constituents
-                            .iter()
-                            .map(|id| match self.get_constant(id) {
-                                Constant::Scalar { type_, value } => *value,
-                                Constant::Composite { .. } => {
-                                    unreachable!()
-                                }
-                            })
-                            .collect::<Vec<_>>();
-                        composite_variables.push(crate::shader::Instruction::StoreImm32Array {
-                            dst: id,
-                            imm: values,
-                        });
-                    }
-                },
-                Object::Variable(Variable::Pointer(Pointer::ToMemoryObject { memory_object })) => {
-                    let decl = self.get_shader_var_decl(
-                        &memory_object.type_,
-                        memory_object.storage_class.into(),
-                        memory_object.decorations.into(),
-                    );
-                    let id = (*id).into();
-                    pointer_variables.push(crate::shader::Instruction::VariableDecl { id, decl });
-                }
-            }
-        }
-
-        let mut instructions = vec![];
-        instructions.extend(scalar_variables);
-        instructions.extend(composite_variables);
-        instructions.extend(pointer_variables);
-
-        let main = self.functions.get(&self.entry_point.entry_point)?;
-        for instruction in &main.instructions {
-            match instruction {
-                Instruction::Label { result_id } => {
-                    instructions.push(crate::shader::Instruction::Label { id: result_id.0 });
-                }
-                Instruction::AccessChain {
-                    result_id,
-                    result_type,
-                    base,
-                    indexes,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    if let [offset] = indexes.as_slice() {
-                        instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                        instructions.push(crate::shader::Instruction::LoadVariableOffset {
-                            id,
-                            base: (*base).into(),
-                            offset: (*offset).into(),
-                        });
-                    } else {
-                        unimplemented!()
-                    }
-                }
-                Instruction::Store { pointer, object } => {
-                    instructions.push(crate::shader::Instruction::StoreVariable {
-                        dst_pointer: (*pointer).into(),
-                        src: (*object).into(),
-                    });
-                }
-                Instruction::Load {
-                    result_id,
-                    result_type,
-                    pointer,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                    instructions.push(crate::shader::Instruction::LoadVariable {
-                        id,
-                        src_pointer: (*pointer).into(),
-                    });
-                }
-                Instruction::VectorTimesScalar {
-                    result_id,
-                    result_type,
-                    vector,
-                    scalar,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                    instructions.push(crate::shader::Instruction::MathMulVectorScalar {
-                        id,
-                        vector: (*vector).into(),
-                        scalar: (*scalar).into(),
-                    });
-                }
-                Instruction::FSub {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                    instructions.push(crate::shader::Instruction::MathSubF32F32 {
-                        id,
-                        op1: (*operand1).into(),
-                        op2: (*operand2).into(),
-                    });
-                }
-                Instruction::CompositeExtract {
-                    result_id,
-                    result_type,
-                    composite,
-                    indexes,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    if let [offset] = indexes.as_slice() {
-                        instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                        instructions.push(crate::shader::Instruction::LoadVariableImmOffset {
-                            id,
-                            base: (*composite).into(),
-                            offset: *offset,
-                        });
-                    } else {
-                        unimplemented!()
-                    }
-                }
-                Instruction::CompositeConstruct {
-                    result_id,
-                    result_type,
-                    constituents,
-                } => {
-                    let decl = self.get_shader_var_decl(
-                        result_type,
-                        ShaderVariableStorage::Variable,
-                        ShaderVariableBacking::Memory,
-                    );
-                    let id = (*result_id).into();
-                    instructions.push(crate::shader::Instruction::VariableDecl { id, decl });
-                    let values = constituents
-                        .iter()
-                        .map(|id| (*id).into())
-                        .collect::<Vec<_>>();
-                    instructions
-                        .push(crate::shader::Instruction::StoreVariableArray { dst: id, values });
-                }
-                Instruction::Return => {
-                    instructions.push(crate::shader::Instruction::Return);
-                }
-            }
-        }
-        Some(instructions)
-    }
 }
 
 #[derive(Debug, Clone)]
-pub struct EntryPoint {
-    pub entry_point: ObjectId,
-    pub interfaces: Vec<ObjectId>,
+pub(crate) struct EntryPoint {
+    pub(crate) entry_point: ObjectId,
+    pub(crate) interfaces: Vec<ObjectId>,
 }
 
 impl EntryPoint {
     /// Parses OpEntryPoint.
-    pub fn parse(module: &Module_) -> Option<Self> {
+    fn parse(module: &Module_) -> Option<Self> {
         let entry_point = module.entry_points.first()?;
         match &entry_point.operands[..] {
             [Operand_::ExecutionModel(spirv_::ExecutionModel::Vertex), Operand_::IdRef(entry_point), _name, interfaces @ ..] =>
@@ -380,25 +67,25 @@ impl EntryPoint {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Version {
+struct Version {
     major: u8,
     minor: u8,
 }
 
 impl Version {
     /// Returns supported SPIR-V version..
-    pub fn parse(module: &Module_) -> Option<Self> {
+    fn parse(module: &Module_) -> Option<Self> {
         let (major, minor) = module.header.as_ref()?.version();
         Some(Self { major, minor })
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Capability {}
+struct Capability {}
 
 impl Capability {
     /// Parses OpCapability.
-    pub fn parse(module: &Module_) -> Option<Self> {
+    fn parse(module: &Module_) -> Option<Self> {
         let capability = module.capabilities.first()?;
         match &capability.operands[..] {
             [Operand_::Capability(spirv_::Capability::Shader)] => Some(Self {}),
@@ -408,11 +95,11 @@ impl Capability {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct MemoryModel {}
+struct MemoryModel {}
 
 impl MemoryModel {
     /// Parses OpMemoryModel.
-    pub fn parse(module: &Module_) -> Option<Self> {
+    fn parse(module: &Module_) -> Option<Self> {
         let memory_model = &module.memory_model.as_ref()?;
         match &memory_model.operands[..] {
             [Operand_::AddressingModel(spirv_::AddressingModel::Logical), Operand_::MemoryModel(spirv_::MemoryModel::GLSL450)] => {
@@ -424,28 +111,22 @@ impl MemoryModel {
 }
 
 #[derive(Debug, Clone)]
-pub enum Object {
+pub(crate) enum Object {
     Type(Type),
     Constant(Constant),
     Variable(Variable),
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub struct ObjectId(pub u32);
-
-impl From<ObjectId> for crate::shader::VariableId {
-    fn from(value: ObjectId) -> Self {
-        Self(value.0)
-    }
-}
+pub(crate) struct ObjectId(pub u32);
 
 impl Object {
     /// Parses global types, constants and variables.
-    pub fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
-        let mut types = Type::parse(&module)?;
-        let mut constants = Constant::parse(&module)?;
-        let mut variables = Variable::parse(&module)?;
-        Decorations::parse(&module, &mut types, &mut constants, &mut variables);
+    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+        let mut types = Type::parse(module)?;
+        let mut constants = Constant::parse(module)?;
+        let mut variables = Variable::parse(module)?;
+        Decorations::parse(module, &mut types, &mut constants, &mut variables);
 
         let mut data = HashMap::default();
         data.extend(types.iter().map(|(id, x)| (*id, Self::Type(x.clone()))));
@@ -464,7 +145,7 @@ impl Object {
 }
 
 #[derive(Debug, Clone)]
-pub enum Type {
+pub(crate) enum Type {
     Void,
     Function(Vec<ObjectId>),
     Float {
@@ -489,14 +170,14 @@ pub enum Type {
 }
 
 #[derive(Debug, Clone)]
-pub struct MemberType {
-    pub type_: ObjectId,
-    pub decorations: Decorations,
+pub(crate) struct MemberType {
+    pub(crate) type_: ObjectId,
+    pub(crate) decorations: Decorations,
 }
 
 impl Type {
     /// Parses types.
-    pub fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
@@ -632,7 +313,7 @@ impl Type {
 }
 
 #[derive(Debug, Clone)]
-pub enum Constant {
+pub(crate) enum Constant {
     Scalar {
         type_: ObjectId,
         value: u32,
@@ -645,7 +326,7 @@ pub enum Constant {
 
 impl Constant {
     /// Parses constants.
-    pub fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
@@ -717,7 +398,7 @@ impl Constant {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum StorageClass {
+pub(crate) enum StorageClass {
     Input,
     Output,
 }
@@ -732,18 +413,9 @@ impl From<spirv_::StorageClass> for StorageClass {
     }
 }
 
-impl From<StorageClass> for ShaderVariableStorage {
-    fn from(value: StorageClass) -> Self {
-        match value {
-            StorageClass::Input => Self::Input,
-            StorageClass::Output => Self::Output,
-        }
-    }
-}
-
 impl Variable {
     /// Parses variables.
-    pub fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
@@ -791,7 +463,7 @@ impl Variable {
         Some(data)
     }
 
-    pub fn decorate(
+    fn decorate(
         data: &mut HashMap<ObjectId, Self>,
         target: &spirv_::Word,
         decoration: &spirv_::Decoration,
@@ -816,44 +488,27 @@ impl Variable {
 }
 
 #[derive(Debug, Clone)]
-pub enum Variable {
+pub(crate) enum Variable {
     Pointer(Pointer),
 }
 
 #[derive(Debug, Clone)]
-pub enum Pointer {
+pub(crate) enum Pointer {
     ToMemoryObject { memory_object: MemoryObject },
 }
 
 #[derive(Debug, Clone)]
-pub struct MemoryObject {
-    pub type_: ObjectId,
-    pub storage_class: StorageClass,
-    pub decorations: Decorations,
+pub(crate) struct MemoryObject {
+    pub(crate) type_: ObjectId,
+    pub(crate) storage_class: StorageClass,
+    pub(crate) decorations: Decorations,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Decorations {
-    pub builtin: Option<BuiltInDecoration>,
-    pub block: bool,
-    pub location: Option<LocationDecoration>,
-}
-
-impl From<Decorations> for ShaderVariableBacking {
-    fn from(decorations: Decorations) -> Self {
-        if let Some(builtin) = decorations.builtin {
-            match builtin {
-                BuiltInDecoration::Position => Self::Position,
-                BuiltInDecoration::PointSize => Self::PointSize,
-            }
-        } else if let Some(location) = decorations.location {
-            Self::Location {
-                number: location.number,
-            }
-        } else {
-            Self::Memory
-        }
-    }
+pub(crate) struct Decorations {
+    pub(crate) builtin: Option<BuiltInDecoration>,
+    pub(crate) block: bool,
+    pub(crate) location: Option<LocationDecoration>,
 }
 
 impl Decorations {
@@ -875,7 +530,7 @@ impl Decorations {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum BuiltInDecoration {
+pub(crate) enum BuiltInDecoration {
     Position,
     PointSize,
 }
@@ -891,16 +546,16 @@ impl BuiltInDecoration {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct LocationDecoration {
+pub(crate) struct LocationDecoration {
     pub number: u32,
 }
 
 impl Decorations {
     /// Parses and apply decorations.
-    pub fn parse(
+    fn parse(
         module: &Module_,
         types: &mut HashMap<ObjectId, Type>,
-        constants: &mut HashMap<ObjectId, Constant>,
+        _constants: &mut HashMap<ObjectId, Constant>,
         variables: &mut HashMap<ObjectId, Variable>,
     ) {
         for inst in &module.annotations {
@@ -935,15 +590,15 @@ impl Decorations {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
-    pub result_type: ObjectId,
-    pub function_type: ObjectId,
-    pub instructions: Vec<Instruction>,
+pub(crate) struct Function {
+    pub(crate) result_type: ObjectId,
+    pub(crate) function_type: ObjectId,
+    pub(crate) instructions: Vec<Instruction>,
 }
 
 impl Function {
     /// Parses functions.
-    pub fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
         for function in &module.functions {
             let builder = FunctionBuilder::new();
@@ -1031,7 +686,7 @@ impl FunctionBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub enum Instruction {
+pub(crate) enum Instruction {
     Label {
         result_id: ObjectId,
     },
@@ -1078,7 +733,7 @@ pub enum Instruction {
 
 impl Instruction {
     /// Parses instruction.
-    pub fn parse(instruction: &Instruction_) -> Option<Self> {
+    fn parse(instruction: &Instruction_) -> Option<Self> {
         let (opcode, result_type, result_id, operands) = deconstruct_instruction(instruction);
         match (opcode, result_type, result_id, operands) {
             (spirv_::Op::Label, None, &Some(result_id), &[]) => Some(Self::Label {
