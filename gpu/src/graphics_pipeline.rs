@@ -56,7 +56,7 @@ impl GraphicsPipeline {
         assert!(area.offset.x >= 0);
         assert!(area.offset.y >= 0);
 
-        let bytes_per_pixel = rt.format.bytes_per_pixel();
+        let bytes_per_pixel = rt.format.info().bytes_per_pixel;
         let dst_offset = rt.image.extent.width * area.offset.y as u32 * bytes_per_pixel as u32;
         let dst = memory.get_memory_mut(&rt.image.binding);
         let mut dst = dst[dst_offset as usize..].as_mut_ptr();
@@ -243,7 +243,7 @@ impl GraphicsPipeline {
 
             let dst_offset = ((position.get_as_sfloat32(0)
                 + position.get_as_sfloat32(1) * width as f32)
-                * rt.format.bytes_per_pixel() as f32) as u64;
+                * rt.format.info().bytes_per_pixel as f32) as u64;
             memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.
         }
     }
@@ -281,7 +281,7 @@ impl GraphicsPipeline {
             unreachable!()
         };
         let element_format = attribute.format;
-        let element_size = element_format.bytes_per_pixel() as u32;
+        let element_size = element_format.info().bytes_per_pixel as u32;
         let element_stride = if binding.stride == 0 {
             element_size
         } else {
@@ -302,7 +302,7 @@ impl GraphicsPipeline {
         let vertices = bytes
             .chunks_exact(element_stride as usize)
             .take(vertex_count as usize)
-            .map(|element| Vertex::from_bytes(element_format, element))
+            .map(|element| Vertex::from_vertex_buffer_bytes(element_format, element))
             .collect();
         vertices
     }

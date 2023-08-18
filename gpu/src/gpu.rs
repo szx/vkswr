@@ -137,8 +137,9 @@ impl Gpu {
         assert_eq!(region.image_base_array_level, 0);
         assert_eq!(region.image_array_level_count, 1);
         assert_eq!(region.image_extent.depth, 1);
-        let size =
-            buffer_row_len * buffer_image_height * region.image_format.bytes_per_pixel() as u32;
+        let size = buffer_row_len
+            * buffer_image_height
+            * region.image_format.info().bytes_per_pixel as u32;
         let src_offset = region.buffer_offset;
         let dst_offset = 0;
         self.memory.copy_bytes(
@@ -175,8 +176,9 @@ impl Gpu {
         assert_eq!(region.image_base_array_level, 0);
         assert_eq!(region.image_array_level_count, 1);
         assert_eq!(region.image_extent.depth, 1);
-        let size =
-            buffer_row_len * buffer_image_height * region.image_format.bytes_per_pixel() as u32;
+        let size = buffer_row_len
+            * buffer_image_height
+            * region.image_format.info().bytes_per_pixel as u32;
         let src_offset = 0;
         let dst_offset = region.buffer_offset;
         self.memory.copy_bytes(

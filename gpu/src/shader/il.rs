@@ -320,9 +320,8 @@ impl Il {
                                         .unwrap()
                                         .unwrap()
                                         .format;
-                                    // TODO: Use format.
                                     for (i, imm) in imm.iter_mut().enumerate() {
-                                        *imm = vertex.get_as_unorm8(i).to_bits();
+                                        *imm = vertex.get_as_uint32(i);
                                     }
                                 }
                                 VariableAllocation::BuiltinPosition => unimplemented!(),

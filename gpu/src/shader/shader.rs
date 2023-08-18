@@ -102,9 +102,9 @@ mod tests {
 
         // R8G8 vec2
         let inputs = vec![
-            Vertex::from_raw(101, 228, 0, 0),
-            Vertex::from_raw(161, 201, 0, 0),
-            Vertex::from_raw(243, 120, 0, 0),
+            Vertex::from_raw(101, 228, 0, 0).to_unorm8(),
+            Vertex::from_raw(161, 201, 0, 0).to_unorm8(),
+            Vertex::from_raw(243, 120, 0, 0).to_unorm8(),
         ];
 
         // gl_Position vec4, gl_PointSize float
@@ -128,7 +128,12 @@ mod tests {
         let eps = 0.00001f32; // TODO: Use ULP (units in the last place) as defined in Vulkan spec?
         for (output, (position, point_size)) in outputs.iter().zip(references) {
             // TODO: Refactor Vector4: operation overloading.
-            assert!((output.position.get_as_sfloat32(0) - position.get_as_sfloat32(0)).abs() < eps);
+            assert!(
+                (output.position.get_as_sfloat32(0) - position.get_as_sfloat32(0)).abs() < eps,
+                "{} != {}",
+                output.position.get_as_sfloat32(0),
+                position.get_as_sfloat32(0)
+            );
             assert!((output.position.get_as_sfloat32(1) - position.get_as_sfloat32(1)).abs() < eps);
             assert!((output.position.get_as_sfloat32(2) - position.get_as_sfloat32(2)).abs() < eps);
             assert!((output.position.get_as_sfloat32(3) - position.get_as_sfloat32(3)).abs() < eps);
