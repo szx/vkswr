@@ -284,3 +284,12 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
         true,
     )
 }
+
+#[test]
+fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buffer_stride_4(
+) -> common::TestResult {
+    run_deqp_vk(
+        "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.8192_vertex_buffer_stride_2",
+        true,
+    )
+}

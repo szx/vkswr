@@ -2530,7 +2530,7 @@ impl PhysicalDevice {
             };
             *binding = Some(gpu::VertexBinding {
                 number: gpu::VertexBindingNumber(vk_binding.binding),
-                stride: vk_binding.binding,
+                stride: vk_binding.stride,
                 input_rate: Self::parse_vertex_input_rate(vk_binding.inputRate),
             });
         }

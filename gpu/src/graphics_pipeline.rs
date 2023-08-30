@@ -235,6 +235,8 @@ impl GraphicsPipeline {
             let framebuffer_height = rt.image.extent.height as u64;
             let framebuffer_x = position.get_as_sfloat32(0) as u64;
             let framebuffer_y = position.get_as_sfloat32(1) as u64;
+            assert!(framebuffer_x < framebuffer_width);
+            assert!(framebuffer_y < framebuffer_height);
             let dst_offset = (framebuffer_x + framebuffer_y * framebuffer_width)
                 * rt.format.info().bytes_per_pixel as u64;
             memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.

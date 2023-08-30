@@ -87,7 +87,7 @@ impl Memory {
 
         if dst_offset as usize >= dst.len()
             || (dst_offset as usize).checked_add(size).is_none()
-            || dst_offset as usize + size >= dst.len()
+            || dst_offset as usize + size > dst.len()
         {
             trace!(
                 "attempt to write bytes into incorrect range {}..({}+{}) (dst_len={})",
