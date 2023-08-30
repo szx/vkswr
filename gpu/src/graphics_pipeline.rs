@@ -5,7 +5,6 @@ use crate::{
     MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use hashbrown::HashMap;
-use itertools::Itertools;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default)]
@@ -116,15 +115,8 @@ impl GraphicsPipeline {
             first_instance,
         );
 
-        // TODO: Execute vertex shader.
-        //       let vertices = self.execute_vertex_shader(&self.vertex_input_state, vertices);
-        let vertices = vertices
-            .iter()
-            .map(|vertex| VertexShaderOutput {
-                position: *vertex,
-                point_size: 1.0,
-            })
-            .collect::<Vec<_>>();
+        // Vertex shader.
+        let vertices = self.execute_vertex_shader(&self.vertex_input_state, vertices);
 
         // TODO: tesselation assembler
         // TODO: tesselation control shader
@@ -236,14 +228,15 @@ impl GraphicsPipeline {
         // Color attachment output
         // TODO: Fragment shader should write directly to render target.
         for fragment in fragments {
-            let width = rt.image.extent.width;
-            let height = rt.image.extent.height;
             let position = fragment.position;
             let color = fragment.color.to_bytes(rt.format);
 
-            let dst_offset = ((position.get_as_sfloat32(0)
-                + position.get_as_sfloat32(1) * width as f32)
-                * rt.format.info().bytes_per_pixel as f32) as u64;
+            let framebuffer_width = rt.image.extent.width as u64;
+            let framebuffer_height = rt.image.extent.height as u64;
+            let framebuffer_x = position.get_as_sfloat32(0) as u64;
+            let framebuffer_y = position.get_as_sfloat32(1) as u64;
+            let dst_offset = (framebuffer_x + framebuffer_y * framebuffer_width)
+                * rt.format.info().bytes_per_pixel as u64;
             memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.
         }
     }

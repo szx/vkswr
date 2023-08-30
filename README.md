@@ -20,8 +20,9 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
     - [x] dEQP-VK.api.object_management.single.buffer_view_uniform_r8g8b8a8_unorm
   - [ ] dEQP-VK.memory.*
     - [x] dEQP-VK.memory.requirements.*
-    - [ ] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2
+    - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2
+    - [ ] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4
       - [ ] Rendering.
 
-        ![Result](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2_Result.PNG)![Reference](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2_Reference.PNG)![ErrorMask](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2_ErrorMask.PNG)
+        ![Result](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4_Result.PNG)![Reference](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4_Reference.PNG)![ErrorMask](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4_ErrorMask.PNG)
 

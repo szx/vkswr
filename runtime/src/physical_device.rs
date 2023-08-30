@@ -2664,14 +2664,14 @@ impl PhysicalDevice {
         }
     }
 
-    pub unsafe fn parse_shader_stages(
+    pub fn parse_shader_stages(
         shader_stages: &[VkPipelineShaderStageCreateInfo],
-    ) -> gpu::ShaderState {
+    ) -> Result<gpu::ShaderState, VkResult> {
         let mut shader_state = gpu::ShaderState::default();
         for shader_stage in shader_stages {
             assert_eq!(shader_stage.flags, 0);
             let name = shader_stage.pName.unwrap_or_else(|| unreachable!());
-            let name = std::ffi::CStr::from_ptr(name.as_ptr())
+            let name = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
                 .to_str()
                 .unwrap_or_else(|_| unreachable!())
                 .to_string();
@@ -2680,8 +2680,8 @@ impl PhysicalDevice {
                 ShaderModule::from_handle(shader_stage.module).unwrap_or_else(|| unreachable!());
             let code = module.lock().code.clone();
 
-            // TODO: let shader = gpu::Shader::new(&name, code).unwrap_or_else(|| unreachable!());
-            let shader = gpu::Shader::empty();
+            let shader =
+                gpu::Shader::new(&name, code).ok_or(VkResult::VK_ERROR_INVALID_SHADER_NV)?;
 
             match shader_stage.stage {
                 VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT => {
@@ -2693,6 +2693,6 @@ impl PhysicalDevice {
                 _ => unimplemented!(),
             }
         }
-        shader_state
+        Ok(shader_state)
     }
 }

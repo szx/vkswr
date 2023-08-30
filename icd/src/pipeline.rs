@@ -254,6 +254,8 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pPipelines: Option<NonNull<VkPipeline>>,
 ) -> VkResult {
+    let mut result = VkResult::VK_SUCCESS;
+
     let Some(device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
@@ -278,7 +280,13 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
             .map_or(&[] as &[VkPipelineShaderStageCreateInfo], |x| {
                 std::slice::from_raw_parts(x.as_ptr(), create_info.stageCount as usize)
             });
-        let shader_state = PhysicalDevice::parse_shader_stages(shader_stages);
+        let shader_state = match PhysicalDevice::parse_shader_stages(shader_stages) {
+            Ok(inner) => inner,
+            Err(err) => {
+                result = err;
+                continue;
+            }
+        };
         let vertex_input_state = create_info
             .pVertexInputState
             .map(|x| PhysicalDevice::parse_vertex_input_state(*x.as_ref()));
@@ -308,7 +316,7 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
         );
     }
 
-    VkResult::VK_SUCCESS
+    result
 }
 
 pub unsafe extern "C" fn vkDestroyPipeline(

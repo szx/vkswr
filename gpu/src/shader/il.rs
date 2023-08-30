@@ -154,7 +154,7 @@ pub struct Il {
 
 impl Il {
     pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
-        let spirv = crate::shader::spirv::Spirv::new(name, code)?;
+        let spirv = Spirv::new(name, code)?;
         let instructions = Self::parse_spirv(spirv)?;
         Some(Self { instructions })
     }

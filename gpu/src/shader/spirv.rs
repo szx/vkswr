@@ -17,6 +17,7 @@ impl Spirv {
     pub(crate) fn new(name: &str, code: Vec<u32>) -> Option<Self> {
         let mut loader = rspirv::dr::Loader::new();
         assert_eq!(rspirv::spirv::MAGIC_NUMBER, code[0]);
+
         rspirv::binary::parse_words(&code, &mut loader)
             .map_err(|e| debug!("spriv error: {:#?}\nname: {:?}\ncode: {:?}", e, name, code))
             .ok()?;
@@ -50,8 +51,9 @@ impl EntryPoint {
     fn parse(module: &Module_) -> Option<Self> {
         let entry_point = module.entry_points.first()?;
         match &entry_point.operands[..] {
-            [Operand_::ExecutionModel(spirv_::ExecutionModel::Vertex), Operand_::IdRef(entry_point), _name, interfaces @ ..] =>
-            {
+            [Operand_::ExecutionModel(
+                spirv_::ExecutionModel::Vertex | spirv_::ExecutionModel::Fragment,
+            ), Operand_::IdRef(entry_point), _name, interfaces @ ..] => {
                 let interfaces = interfaces
                     .iter()
                     .map(|x| ObjectId(x.unwrap_id_ref()))
@@ -61,7 +63,10 @@ impl EntryPoint {
                     interfaces,
                 })
             }
-            _ => None,
+            invalid => {
+                debug!("spriv error: invalid OpEntryPoint {:#?}", invalid);
+                None
+            }
         }
     }
 }
@@ -89,7 +94,10 @@ impl Capability {
         let capability = module.capabilities.first()?;
         match &capability.operands[..] {
             [Operand_::Capability(spirv_::Capability::Shader)] => Some(Self {}),
-            _ => None,
+            invalid => {
+                debug!("spriv error: invalid OpCapability {:#?}", invalid);
+                None
+            }
         }
     }
 }
@@ -105,7 +113,10 @@ impl MemoryModel {
             [Operand_::AddressingModel(spirv_::AddressingModel::Logical), Operand_::MemoryModel(spirv_::MemoryModel::GLSL450)] => {
                 Some(Self {})
             }
-            _ => None,
+            invalid => {
+                debug!("spriv error: invalid OpMemoryModel {:#?}", invalid);
+                None
+            }
         }
     }
 }
