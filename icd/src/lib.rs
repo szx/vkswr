@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![cfg_attr(wait_for_debugger, feature(core_intrinsics))]
 
 mod buffer;
 mod command_buffer;
@@ -14,21 +15,31 @@ mod swapchain;
 use headers::vk_decls::*;
 use impls::*;
 
+#[cfg(wait_for_debugger)]
+use parking_lot::Mutex;
+
+#[cfg(wait_for_debugger)]
+static WAIT_FOR_DEBUGGER: Mutex<bool> = Mutex::new(true);
+
+#[cfg(wait_for_debugger)]
 fn wait_for_debugger() {
-    static mut DEBUG: bool = true;
-    unsafe {
-        if DEBUG {
-            env_logger::init();
-            if std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
-                DEBUG = false;
-            }
+    let mut debug = WAIT_FOR_DEBUGGER.lock();
+    if *debug {
+        env_logger::init();
+        if std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
+            *debug = false;
+            return;
         }
-        if DEBUG {
-            std::thread::sleep(std::time::Duration::from_secs(10));
-            DEBUG = false;
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        unsafe {
+            std::intrinsics::breakpoint();
         }
+        *debug = false;
     }
 }
+
+#[cfg(not(wait_for_debugger))]
+fn wait_for_debugger() {}
 
 /* Exported functions */
 
