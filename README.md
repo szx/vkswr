@@ -14,7 +14,9 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
   - [ ] dEQP-VK.api.*
     - [x] dEQP-VK.api.info.*
     - [ ] dEQP-VK.api.smoke.triangle
-      - [ ] Rendering.
+      - [ ] Triangle list rasterization.
+      - [x] Vertex shader.
+      - [ ] Fragment shader.
 
         ![Result](assets/deqp-vk/dEQP-VK.api.smoke.triangle_Result.PNG)![Reference](assets/deqp-vk/dEQP-VK.api.smoke.triangle_Reference.PNG)![ErrorMask](assets/deqp-vk/dEQP-VK.api.smoke.triangle_ErrorMask.PNG)
     - [x] dEQP-VK.api.object_management.single.buffer_view_uniform_r8g8b8a8_unorm
@@ -24,3 +26,4 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
     - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4
     - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.8192_vertex_buffer_stride_2
     - [x] dEQP-VK.memory.pipeline_barrier.host_write_index_buffer.1024
+    - [ ] dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024

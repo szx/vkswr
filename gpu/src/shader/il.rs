@@ -899,7 +899,7 @@ impl Il {
                         )
                     })
                     .collect();
-                assert_eq!(decorations.block, true);
+                assert!(decorations.block);
                 (
                     VariableKind::Struct,
                     member_types.len() as u32,

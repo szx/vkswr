@@ -524,6 +524,7 @@ pub(crate) struct Decorations {
     pub(crate) builtin: Option<BuiltInDecoration>,
     pub(crate) block: bool,
     pub(crate) location: Option<LocationDecoration>,
+    pub(crate) relaxed_precision: bool, // TODO: Implement RelaxedPrecision decoration.
 }
 
 impl Decorations {
@@ -539,6 +540,7 @@ impl Decorations {
                     number: location.unwrap_literal_int32(),
                 })
             }
+            (spirv_::Decoration::RelaxedPrecision, &[]) => self.relaxed_precision = true,
             _ => unimplemented!("{:?}, {:?}", value, literals),
         }
     }
