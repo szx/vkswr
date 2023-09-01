@@ -216,6 +216,22 @@ impl CommandBuffer {
             });
     }
 
+    pub fn cmd_bind_index_buffer(
+        &mut self,
+        buffer: Arc<Mutex<Buffer>>,
+        offset: VkDeviceSize,
+        index_size: u8,
+    ) {
+        self.gpu_command_buffer
+            .record(gpu::Command::BindIndexBuffer {
+                index_buffer: gpu::IndexBuffer {
+                    buffer: buffer.lock().descriptor(),
+                    offset,
+                    index_size,
+                },
+            });
+    }
+
     pub fn cmd_set_viewport(&mut self, first_viewport: u32, viewports: &[VkViewport]) {
         trace!("CommandBuffer::cmd_set_viewport");
         let _ = first_viewport;
@@ -243,6 +259,24 @@ impl CommandBuffer {
             first_vertex,
             first_instance,
         });
+    }
+
+    pub fn cmd_draw_indexed(
+        &mut self,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) {
+        self.gpu_command_buffer
+            .record(gpu::Command::DrawPrimitiveIndexed {
+                index_count,
+                instance_count,
+                first_index,
+                vertex_offset,
+                first_instance,
+            });
     }
 
     pub fn cmd_copy_buffer_to_image(

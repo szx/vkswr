@@ -31,6 +31,7 @@ enum VariableStorage {
     Variable,
     Input,
     Output,
+    FunctionMemory,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +40,7 @@ enum VariableBacking {
     Location { number: u32 },
     Position,
     PointSize,
+    VertexIndex,
     Struct { members: Arc<[VariableDecl]> },
     Pointer { kind: Box<VariableDecl> },
 }
@@ -53,6 +55,7 @@ enum VariableAllocation {
     Location { number: u32 },
     BuiltinPosition,
     BuiltinPointSize,
+    BuiltinVertexIndex,
     Imm32(Vec<u32>),
     Struct(Vec<VariableAllocation>),
     Pointer(Box<VariableAllocation>),
@@ -77,6 +80,7 @@ impl From<&VariableDecl> for VariableAllocation {
             }
             VariableBacking::Position => VariableAllocation::BuiltinPosition,
             VariableBacking::PointSize => VariableAllocation::BuiltinPointSize,
+            VariableBacking::VertexIndex => VariableAllocation::BuiltinVertexIndex,
             VariableBacking::Struct { members } => {
                 VariableAllocation::Struct(members.iter().map(|x| x.into()).collect())
             }
@@ -143,6 +147,25 @@ pub(crate) enum Instruction {
         id: VariableId,
         op1: VariableId,
         op2: VariableId,
+    },
+    MathDivF32F32 {
+        id: VariableId,
+        op1: VariableId,
+        op2: VariableId,
+    },
+    MathDivI32I32 {
+        id: VariableId,
+        op1: VariableId,
+        op2: VariableId,
+    },
+    MathModI32I32 {
+        id: VariableId,
+        op1: VariableId,
+        op2: VariableId,
+    },
+    MathConvertI32F32 {
+        id: VariableId,
+        op: VariableId,
     },
     Return,
 }
@@ -270,14 +293,25 @@ impl Il {
                                 };
                                 output.point_size = f32::from_bits(imm[0]);
                             }
+                            VariableAllocation::BuiltinVertexIndex => {
+                                unreachable!()
+                            }
                             VariableAllocation::Imm32(_) => {
                                 unimplemented!()
                             }
                             VariableAllocation::Struct(_) => {
                                 unimplemented!()
                             }
-                            VariableAllocation::Pointer(_) => {
-                                unimplemented!()
+                            VariableAllocation::Pointer(dst) => {
+                                let VariableAllocation::Imm32(src) = &src.allocation else {
+                                    unimplemented!()
+                                };
+                                let VariableAllocation::Imm32(dst) = dst.as_mut() else {
+                                    unimplemented!()
+                                };
+                                for (i, dst) in dst.iter_mut().enumerate() {
+                                    *dst = src[i];
+                                }
                             }
                         }
                     }
@@ -311,6 +345,7 @@ impl Il {
                             VariableAllocation::Location { .. } => unimplemented!(),
                             VariableAllocation::BuiltinPosition => unimplemented!(),
                             VariableAllocation::BuiltinPointSize => unimplemented!(),
+                            VariableAllocation::BuiltinVertexIndex => unreachable!(),
                             VariableAllocation::Imm32(imm) => match src {
                                 VariableAllocation::Location { number } => {
                                     assert_eq!(*number, 0);
@@ -321,12 +356,21 @@ impl Il {
                                         .unwrap()
                                         .format;
                                     for (i, imm) in imm.iter_mut().enumerate() {
-                                        *imm = vertex.get_as_uint32(i);
+                                        *imm = vertex.position.get_as_uint32(i);
                                     }
                                 }
                                 VariableAllocation::BuiltinPosition => unimplemented!(),
                                 VariableAllocation::BuiltinPointSize => unimplemented!(),
-                                VariableAllocation::Imm32(_) => unimplemented!(),
+                                VariableAllocation::BuiltinVertexIndex => {
+                                    for (i, imm) in imm.iter_mut().enumerate() {
+                                        *imm = vertex.index;
+                                    }
+                                }
+                                VariableAllocation::Imm32(src_imm) => {
+                                    for (i, imm) in imm.iter_mut().enumerate() {
+                                        *imm = src_imm[i];
+                                    }
+                                }
                                 VariableAllocation::Struct(_) => unimplemented!(),
                                 VariableAllocation::Pointer(_) => unimplemented!(),
                             },
@@ -369,6 +413,67 @@ impl Il {
                         };
                         for i in 0..result.len() {
                             result[i] = (f32::from_bits(op1[i]) - f32::from_bits(op2[i])).to_bits();
+                        }
+                    }
+                    Instruction::MathDivF32F32 { id, op1, op2 } => {
+                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                            unreachable!()
+                        };
+                        for i in 0..result.len() {
+                            result[i] = (f32::from_bits(op1[i]) / f32::from_bits(op2[i])).to_bits();
+                        }
+                    }
+                    Instruction::MathDivI32I32 { id, op1, op2 } => {
+                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                            unreachable!()
+                        };
+                        for i in 0..result.len() {
+                            result[i] = u32::from_ne_bytes(
+                                ((op1[i] as i32) / (op2[i] as i32)).to_ne_bytes(),
+                            );
+                        }
+                    }
+                    Instruction::MathModI32I32 { id, op1, op2 } => {
+                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                            unreachable!()
+                        };
+                        for i in 0..result.len() {
+                            result[i] = u32::from_ne_bytes(
+                                ((op1[i] as i32) % (op2[i] as i32)).to_ne_bytes(),
+                            );
+                        }
+                    }
+                    Instruction::MathConvertI32F32 { id, op } => {
+                        let [result, op] = variables.get_many_mut([id, op]).unwrap();
+                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                            unreachable!()
+                        };
+                        let VariableAllocation::Imm32(op) = &mut op.allocation else {
+                            unreachable!()
+                        };
+                        for i in 0..result.len() {
+                            result[i] = (op[i] as f32).to_bits();
                         }
                     }
                     Instruction::Return => {
@@ -551,6 +656,84 @@ impl Il {
                         op2: VariableId(operand2.0),
                     });
                 }
+                spirv::Instruction::FDiv {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = VariableId(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathDivF32F32 {
+                        id,
+                        op1: VariableId(operand1.0),
+                        op2: VariableId(operand2.0),
+                    });
+                }
+                spirv::Instruction::SDiv {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = VariableId(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathDivI32I32 {
+                        id,
+                        op1: VariableId(operand1.0),
+                        op2: VariableId(operand2.0),
+                    });
+                }
+                spirv::Instruction::SMod {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = VariableId(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathModI32I32 {
+                        id,
+                        op1: VariableId(operand1.0),
+                        op2: VariableId(operand2.0),
+                    });
+                }
+                spirv::Instruction::ConvertSToF {
+                    result_id,
+                    result_type,
+                    operand,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = VariableId(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathConvertI32F32 {
+                        id,
+                        op: VariableId(operand.0),
+                    });
+                }
                 spirv::Instruction::CompositeExtract {
                     result_id,
                     result_type,
@@ -594,6 +777,20 @@ impl Il {
                         .collect::<Vec<_>>();
                     instructions.push(Instruction::StoreVariableArray { dst: id, values });
                 }
+                spirv::Instruction::Variable {
+                    result_id,
+                    result_type,
+                    storage_class,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        &result_type,
+                        Self::from_spirv_storage_class(storage_class),
+                        VariableBacking::Memory,
+                    );
+                    let id = VariableId(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                }
                 spirv::Instruction::Return => {
                     instructions.push(Instruction::Return);
                 }
@@ -627,6 +824,7 @@ impl Il {
         match value {
             spirv::StorageClass::Input => VariableStorage::Input,
             spirv::StorageClass::Output => VariableStorage::Output,
+            spirv::StorageClass::Function => VariableStorage::FunctionMemory,
         }
     }
 
@@ -635,6 +833,7 @@ impl Il {
             match builtin {
                 spirv::BuiltInDecoration::Position => VariableBacking::Position,
                 spirv::BuiltInDecoration::PointSize => VariableBacking::PointSize,
+                spirv::BuiltInDecoration::VertexIndex => VariableBacking::VertexIndex,
             }
         } else if let Some(location) = decorations.location {
             VariableBacking::Location {

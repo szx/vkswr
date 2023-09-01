@@ -4,6 +4,9 @@ pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>
     // Bresenham's line algorithm
     // TODO: Replace line segment rasterization with
     //       https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#primsrast-lines-basic
+    let v0 = v0.position;
+    let v1 = v1.position;
+
     let (mut x0, mut y0) = (
         (v0.get_as_sfloat32(0)) as i32,
         (v0.get_as_sfloat32(1)) as i32,
@@ -50,12 +53,12 @@ pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>
 }
 
 pub fn draw_points(
-    positions: impl IntoIterator<Item = Vertex>,
+    vertices: impl IntoIterator<Item = Vertex>,
     fragments: &mut Vec<Fragment>,
     color: Color,
 ) {
-    for position in positions {
-        let position = Position::from_sfloat32(position);
+    for vertex in vertices {
+        let position = Position::from_sfloat32(vertex.position);
         fragments.push(Fragment { position, color });
     }
 }

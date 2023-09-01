@@ -45,6 +45,8 @@ pub struct VertexShaderOutput {
     pub position: Position,
     // gl_PointSize
     pub point_size: f32,
+    // gl_VertexIndex
+    pub vertex_index: u32,
     // TODO: Determine shader output interface using OpEntryPoints and use it to initialize ShaderOutput
     //       https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces
 }
@@ -54,6 +56,7 @@ impl Default for VertexShaderOutput {
         Self {
             position: Position::from_sfloat32_raw(0.0, 0.0, 0.0, 0.0),
             point_size: 1.0,
+            vertex_index: 0,
         }
     }
 }
@@ -102,23 +105,32 @@ mod tests {
 
         // R8G8 vec2
         let inputs = vec![
-            Vertex::from_raw(101, 228, 0, 0).to_unorm8(),
-            Vertex::from_raw(161, 201, 0, 0).to_unorm8(),
-            Vertex::from_raw(243, 120, 0, 0).to_unorm8(),
+            Vertex {
+                position: Position::from_raw(101, 228, 0, 0).to_unorm8(),
+                index: 0,
+            },
+            Vertex {
+                position: Position::from_raw(161, 201, 0, 0).to_unorm8(),
+                index: 0,
+            },
+            Vertex {
+                position: Position::from_raw(243, 120, 0, 0).to_unorm8(),
+                index: 0,
+            },
         ];
 
         // gl_Position vec4, gl_PointSize float
         let references = vec![
             (
-                Vertex::from_raw(3193216600, 1061787170, 0, 1065353216),
+                Position::from_raw(3193216600, 1061787170, 0, 1065353216),
                 1.0f32,
             ),
             (
-                Vertex::from_raw(1048994840, 1058237901, 0, 1065353216),
+                Position::from_raw(1048994840, 1058237901, 0, 1065353216),
                 1.0f32,
             ),
             (
-                Vertex::from_raw(1063758986, 3178279746, 0, 1065353216),
+                Position::from_raw(1063758986, 3178279746, 0, 1065353216),
                 1.0f32,
             ),
         ];

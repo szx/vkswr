@@ -285,6 +285,27 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers(
     }
 }
 
+pub unsafe extern "C" fn vkCmdBindIndexBuffer(
+    commandBuffer: VkCommandBuffer,
+    buffer: VkBuffer,
+    offset: VkDeviceSize,
+    indexType: VkIndexType,
+) {
+    let Some(command_buffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(buffer) = Buffer::from_handle(buffer) else {
+        unreachable!()
+    };
+
+    let index_size = indexType.size_in_bytes();
+
+    command_buffer
+        .lock()
+        .cmd_bind_index_buffer(buffer, offset, index_size);
+}
+
 pub unsafe extern "C" fn vkCmdSetViewport(
     commandBuffer: VkCommandBuffer,
     firstViewport: u32,
@@ -337,6 +358,27 @@ pub unsafe extern "C" fn vkCmdDraw(
     commandBuffer
         .lock()
         .cmd_draw(vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+pub unsafe extern "C" fn vkCmdDrawIndexed(
+    commandBuffer: VkCommandBuffer,
+    indexCount: u32,
+    instanceCount: u32,
+    firstIndex: u32,
+    vertexOffset: i32,
+    firstInstance: u32,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    commandBuffer.lock().cmd_draw_indexed(
+        indexCount,
+        instanceCount,
+        firstIndex,
+        vertexOffset,
+        firstInstance,
+    );
 }
 
 pub unsafe extern "C" fn vkCmdCopyBufferToImage(

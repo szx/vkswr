@@ -610,3 +610,15 @@ impl From<VkFrontFace> for gpu::FrontFace {
         }
     }
 }
+
+impl VkIndexType {
+    pub fn size_in_bytes(&self) -> u8 {
+        match *self {
+            Self::VK_INDEX_TYPE_NONE_KHR => 0,
+            Self::VK_INDEX_TYPE_UINT8_EXT => 1,
+            Self::VK_INDEX_TYPE_UINT16 => 2,
+            Self::VK_INDEX_TYPE_UINT32 => 4,
+            _ => unreachable!(),
+        }
+    }
+}

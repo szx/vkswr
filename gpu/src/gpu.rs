@@ -1,7 +1,7 @@
 use crate::{
-    Color, Format, GraphicsPipeline, InputAssemblyState, Memory, MemoryBinding, RasterizationState,
-    RenderArea, RenderTarget, RenderTargetIndex, ShaderState, VertexBuffer, VertexInputState,
-    ViewportState,
+    Color, Format, GraphicsPipeline, IndexBuffer, InputAssemblyState, Memory, MemoryBinding,
+    RasterizationState, RenderArea, RenderTarget, RenderTargetIndex, ShaderState, VertexBuffer,
+    VertexInputState, ViewportState,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -89,9 +89,11 @@ impl Gpu {
                     self.graphics_pipeline
                         .set_rasterization_state(rasterization_state);
                 }
-
                 Command::BindVertexBuffer { vertex_buffer } => {
                     self.graphics_pipeline.bind_vertex_buffer(vertex_buffer);
+                }
+                Command::BindIndexBuffer { index_buffer } => {
+                    self.graphics_pipeline.bind_index_buffer(index_buffer);
                 }
                 Command::DrawPrimitive {
                     vertex_count,
@@ -104,6 +106,22 @@ impl Gpu {
                         vertex_count,
                         instance_count,
                         first_vertex,
+                        first_instance,
+                    );
+                }
+                Command::DrawPrimitiveIndexed {
+                    index_count,
+                    instance_count,
+                    first_index,
+                    vertex_offset,
+                    first_instance,
+                } => {
+                    self.graphics_pipeline.draw_primitive_indexed(
+                        &mut self.memory,
+                        index_count,
+                        instance_count,
+                        first_index,
+                        vertex_offset,
                         first_instance,
                     );
                 }
@@ -276,10 +294,20 @@ pub enum Command {
     BindVertexBuffer {
         vertex_buffer: VertexBuffer,
     },
+    BindIndexBuffer {
+        index_buffer: IndexBuffer,
+    },
     DrawPrimitive {
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
+        first_instance: u32,
+    },
+    DrawPrimitiveIndexed {
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
         first_instance: u32,
     },
 }

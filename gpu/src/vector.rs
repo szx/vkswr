@@ -81,7 +81,7 @@ impl Format {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Vector4 {
     /// Bit representation of components.
     components: [u64; 4],
@@ -317,10 +317,15 @@ impl Vector4 {
     }
 }
 
-pub type Vertex = Vector4;
 pub type Texel = Vector4;
 pub type Color = Vector4;
 pub type Position = Vector4;
+
+#[derive(Debug, Copy, Clone)]
+pub struct Vertex {
+    pub position: Position,
+    pub index: u32,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Fragment {

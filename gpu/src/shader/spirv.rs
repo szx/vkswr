@@ -412,6 +412,7 @@ impl Constant {
 pub(crate) enum StorageClass {
     Input,
     Output,
+    Function,
 }
 
 impl From<spirv_::StorageClass> for StorageClass {
@@ -419,7 +420,10 @@ impl From<spirv_::StorageClass> for StorageClass {
         match value {
             spirv_::StorageClass::Input => Self::Input,
             spirv_::StorageClass::Output => Self::Output,
-            _ => unimplemented!(),
+            spirv_::StorageClass::Function => Self::Function,
+            invalid => {
+                unimplemented!("{:#?}", invalid)
+            }
         }
     }
 }
@@ -544,6 +548,7 @@ impl Decorations {
 pub(crate) enum BuiltInDecoration {
     Position,
     PointSize,
+    VertexIndex,
 }
 
 impl BuiltInDecoration {
@@ -551,6 +556,7 @@ impl BuiltInDecoration {
         match operand {
             Operand_::BuiltIn(spirv_::BuiltIn::Position) => Self::Position,
             Operand_::BuiltIn(spirv_::BuiltIn::PointSize) => Self::PointSize,
+            Operand_::BuiltIn(spirv_::BuiltIn::VertexIndex) => Self::VertexIndex,
             _ => unimplemented!("{operand:?}"),
         }
     }
@@ -728,6 +734,29 @@ pub(crate) enum Instruction {
         operand1: ObjectId,
         operand2: ObjectId,
     },
+    FDiv {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    SDiv {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    SMod {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    ConvertSToF {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand: ObjectId,
+    },
     CompositeExtract {
         result_id: ObjectId,
         result_type: ObjectId,
@@ -738,6 +767,11 @@ pub(crate) enum Instruction {
         result_id: ObjectId,
         result_type: ObjectId,
         constituents: Vec<ObjectId>,
+    },
+    Variable {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        storage_class: StorageClass,
     },
     Return,
 }
@@ -812,6 +846,49 @@ impl Instruction {
                 operand2: ObjectId(*operand2),
             }),
             (
+                spirv_::Op::FDiv,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::FDiv {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::SDiv,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::SDiv {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::SMod,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::SMod {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::ConvertSToF,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand)],
+            ) => Some(Self::ConvertSToF {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand: ObjectId(*operand),
+            }),
+            (
                 spirv_::Op::CompositeExtract,
                 &Some(result_type),
                 &Some(result_id),
@@ -837,6 +914,16 @@ impl Instruction {
                     .iter()
                     .map(|x| ObjectId(x.unwrap_id_ref()))
                     .collect::<Vec<_>>(),
+            }),
+            (
+                spirv_::Op::Variable,
+                &Some(result_type),
+                &Some(result_id),
+                &[Operand_::StorageClass(storage_class)],
+            ) => Some(Self::Variable {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                storage_class: storage_class.into(),
             }),
             (spirv_::Op::Return, None, None, &[]) => Some(Self::Return),
             _ => {

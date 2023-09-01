@@ -4,6 +4,7 @@ use crate::{
     MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
     MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
+use byteorder::ByteOrder;
 use hashbrown::HashMap;
 use std::ops::{Index, IndexMut};
 
@@ -11,6 +12,7 @@ use std::ops::{Index, IndexMut};
 pub struct GraphicsPipeline {
     render_targets: HashMap<RenderTargetIndex, RenderTarget>,
     vertex_buffers: [Option<VertexBuffer>; MAX_VERTEX_BINDINGS as usize],
+    index_buffer: Option<IndexBuffer>,
 
     shader_state: ShaderState,
     vertex_input_state: VertexInputState,
@@ -24,6 +26,7 @@ impl GraphicsPipeline {
         Self {
             render_targets: HashMap::default(),
             vertex_buffers: Default::default(),
+            index_buffer: Default::default(),
             shader_state: Default::default(),
             vertex_input_state: Default::default(),
             input_assembly_state: Default::default(),
@@ -98,6 +101,10 @@ impl GraphicsPipeline {
         self.vertex_buffers[index] = Some(vertex_buffer);
     }
 
+    pub fn bind_index_buffer(&mut self, index_buffer: IndexBuffer) {
+        self.index_buffer = Some(index_buffer);
+    }
+
     pub fn draw_primitive(
         &mut self,
         memory: &mut Memory,
@@ -107,7 +114,7 @@ impl GraphicsPipeline {
         first_instance: u32,
     ) {
         // Fetch vertices from vertex buffer using bindings.
-        let vertices = self.execute_vertex_input(
+        let vertices = self.fetch_vertex_input(
             memory,
             vertex_count,
             instance_count,
@@ -115,6 +122,31 @@ impl GraphicsPipeline {
             first_instance,
         );
 
+        self.draw_primitive_rest(memory, vertices)
+    }
+
+    pub fn draw_primitive_indexed(
+        &mut self,
+        memory: &mut Memory,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) {
+        let vertices = self.fetch_vertex_input_indexed(
+            memory,
+            index_count,
+            instance_count,
+            first_index,
+            vertex_offset,
+            first_instance,
+        );
+
+        self.draw_primitive_rest(memory, vertices)
+    }
+
+    fn draw_primitive_rest(&mut self, memory: &mut Memory, vertices: Vec<Vertex>) {
         // Vertex shader.
         let vertices = self.execute_vertex_shader(&self.vertex_input_state, vertices);
 
@@ -134,8 +166,8 @@ impl GraphicsPipeline {
         assert_eq!(viewport.offset.y, 0.0f32);
         let primitive_vertices = vertices
             .iter()
-            .map(|v| {
-                let v = v.position;
+            .map(|vertex_shader_output| {
+                let v = vertex_shader_output.position;
 
                 let x = v.get_as_sfloat32(0);
                 let y = v.get_as_sfloat32(1);
@@ -167,7 +199,10 @@ impl GraphicsPipeline {
                     (p_y / 2.0) * y_ndc + o_y,
                     p_z * z_ndc + o_z,
                 );
-                Vertex::from_sfloat32_raw(x_screen, y_screen, z_screen, 1.0)
+                Vertex {
+                    position: Position::from_sfloat32_raw(x_screen, y_screen, z_screen, 1.0),
+                    index: vertex_shader_output.vertex_index,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -245,7 +280,7 @@ impl GraphicsPipeline {
 }
 
 impl GraphicsPipeline {
-    fn execute_vertex_input(
+    fn fetch_vertex_input(
         &mut self,
         memory: &mut Memory,
         vertex_count: u32,
@@ -297,9 +332,52 @@ impl GraphicsPipeline {
         let vertices = bytes
             .chunks_exact(element_stride as usize)
             .take(vertex_count as usize)
-            .map(|element| Vertex::from_vertex_buffer_bytes(element_format, element))
+            .map(|element| Vertex {
+                position: Position::from_vertex_buffer_bytes(element_format, element),
+                index: 0,
+            })
             .collect();
         vertices
+    }
+
+    fn fetch_vertex_input_indexed(
+        &self,
+        memory: &mut Memory,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) -> Vec<Vertex> {
+        assert_eq!(instance_count, 1);
+        assert_eq!(first_index, 0);
+        assert_eq!(first_instance, 0);
+
+        let Some(index_buffer) = self.index_buffer.as_ref() else {
+            unreachable!()
+        };
+
+        if let Some(binding) = self.vertex_input_state.bindings[0].as_ref() {
+            // TODO: Determine used VertexBindings from vertex shader (if any).
+            todo!();
+        } else {
+            let mut vertices = vec![];
+            for index in first_index..first_index + index_count {
+                let bytes = memory.read_bytes(
+                    &index_buffer.buffer.binding,
+                    index_buffer.offset + index as u64 * index_buffer.index_size as u64,
+                    index_buffer.index_size as u64,
+                );
+                let index =
+                    byteorder::NativeEndian::read_uint(bytes, index_buffer.index_size as usize)
+                        as u32;
+                vertices.push(Vertex {
+                    position: Default::default(),
+                    index,
+                });
+            }
+            vertices
+        }
     }
 
     fn execute_vertex_shader(
@@ -521,4 +599,11 @@ pub struct VertexBuffer {
     pub binding_number: VertexBindingNumber,
     pub buffer: DescriptorBuffer,
     pub offset: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexBuffer {
+    pub buffer: DescriptorBuffer,
+    pub offset: u64,
+    pub index_size: u8,
 }

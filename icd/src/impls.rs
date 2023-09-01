@@ -2978,15 +2978,6 @@ pub unsafe extern "C" fn vkSetPrivateData(
     unimplemented!("vkSetPrivateData(device, objectType, objectHandle, privateDataSlot, data")
 }
 
-pub unsafe extern "C" fn vkCmdBindIndexBuffer(
-    commandBuffer: VkCommandBuffer,
-    buffer: VkBuffer,
-    offset: VkDeviceSize,
-    indexType: VkIndexType,
-) {
-    unimplemented!("vkCmdBindIndexBuffer(commandBuffer, buffer, offset, indexType")
-}
-
 pub unsafe extern "C" fn vkCmdDrawIndirect(
     commandBuffer: VkCommandBuffer,
     buffer: VkBuffer,
@@ -3531,26 +3522,6 @@ pub unsafe extern "C" fn vkCmdSetCoverageModulationModeNV(
     coverageModulationMode: VkCoverageModulationModeNV,
 ) {
     unimplemented!("vkCmdSetCoverageModulationModeNV(commandBuffer, coverageModulationMode")
-}
-
-pub unsafe extern "C" fn vkCmdDrawIndexed(
-    commandBuffer: VkCommandBuffer,
-    indexCount: u32,
-    instanceCount: u32,
-    firstIndex: u32,
-    vertexOffset: i32,
-    firstInstance: u32,
-) {
-    unimplemented!(
-        "vkCmdDrawIndexed(
-        commandBuffer,
-        indexCount,
-        instanceCount,
-        firstIndex,
-        vertexOffset,
-        firstInstance,
-    "
-    )
 }
 
 pub unsafe extern "C" fn vkCmdCopyImageToBuffer2(

@@ -272,7 +272,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
 ) -> common::TestResult {
     run_deqp_vk(
         "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2",
-        true,
+        false,
     )
 }
 
@@ -281,7 +281,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
 ) -> common::TestResult {
     run_deqp_vk(
         "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4",
-        true,
+        false,
     )
 }
 
@@ -290,6 +290,22 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buff
 ) -> common::TestResult {
     run_deqp_vk(
         "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.8192_vertex_buffer_stride_2",
+        false,
+    )
+}
+
+#[test]
+fn run_deqp_vk_memory_pipeline_barrier_host_write_index_buffer_1024() -> common::TestResult {
+    run_deqp_vk(
+        "dEQP-VK.memory.pipeline_barrier.host_write_index_buffer.1024",
+        false,
+    )
+}
+
+#[test]
+fn run_deqp_vk_memory_pipeline_barrier_host_write_uniform_buffer_1024() -> common::TestResult {
+    run_deqp_vk(
+        "dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024",
         true,
     )
 }
