@@ -63,13 +63,23 @@ impl Default for VertexShaderOutput {
     }
 }
 
+impl From<Vertex> for VertexShaderOutput {
+    fn from(vertex: Vertex) -> Self {
+        Self {
+            position: vertex.position,
+            vertex_index: vertex.index,
+            ..Default::default()
+        }
+    }
+}
+
 impl Shader {
     pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
         self.il.execute_fragment_shader(fragments)
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct FragmentShaderOutput {
     pub position: Position,
     pub color: Color,
