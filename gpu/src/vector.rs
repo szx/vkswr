@@ -84,7 +84,7 @@ impl Format {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Vector4 {
     /// Bit representation of components.
-    components: [u64; 4],
+    pub components: [u64; 4],
 }
 
 impl Vector4 {

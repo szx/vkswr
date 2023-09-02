@@ -1,6 +1,8 @@
 use crate::shader::spirv;
 use crate::shader::spirv::Spirv;
-use crate::{Position, Vertex, VertexInputState, VertexShaderOutput};
+use crate::{
+    Fragment, FragmentShaderOutput, Position, Vertex, VertexInputState, VertexShaderOutput,
+};
 use hashbrown::HashMap;
 use std::sync::Arc;
 
@@ -197,288 +199,20 @@ impl Il {
             let mut pc = 0_usize;
             let mut labels = HashMap::new();
             let mut variables = HashMap::new();
-
             loop {
                 let instruction = &self.instructions[pc];
-                match instruction {
-                    Instruction::Label { id } => {
-                        labels.try_insert(*id, pc).unwrap();
-                    }
-                    Instruction::VariableDecl { id, decl } => {
-                        variables
-                            .try_insert(*id, Variable::from_decl(decl))
-                            .unwrap();
-                    }
-                    Instruction::StoreImm32 { dst, imm } => {
-                        let dst = variables.get_mut(dst).unwrap();
-                        match &mut dst.allocation {
-                            VariableAllocation::Imm32(dst) => {
-                                dst[0] = *imm;
-                            }
-                            _ => unimplemented!(),
-                        }
-                    }
-                    Instruction::StoreImm32Array { dst, imm } => {
-                        let dst = variables.get_mut(dst).unwrap();
-                        match &mut dst.allocation {
-                            VariableAllocation::Imm32(dst) => {
-                                dst.copy_from_slice(imm.as_slice());
-                            }
-                            _ => unimplemented!(),
-                        }
-                    }
-                    Instruction::LoadVariableOffset { id, base, offset } => {
-                        let offset = variables.get(offset).unwrap();
-                        let offset = match &offset {
-                            Variable {
-                                allocation: VariableAllocation::Imm32(offset),
-                            } => offset[0],
-                            _ => {
-                                unimplemented!()
-                            }
-                        };
-
-                        let base = variables.get(base).unwrap();
-                        let VariableAllocation::Pointer(base) = &base.allocation else {
-                            unimplemented!()
-                        };
-                        let VariableAllocation::Struct(members) = base.as_ref() else {
-                            unimplemented!()
-                        };
-                        let member = members[offset as usize].clone();
-
-                        let result = variables.get_mut(id).unwrap();
-                        result.allocation = member;
-                    }
-                    Instruction::LoadVariableImmOffset { id, base, offset } => {
-                        let offset = *offset;
-
-                        let base = variables.get(base).unwrap();
-                        let VariableAllocation::Imm32(base) = &base.allocation else {
-                            unimplemented!()
-                        };
-                        let extracted = *base.get(offset as usize).unwrap();
-
-                        let result = variables.get_mut(id).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unimplemented!()
-                        };
-                        result[0] = extracted;
-                    }
-                    Instruction::StoreVariable { dst_pointer, src } => {
-                        let [src, dst_pointer] =
-                            variables.get_many_mut([src, dst_pointer]).unwrap();
-                        match &mut dst_pointer.allocation {
-                            VariableAllocation::Location { .. } => {
-                                unimplemented!()
-                            }
-                            VariableAllocation::BuiltinPosition => {
-                                let VariableAllocation::Imm32(imm) = &src.allocation else {
-                                    unimplemented!()
-                                };
-                                output.position = Position::from_raw(
-                                    imm.get(0)
-                                        .map_or(output.position.get_as_uint64(0), |x| *x as u64),
-                                    imm.get(1)
-                                        .map_or(output.position.get_as_uint64(1), |x| *x as u64),
-                                    imm.get(2)
-                                        .map_or(output.position.get_as_uint64(2), |x| *x as u64),
-                                    imm.get(3)
-                                        .map_or(output.position.get_as_uint64(3), |x| *x as u64),
-                                );
-                            }
-                            VariableAllocation::BuiltinPointSize => {
-                                let VariableAllocation::Imm32(imm) = &src.allocation else {
-                                    unimplemented!()
-                                };
-                                output.point_size = f32::from_bits(imm[0]);
-                            }
-                            VariableAllocation::BuiltinVertexIndex => {
-                                unreachable!()
-                            }
-                            VariableAllocation::Imm32(_) => {
-                                unimplemented!()
-                            }
-                            VariableAllocation::Struct(_) => {
-                                unimplemented!()
-                            }
-                            VariableAllocation::Pointer(dst) => {
-                                let VariableAllocation::Imm32(src) = &src.allocation else {
-                                    unimplemented!()
-                                };
-                                let VariableAllocation::Imm32(dst) = dst.as_mut() else {
-                                    unimplemented!()
-                                };
-                                for (i, dst) in dst.iter_mut().enumerate() {
-                                    *dst = src[i];
-                                }
-                            }
-                        }
-                    }
-                    Instruction::StoreVariableArray { dst, values } => {
-                        let values = values
-                            .iter()
-                            .map(|x| match variables.get(x) {
-                                Some(Variable {
-                                    allocation: VariableAllocation::Imm32(imm),
-                                }) => imm[0],
-                                _ => unreachable!(),
-                            })
-                            .collect::<Vec<_>>();
-
-                        let dst = variables.get_mut(dst).unwrap();
-                        let VariableAllocation::Imm32(dst) = &mut dst.allocation else {
-                            unreachable!()
-                        };
-
-                        dst[..values.len()].copy_from_slice(&values[..]);
-                    }
-                    Instruction::LoadVariable { id, src_pointer } => {
-                        let [result, src_pointer] =
-                            variables.get_many_mut([id, src_pointer]).unwrap();
-                        let VariableAllocation::Pointer(src) = &src_pointer.allocation else {
-                            unreachable!()
-                        };
-                        let src = src.as_ref();
-
-                        match &mut result.allocation {
-                            VariableAllocation::Location { .. } => unimplemented!(),
-                            VariableAllocation::BuiltinPosition => unimplemented!(),
-                            VariableAllocation::BuiltinPointSize => unimplemented!(),
-                            VariableAllocation::BuiltinVertexIndex => unreachable!(),
-                            VariableAllocation::Imm32(imm) => match src {
-                                VariableAllocation::Location { number } => {
-                                    assert_eq!(*number, 0);
-                                    let format = vertex_input_state
-                                        .attributes
-                                        .get(*number as usize)
-                                        .unwrap()
-                                        .unwrap()
-                                        .format;
-                                    for (i, imm) in imm.iter_mut().enumerate() {
-                                        *imm = vertex.position.get_as_uint32(i);
-                                    }
-                                }
-                                VariableAllocation::BuiltinPosition => unimplemented!(),
-                                VariableAllocation::BuiltinPointSize => unimplemented!(),
-                                VariableAllocation::BuiltinVertexIndex => {
-                                    for (i, imm) in imm.iter_mut().enumerate() {
-                                        *imm = vertex.index;
-                                    }
-                                }
-                                VariableAllocation::Imm32(src_imm) => {
-                                    for (i, imm) in imm.iter_mut().enumerate() {
-                                        *imm = src_imm[i];
-                                    }
-                                }
-                                VariableAllocation::Struct(_) => unimplemented!(),
-                                VariableAllocation::Pointer(_) => unimplemented!(),
-                            },
-                            VariableAllocation::Struct(_) => unimplemented!(),
-                            VariableAllocation::Pointer(_) => unimplemented!(),
-                        }
-                    }
-                    Instruction::MathMulVectorScalar { id, vector, scalar } => {
-                        let [result, vector, scalar] =
-                            variables.get_many_mut([id, vector, scalar]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(vector) = &vector.allocation else {
-                            unreachable!()
-                        };
-                        assert_eq!(result.len(), vector.len());
-                        let VariableAllocation::Imm32(scalar) = &scalar.allocation else {
-                            unreachable!()
-                        };
-                        let &[scalar] = scalar.as_slice() else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            // TODO:  Replace Imm32 with Imm32(F32/I32/U32), use to determine casts.
-                            result[i] =
-                                (f32::from_bits(vector[i]) * f32::from_bits(scalar)).to_bits();
-                        }
-                    }
-                    Instruction::MathSubF32F32 { id, op1, op2 } => {
-                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            result[i] = (f32::from_bits(op1[i]) - f32::from_bits(op2[i])).to_bits();
-                        }
-                    }
-                    Instruction::MathDivF32F32 { id, op1, op2 } => {
-                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            result[i] = (f32::from_bits(op1[i]) / f32::from_bits(op2[i])).to_bits();
-                        }
-                    }
-                    Instruction::MathDivI32I32 { id, op1, op2 } => {
-                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            result[i] = u32::from_ne_bytes(
-                                ((op1[i] as i32) / (op2[i] as i32)).to_ne_bytes(),
-                            );
-                        }
-                    }
-                    Instruction::MathModI32I32 { id, op1, op2 } => {
-                        let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            result[i] = u32::from_ne_bytes(
-                                ((op1[i] as i32) % (op2[i] as i32)).to_ne_bytes(),
-                            );
-                        }
-                    }
-                    Instruction::MathConvertI32F32 { id, op } => {
-                        let [result, op] = variables.get_many_mut([id, op]).unwrap();
-                        let VariableAllocation::Imm32(result) = &mut result.allocation else {
-                            unreachable!()
-                        };
-                        let VariableAllocation::Imm32(op) = &mut op.allocation else {
-                            unreachable!()
-                        };
-                        for i in 0..result.len() {
-                            result[i] = (op[i] as f32).to_bits();
-                        }
-                    }
-                    Instruction::Return => {
-                        break;
-                    }
+                let end = self.execute_instruction(
+                    instruction,
+                    pc,
+                    &mut labels,
+                    &mut variables,
+                    Some(&vertex),
+                    Some(&mut output),
+                    None,
+                    None,
+                );
+                if end {
+                    break;
                 }
                 pc += 1;
             }
@@ -486,6 +220,356 @@ impl Il {
             outputs.push(output);
         }
         outputs
+    }
+
+    pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
+        let mut outputs: Vec<FragmentShaderOutput> = vec![];
+
+        for fragment in fragments {
+            let mut output = fragment.into();
+
+            let mut pc = 0_usize;
+            let mut labels = HashMap::new();
+            let mut variables = HashMap::new();
+            loop {
+                let instruction = &self.instructions[pc];
+                let end = self.execute_instruction(
+                    instruction,
+                    pc,
+                    &mut labels,
+                    &mut variables,
+                    None,
+                    None,
+                    Some(&fragment),
+                    Some(&mut output),
+                );
+                if end {
+                    break;
+                }
+                pc += 1;
+            }
+
+            outputs.push(output);
+        }
+        outputs
+    }
+    fn execute_instruction(
+        &self,
+        instruction: &Instruction,
+        pc: usize,
+        labels: &mut HashMap<u32, usize>,
+        variables: &mut HashMap<VariableId, Variable>,
+        vertex: Option<&Vertex>,
+        vertex_shader_output: Option<&mut VertexShaderOutput>,
+        fragment: Option<&Fragment>,
+        fragment_shader_output: Option<&mut FragmentShaderOutput>,
+    ) -> bool {
+        // TODO: Replace args with Registers.
+        match instruction {
+            Instruction::Label { id } => {
+                labels.try_insert(*id, pc).unwrap();
+            }
+            Instruction::VariableDecl { id, decl } => {
+                variables
+                    .try_insert(*id, Variable::from_decl(decl))
+                    .unwrap();
+            }
+            Instruction::StoreImm32 { dst, imm } => {
+                let dst = variables.get_mut(dst).unwrap();
+                match &mut dst.allocation {
+                    VariableAllocation::Imm32(dst) => {
+                        dst[0] = *imm;
+                    }
+                    _ => unimplemented!(),
+                }
+            }
+            Instruction::StoreImm32Array { dst, imm } => {
+                let dst = variables.get_mut(dst).unwrap();
+                match &mut dst.allocation {
+                    VariableAllocation::Imm32(dst) => {
+                        dst.copy_from_slice(imm.as_slice());
+                    }
+                    _ => unimplemented!(),
+                }
+            }
+            Instruction::LoadVariableOffset { id, base, offset } => {
+                let offset = variables.get(offset).unwrap();
+                let offset = match &offset {
+                    Variable {
+                        allocation: VariableAllocation::Imm32(offset),
+                    } => offset[0],
+                    _ => {
+                        unimplemented!()
+                    }
+                };
+
+                let base = variables.get(base).unwrap();
+                let VariableAllocation::Pointer(base) = &base.allocation else {
+                    unimplemented!()
+                };
+                let VariableAllocation::Struct(members) = base.as_ref() else {
+                    unimplemented!()
+                };
+                let member = members[offset as usize].clone();
+
+                let result = variables.get_mut(id).unwrap();
+                result.allocation = member;
+            }
+            Instruction::LoadVariableImmOffset { id, base, offset } => {
+                let offset = *offset;
+
+                let base = variables.get(base).unwrap();
+                let VariableAllocation::Imm32(base) = &base.allocation else {
+                    unimplemented!()
+                };
+                let extracted = *base.get(offset as usize).unwrap();
+
+                let result = variables.get_mut(id).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unimplemented!()
+                };
+                result[0] = extracted;
+            }
+            Instruction::StoreVariable { dst_pointer, src } => {
+                let [src, dst_pointer] = variables.get_many_mut([src, dst_pointer]).unwrap();
+                match &mut dst_pointer.allocation {
+                    VariableAllocation::Location { .. } => {
+                        unimplemented!()
+                    }
+                    VariableAllocation::BuiltinPosition => {
+                        let VariableAllocation::Imm32(imm) = &src.allocation else {
+                            unimplemented!()
+                        };
+                        let Some(output) = vertex_shader_output else {
+                            unreachable!()
+                        };
+                        output.position = Position::from_raw(
+                            imm.get(0)
+                                .map_or(output.position.get_as_uint64(0), |x| *x as u64),
+                            imm.get(1)
+                                .map_or(output.position.get_as_uint64(1), |x| *x as u64),
+                            imm.get(2)
+                                .map_or(output.position.get_as_uint64(2), |x| *x as u64),
+                            imm.get(3)
+                                .map_or(output.position.get_as_uint64(3), |x| *x as u64),
+                        );
+                    }
+                    VariableAllocation::BuiltinPointSize => {
+                        let VariableAllocation::Imm32(imm) = &src.allocation else {
+                            unimplemented!()
+                        };
+                        let Some(output) = vertex_shader_output else {
+                            unreachable!()
+                        };
+                        output.point_size = f32::from_bits(imm[0]);
+                    }
+                    VariableAllocation::BuiltinVertexIndex => {
+                        unreachable!()
+                    }
+                    VariableAllocation::Imm32(_) => {
+                        unimplemented!()
+                    }
+                    VariableAllocation::Struct(_) => {
+                        unimplemented!()
+                    }
+                    VariableAllocation::Pointer(dst) => {
+                        let VariableAllocation::Imm32(src) = &src.allocation else {
+                            unimplemented!()
+                        };
+                        dbg!(&src);
+                        dbg!(&dst);
+                        match dst.as_mut() {
+                            VariableAllocation::Location { number } => {
+                                assert_eq!(*number, 0);
+                                let Some(output) = fragment_shader_output else {
+                                    unreachable!()
+                                };
+                                for (i, dst) in output.color.components.iter_mut().enumerate() {
+                                    *dst = src[i] as u64;
+                                }
+                            }
+                            VariableAllocation::BuiltinPosition => {
+                                unimplemented!()
+                            }
+                            VariableAllocation::BuiltinPointSize => {
+                                unimplemented!()
+                            }
+                            VariableAllocation::BuiltinVertexIndex => {
+                                unimplemented!()
+                            }
+                            VariableAllocation::Imm32(dst) => {
+                                for (i, dst) in dst.iter_mut().enumerate() {
+                                    *dst = src[i];
+                                }
+                            }
+                            VariableAllocation::Struct(_) => {
+                                unimplemented!()
+                            }
+                            VariableAllocation::Pointer(_) => {
+                                unimplemented!()
+                            }
+                        }
+                    }
+                }
+            }
+            Instruction::StoreVariableArray { dst, values } => {
+                let values = values
+                    .iter()
+                    .map(|x| match variables.get(x) {
+                        Some(Variable {
+                            allocation: VariableAllocation::Imm32(imm),
+                        }) => imm[0],
+                        _ => unreachable!(),
+                    })
+                    .collect::<Vec<_>>();
+
+                let dst = variables.get_mut(dst).unwrap();
+                let VariableAllocation::Imm32(dst) = &mut dst.allocation else {
+                    unreachable!()
+                };
+
+                dst[..values.len()].copy_from_slice(&values[..]);
+            }
+            Instruction::LoadVariable { id, src_pointer } => {
+                let [result, src_pointer] = variables.get_many_mut([id, src_pointer]).unwrap();
+                let VariableAllocation::Pointer(src) = &src_pointer.allocation else {
+                    unreachable!()
+                };
+                let src = src.as_ref();
+
+                match &mut result.allocation {
+                    VariableAllocation::Location { .. } => unimplemented!(),
+                    VariableAllocation::BuiltinPosition => unimplemented!(),
+                    VariableAllocation::BuiltinPointSize => unimplemented!(),
+                    VariableAllocation::BuiltinVertexIndex => unreachable!(),
+                    VariableAllocation::Imm32(imm) => match src {
+                        VariableAllocation::Location { number } => {
+                            assert_eq!(*number, 0);
+                            let Some(vertex) = vertex else { unreachable!() };
+                            for (i, imm) in imm.iter_mut().enumerate() {
+                                *imm = vertex.position.get_as_uint32(i);
+                            }
+                        }
+                        VariableAllocation::BuiltinPosition => unimplemented!(),
+                        VariableAllocation::BuiltinPointSize => unimplemented!(),
+                        VariableAllocation::BuiltinVertexIndex => {
+                            let Some(vertex) = vertex else { unreachable!() };
+                            for (i, imm) in imm.iter_mut().enumerate() {
+                                *imm = vertex.index;
+                            }
+                        }
+                        VariableAllocation::Imm32(src_imm) => {
+                            for (i, imm) in imm.iter_mut().enumerate() {
+                                *imm = src_imm[i];
+                            }
+                        }
+                        VariableAllocation::Struct(_) => unimplemented!(),
+                        VariableAllocation::Pointer(_) => unimplemented!(),
+                    },
+                    VariableAllocation::Struct(_) => unimplemented!(),
+                    VariableAllocation::Pointer(_) => unimplemented!(),
+                }
+            }
+            Instruction::MathMulVectorScalar { id, vector, scalar } => {
+                let [result, vector, scalar] =
+                    variables.get_many_mut([id, vector, scalar]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(vector) = &vector.allocation else {
+                    unreachable!()
+                };
+                assert_eq!(result.len(), vector.len());
+                let VariableAllocation::Imm32(scalar) = &scalar.allocation else {
+                    unreachable!()
+                };
+                let &[scalar] = scalar.as_slice() else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    // TODO:  Replace Imm32 with Imm32(F32/I32/U32), use to determine casts.
+                    result[i] = (f32::from_bits(vector[i]) * f32::from_bits(scalar)).to_bits();
+                }
+            }
+            Instruction::MathSubF32F32 { id, op1, op2 } => {
+                let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    result[i] = (f32::from_bits(op1[i]) - f32::from_bits(op2[i])).to_bits();
+                }
+            }
+            Instruction::MathDivF32F32 { id, op1, op2 } => {
+                let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    result[i] = (f32::from_bits(op1[i]) / f32::from_bits(op2[i])).to_bits();
+                }
+            }
+            Instruction::MathDivI32I32 { id, op1, op2 } => {
+                let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    result[i] =
+                        u32::from_ne_bytes(((op1[i] as i32) / (op2[i] as i32)).to_ne_bytes());
+                }
+            }
+            Instruction::MathModI32I32 { id, op1, op2 } => {
+                let [result, op1, op2] = variables.get_many_mut([id, op1, op2]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    result[i] =
+                        u32::from_ne_bytes(((op1[i] as i32) % (op2[i] as i32)).to_ne_bytes());
+                }
+            }
+            Instruction::MathConvertI32F32 { id, op } => {
+                let [result, op] = variables.get_many_mut([id, op]).unwrap();
+                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                    unreachable!()
+                };
+                let VariableAllocation::Imm32(op) = &mut op.allocation else {
+                    unreachable!()
+                };
+                for i in 0..result.len() {
+                    result[i] = (op[i] as f32).to_bits();
+                }
+            }
+            Instruction::Return => {
+                return true;
+            }
+        };
+        false
     }
 }
 

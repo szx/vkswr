@@ -1,7 +1,7 @@
 use crate::shader::il::Il;
 use crate::{
-    Format, Position, Vertex, VertexAttribute, VertexBinding, VertexBindingNumber, VertexInputRate,
-    VertexInputState, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS,
+    Color, Format, Fragment, Position, Vertex, VertexAttribute, VertexBinding, VertexBindingNumber,
+    VertexInputRate, VertexInputState, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -29,7 +29,9 @@ impl Shader {
             },
         }
     }
+}
 
+impl Shader {
     pub fn execute_vertex_shader(
         &self,
         vertex_input_state: &VertexInputState,
@@ -57,6 +59,27 @@ impl Default for VertexShaderOutput {
             position: Position::from_sfloat32_raw(0.0, 0.0, 0.0, 0.0),
             point_size: 1.0,
             vertex_index: 0,
+        }
+    }
+}
+
+impl Shader {
+    pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
+        self.il.execute_fragment_shader(fragments)
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct FragmentShaderOutput {
+    pub position: Position,
+    pub color: Color,
+}
+
+impl From<Fragment> for FragmentShaderOutput {
+    fn from(fragment: Fragment) -> Self {
+        Self {
+            position: fragment.position,
+            color: fragment.color,
         }
     }
 }

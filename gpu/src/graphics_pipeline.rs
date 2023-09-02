@@ -1,7 +1,7 @@
 use crate::{
     draw_line_bresenham, draw_points, Color, DescriptorBuffer, DescriptorImage, Extent2, Format,
-    Fragment, Memory, Offset2, Position, Range2, ShaderState, Vertex, VertexShaderOutput,
-    MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
+    Fragment, FragmentShaderOutput, Memory, Offset2, Position, Range2, ShaderState, Vertex,
+    VertexShaderOutput, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
     MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
 };
 use byteorder::ByteOrder;
@@ -254,10 +254,12 @@ impl GraphicsPipeline {
             PrimitiveTopology::PatchList => unimplemented!(),
         };
 
-        // TODO: pre-fragment operations
-        // TODO: fragment assembler
-        // TODO: fragment shader
-        // TODO: post-fragment operations
+        // TODO: early per-fragment operations
+
+        // Fragment shader.
+        let fragments = self.execute_fragment_shader(fragments);
+
+        // TODO: late per-fragment operations
         // TODO: color/blending operations
 
         // Color attachment output
@@ -391,6 +393,15 @@ impl GraphicsPipeline {
             .as_ref()
             .unwrap_or_else(|| unreachable!());
         shader.execute_vertex_shader(vertex_input_state, vertices)
+    }
+
+    fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
+        let shader = self
+            .shader_state
+            .fragment_shader
+            .as_ref()
+            .unwrap_or_else(|| unreachable!());
+        shader.execute_fragment_shader(fragments)
     }
 }
 
