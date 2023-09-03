@@ -74,15 +74,12 @@ impl Il {
                 state.labels.try_insert(*id, state.pc).unwrap();
             }
             Instruction::VariableDecl { id, decl } => {
-                state
-                    .variables
-                    .try_insert(*id, Variable::from_decl(decl))
-                    .unwrap();
+                state.variables.try_insert(*id, decl.into()).unwrap();
             }
             Instruction::StoreImm32 { dst, imm } => {
                 let dst = state.variables.get_mut(dst).unwrap();
-                match &mut dst.allocation {
-                    VariableAllocation::Imm32(dst) => {
+                match dst {
+                    Variable::Imm32(dst) => {
                         dst[0] = *imm;
                     }
                     _ => unimplemented!(),
@@ -90,8 +87,8 @@ impl Il {
             }
             Instruction::StoreImm32Array { dst, imm } => {
                 let dst = state.variables.get_mut(dst).unwrap();
-                match &mut dst.allocation {
-                    VariableAllocation::Imm32(dst) => {
+                match dst {
+                    Variable::Imm32(dst) => {
                         dst.copy_from_slice(imm.as_slice());
                     }
                     _ => unimplemented!(),
@@ -100,49 +97,47 @@ impl Il {
             Instruction::LoadVariableOffset { id, base, offset } => {
                 let offset = state.variables.get(offset).unwrap();
                 let offset = match &offset {
-                    Variable {
-                        allocation: VariableAllocation::Imm32(offset),
-                    } => offset[0],
+                    Variable::Imm32(offset) => offset[0],
                     _ => {
                         unimplemented!()
                     }
                 };
 
                 let base = state.variables.get(base).unwrap();
-                let VariableAllocation::Pointer(base) = &base.allocation else {
+                let Variable::Pointer(base) = &base else {
                     unimplemented!()
                 };
-                let VariableAllocation::Struct(members) = base.as_ref() else {
+                let Variable::Struct(members) = base.as_ref() else {
                     unimplemented!()
                 };
                 let member = members[offset as usize].clone();
 
                 let result = state.variables.get_mut(id).unwrap();
-                result.allocation = member;
+                *result = member;
             }
             Instruction::LoadVariableImmOffset { id, base, offset } => {
                 let offset = *offset;
 
                 let base = state.variables.get(base).unwrap();
-                let VariableAllocation::Imm32(base) = &base.allocation else {
+                let Variable::Imm32(base) = &base else {
                     unimplemented!()
                 };
                 let extracted = *base.get(offset as usize).unwrap();
 
                 let result = state.variables.get_mut(id).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unimplemented!()
                 };
                 result[0] = extracted;
             }
             Instruction::StoreVariable { dst_pointer, src } => {
                 let [src, dst_pointer] = state.variables.get_many_mut([src, dst_pointer]).unwrap();
-                match &mut dst_pointer.allocation {
-                    VariableAllocation::Location { .. } => {
+                match dst_pointer {
+                    Variable::Location { .. } => {
                         unimplemented!()
                     }
-                    VariableAllocation::BuiltinPosition => {
-                        let VariableAllocation::Imm32(imm) = &src.allocation else {
+                    Variable::BuiltinPosition => {
+                        let Variable::Imm32(imm) = &src else {
                             unimplemented!()
                         };
                         state.vertex_shader_output.position = Position::from_raw(
@@ -164,29 +159,29 @@ impl Il {
                             ),
                         );
                     }
-                    VariableAllocation::BuiltinPointSize => {
-                        let VariableAllocation::Imm32(imm) = &src.allocation else {
+                    Variable::BuiltinPointSize => {
+                        let Variable::Imm32(imm) = &src else {
                             unimplemented!()
                         };
                         state.vertex_shader_output.point_size = f32::from_bits(imm[0]);
                     }
-                    VariableAllocation::BuiltinVertexIndex => {
+                    Variable::BuiltinVertexIndex => {
                         unreachable!()
                     }
-                    VariableAllocation::Imm32(_) => {
+                    Variable::Imm32(_) => {
                         unimplemented!()
                     }
-                    VariableAllocation::Struct(_) => {
+                    Variable::Struct(_) => {
                         unimplemented!()
                     }
-                    VariableAllocation::Pointer(dst) => {
-                        let VariableAllocation::Imm32(src) = &src.allocation else {
+                    Variable::Pointer(dst) => {
+                        let Variable::Imm32(src) = &src else {
                             unimplemented!()
                         };
                         dbg!(&src);
                         dbg!(&dst);
                         match dst.as_mut() {
-                            VariableAllocation::Location { number } => {
+                            Variable::Location { number } => {
                                 assert_eq!(*number, 0);
                                 for (i, dst) in state
                                     .fragment_shader_output
@@ -198,24 +193,24 @@ impl Il {
                                     *dst = src[i] as u64;
                                 }
                             }
-                            VariableAllocation::BuiltinPosition => {
+                            Variable::BuiltinPosition => {
                                 unimplemented!()
                             }
-                            VariableAllocation::BuiltinPointSize => {
+                            Variable::BuiltinPointSize => {
                                 unimplemented!()
                             }
-                            VariableAllocation::BuiltinVertexIndex => {
+                            Variable::BuiltinVertexIndex => {
                                 unimplemented!()
                             }
-                            VariableAllocation::Imm32(dst) => {
+                            Variable::Imm32(dst) => {
                                 for (i, dst) in dst.iter_mut().enumerate() {
                                     *dst = src[i];
                                 }
                             }
-                            VariableAllocation::Struct(_) => {
+                            Variable::Struct(_) => {
                                 unimplemented!()
                             }
-                            VariableAllocation::Pointer(_) => {
+                            Variable::Pointer(_) => {
                                 unimplemented!()
                             }
                         }
@@ -226,15 +221,13 @@ impl Il {
                 let values = values
                     .iter()
                     .map(|x| match state.variables.get(x) {
-                        Some(Variable {
-                            allocation: VariableAllocation::Imm32(imm),
-                        }) => imm[0],
+                        Some(Variable::Imm32(imm)) => imm[0],
                         _ => unreachable!(),
                     })
                     .collect::<Vec<_>>();
 
-                let dst = state.variables.get_mut(dst).unwrap();
-                let VariableAllocation::Imm32(dst) = &mut dst.allocation else {
+                let mut dst = state.variables.get_mut(dst).unwrap();
+                let Variable::Imm32(dst) = &mut dst else {
                     unreachable!()
                 };
 
@@ -243,53 +236,53 @@ impl Il {
             Instruction::LoadVariable { id, src_pointer } => {
                 let [result, src_pointer] =
                     state.variables.get_many_mut([id, src_pointer]).unwrap();
-                let VariableAllocation::Pointer(src) = &src_pointer.allocation else {
+                let Variable::Pointer(src) = &src_pointer else {
                     unreachable!()
                 };
                 let src = src.as_ref();
 
-                match &mut result.allocation {
-                    VariableAllocation::Location { .. } => unimplemented!(),
-                    VariableAllocation::BuiltinPosition => unimplemented!(),
-                    VariableAllocation::BuiltinPointSize => unimplemented!(),
-                    VariableAllocation::BuiltinVertexIndex => unreachable!(),
-                    VariableAllocation::Imm32(imm) => match src {
-                        VariableAllocation::Location { number } => {
+                match result {
+                    Variable::Location { .. } => unimplemented!(),
+                    Variable::BuiltinPosition => unimplemented!(),
+                    Variable::BuiltinPointSize => unimplemented!(),
+                    Variable::BuiltinVertexIndex => unreachable!(),
+                    Variable::Imm32(imm) => match src {
+                        Variable::Location { number } => {
                             assert_eq!(*number, 0);
                             for (i, imm) in imm.iter_mut().enumerate() {
                                 *imm = state.vertex_shader_output.position.get_as_uint32(i);
                             }
                         }
-                        VariableAllocation::BuiltinPosition => unimplemented!(),
-                        VariableAllocation::BuiltinPointSize => unimplemented!(),
-                        VariableAllocation::BuiltinVertexIndex => {
+                        Variable::BuiltinPosition => unimplemented!(),
+                        Variable::BuiltinPointSize => unimplemented!(),
+                        Variable::BuiltinVertexIndex => {
                             for (i, imm) in imm.iter_mut().enumerate() {
                                 *imm = state.vertex_shader_output.vertex_index;
                             }
                         }
-                        VariableAllocation::Imm32(src_imm) => {
+                        Variable::Imm32(src_imm) => {
                             for (i, imm) in imm.iter_mut().enumerate() {
                                 *imm = src_imm[i];
                             }
                         }
-                        VariableAllocation::Struct(_) => unimplemented!(),
-                        VariableAllocation::Pointer(_) => unimplemented!(),
+                        Variable::Struct(_) => unimplemented!(),
+                        Variable::Pointer(_) => unimplemented!(),
                     },
-                    VariableAllocation::Struct(_) => unimplemented!(),
-                    VariableAllocation::Pointer(_) => unimplemented!(),
+                    Variable::Struct(_) => unimplemented!(),
+                    Variable::Pointer(_) => unimplemented!(),
                 }
             }
             Instruction::MathMulVectorScalar { id, vector, scalar } => {
                 let [result, vector, scalar] =
                     state.variables.get_many_mut([id, vector, scalar]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(vector) = &vector.allocation else {
+                let Variable::Imm32(vector) = &vector else {
                     unreachable!()
                 };
                 assert_eq!(result.len(), vector.len());
-                let VariableAllocation::Imm32(scalar) = &scalar.allocation else {
+                let Variable::Imm32(scalar) = &scalar else {
                     unreachable!()
                 };
                 let &[scalar] = scalar.as_slice() else {
@@ -302,13 +295,13 @@ impl Il {
             }
             Instruction::MathSubF32F32 { id, op1, op2 } => {
                 let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                let Variable::Imm32(op1) = &op1 else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                let Variable::Imm32(op2) = &op2 else {
                     unreachable!()
                 };
                 for i in 0..result.len() {
@@ -317,13 +310,13 @@ impl Il {
             }
             Instruction::MathDivF32F32 { id, op1, op2 } => {
                 let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                let Variable::Imm32(op1) = &op1 else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                let Variable::Imm32(op2) = &op2 else {
                     unreachable!()
                 };
                 for i in 0..result.len() {
@@ -332,13 +325,13 @@ impl Il {
             }
             Instruction::MathDivI32I32 { id, op1, op2 } => {
                 let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                let Variable::Imm32(op1) = &op1 else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                let Variable::Imm32(op2) = &op2 else {
                     unreachable!()
                 };
                 for i in 0..result.len() {
@@ -348,13 +341,13 @@ impl Il {
             }
             Instruction::MathModI32I32 { id, op1, op2 } => {
                 let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op1) = &mut op1.allocation else {
+                let Variable::Imm32(op1) = &op1 else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op2) = &mut op2.allocation else {
+                let Variable::Imm32(op2) = &op2 else {
                     unreachable!()
                 };
                 for i in 0..result.len() {
@@ -364,10 +357,10 @@ impl Il {
             }
             Instruction::MathConvertI32F32 { id, op } => {
                 let [result, op] = state.variables.get_many_mut([id, op]).unwrap();
-                let VariableAllocation::Imm32(result) = &mut result.allocation else {
+                let Variable::Imm32(result) = result else {
                     unreachable!()
                 };
-                let VariableAllocation::Imm32(op) = &mut op.allocation else {
+                let Variable::Imm32(op) = &op else {
                     unreachable!()
                 };
                 for i in 0..result.len() {
@@ -390,6 +383,45 @@ struct State {
     // TODO: Replace with inserting variable with builtin backing.
     vertex_shader_output: VertexShaderOutput,
     fragment_shader_output: FragmentShaderOutput,
+}
+
+#[derive(Debug, Clone)]
+enum Variable {
+    Location { number: u32 },
+    BuiltinPosition,
+    BuiltinPointSize,
+    BuiltinVertexIndex,
+    Imm32(Vec<u32>),
+    Struct(Vec<Variable>),
+    Pointer(Box<Variable>),
+}
+
+impl From<&VariableDecl> for Variable {
+    fn from(decl: &VariableDecl) -> Self {
+        match &decl.backing {
+            VariableBacking::Memory => {
+                let len = decl.component_count as usize;
+                match decl.kind {
+                    VariableKind::F32 => Variable::Imm32(vec![0; len]),
+                    VariableKind::U32 => Variable::Imm32(vec![0; len]),
+                    VariableKind::I32 => Variable::Imm32(vec![0; len]),
+                    VariableKind::Void => unimplemented!(),
+                    VariableKind::Struct => unimplemented!(),
+                    VariableKind::Pointer => unimplemented!(),
+                }
+            }
+            VariableBacking::Location { number } => Variable::Location { number: *number },
+            VariableBacking::Position => Variable::BuiltinPosition,
+            VariableBacking::PointSize => Variable::BuiltinPointSize,
+            VariableBacking::VertexIndex => Variable::BuiltinVertexIndex,
+            VariableBacking::Struct { members } => {
+                Variable::Struct(members.iter().map(|x| x.into()).collect())
+            }
+            VariableBacking::Pointer { kind } => {
+                Variable::Pointer(Box::new((kind.as_ref()).into()))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -431,60 +463,6 @@ enum VariableBacking {
     VertexIndex,
     Struct { members: Arc<[VariableDecl]> },
     Pointer { kind: Box<VariableDecl> },
-}
-
-#[derive(Debug)]
-struct Variable {
-    pub allocation: VariableAllocation,
-}
-
-#[derive(Debug, Clone)]
-enum VariableAllocation {
-    Location { number: u32 },
-    BuiltinPosition,
-    BuiltinPointSize,
-    BuiltinVertexIndex,
-    Imm32(Vec<u32>),
-    Struct(Vec<VariableAllocation>),
-    Pointer(Box<VariableAllocation>),
-}
-
-impl From<&VariableDecl> for VariableAllocation {
-    fn from(decl: &VariableDecl) -> Self {
-        match &decl.backing {
-            VariableBacking::Memory => {
-                let len = decl.component_count as usize;
-                match decl.kind {
-                    VariableKind::F32 => VariableAllocation::Imm32(vec![0; len]),
-                    VariableKind::U32 => VariableAllocation::Imm32(vec![0; len]),
-                    VariableKind::I32 => VariableAllocation::Imm32(vec![0; len]),
-                    VariableKind::Void => unimplemented!(),
-                    VariableKind::Struct => unimplemented!(),
-                    VariableKind::Pointer => unimplemented!(),
-                }
-            }
-            VariableBacking::Location { number } => {
-                VariableAllocation::Location { number: *number }
-            }
-            VariableBacking::Position => VariableAllocation::BuiltinPosition,
-            VariableBacking::PointSize => VariableAllocation::BuiltinPointSize,
-            VariableBacking::VertexIndex => VariableAllocation::BuiltinVertexIndex,
-            VariableBacking::Struct { members } => {
-                VariableAllocation::Struct(members.iter().map(|x| x.into()).collect())
-            }
-            VariableBacking::Pointer { kind } => {
-                VariableAllocation::Pointer(Box::new((kind.as_ref()).into()))
-            }
-        }
-    }
-}
-
-impl Variable {
-    fn from_decl(decl: &VariableDecl) -> Self {
-        Self {
-            allocation: decl.into(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
