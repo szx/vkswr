@@ -28,7 +28,10 @@ impl Il {
 
         for vertex in vertices {
             let mut state = State {
-                vertex_shader_output: vertex.into(),
+                builtin: BuiltInState {
+                    vertex_shader_output: vertex.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             };
 
@@ -41,7 +44,7 @@ impl Il {
                 state.pc += 1;
             }
 
-            outputs.push(state.vertex_shader_output);
+            outputs.push(state.builtin.vertex_shader_output);
         }
         outputs
     }
@@ -51,7 +54,10 @@ impl Il {
 
         for fragment in fragments {
             let mut state = State {
-                fragment_shader_output: fragment.into(),
+                builtin: BuiltInState {
+                    fragment_shader_output: fragment.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             };
 
@@ -64,7 +70,7 @@ impl Il {
                 state.pc += 1;
             }
 
-            outputs.push(state.fragment_shader_output);
+            outputs.push(state.builtin.fragment_shader_output);
         }
         outputs
     }
@@ -132,90 +138,10 @@ impl Il {
             }
             Instruction::StoreVariable { dst_pointer, src } => {
                 let [src, dst_pointer] = state.variables.get_many_mut([src, dst_pointer]).unwrap();
-                match dst_pointer {
-                    Variable::Location { .. } => {
-                        unimplemented!()
-                    }
-                    Variable::BuiltinPosition => {
-                        let Variable::Imm32(imm) = &src else {
-                            unimplemented!()
-                        };
-                        state.vertex_shader_output.position = Position::from_raw(
-                            imm.get(0).map_or(
-                                state.vertex_shader_output.position.get_as_uint64(0),
-                                |x| *x as u64,
-                            ),
-                            imm.get(1).map_or(
-                                state.vertex_shader_output.position.get_as_uint64(1),
-                                |x| *x as u64,
-                            ),
-                            imm.get(2).map_or(
-                                state.vertex_shader_output.position.get_as_uint64(2),
-                                |x| *x as u64,
-                            ),
-                            imm.get(3).map_or(
-                                state.vertex_shader_output.position.get_as_uint64(3),
-                                |x| *x as u64,
-                            ),
-                        );
-                    }
-                    Variable::BuiltinPointSize => {
-                        let Variable::Imm32(imm) = &src else {
-                            unimplemented!()
-                        };
-                        state.vertex_shader_output.point_size = f32::from_bits(imm[0]);
-                    }
-                    Variable::BuiltinVertexIndex => {
-                        unreachable!()
-                    }
-                    Variable::Imm32(_) => {
-                        unimplemented!()
-                    }
-                    Variable::Struct(_) => {
-                        unimplemented!()
-                    }
-                    Variable::Pointer(dst) => {
-                        let Variable::Imm32(src) = &src else {
-                            unimplemented!()
-                        };
-                        dbg!(&src);
-                        dbg!(&dst);
-                        match dst.as_mut() {
-                            Variable::Location { number } => {
-                                assert_eq!(*number, 0);
-                                for (i, dst) in state
-                                    .fragment_shader_output
-                                    .color
-                                    .components
-                                    .iter_mut()
-                                    .enumerate()
-                                {
-                                    *dst = src[i] as u64;
-                                }
-                            }
-                            Variable::BuiltinPosition => {
-                                unimplemented!()
-                            }
-                            Variable::BuiltinPointSize => {
-                                unimplemented!()
-                            }
-                            Variable::BuiltinVertexIndex => {
-                                unimplemented!()
-                            }
-                            Variable::Imm32(dst) => {
-                                for (i, dst) in dst.iter_mut().enumerate() {
-                                    *dst = src[i];
-                                }
-                            }
-                            Variable::Struct(_) => {
-                                unimplemented!()
-                            }
-                            Variable::Pointer(_) => {
-                                unimplemented!()
-                            }
-                        }
-                    }
-                }
+                let Variable::Imm32(src) = &src else {
+                    unimplemented!()
+                };
+                dst_pointer.store(src, &mut state.builtin);
             }
             Instruction::StoreVariableArray { dst, values } => {
                 let values = values
@@ -240,37 +166,7 @@ impl Il {
                     unreachable!()
                 };
                 let src = src.as_ref();
-
-                match result {
-                    Variable::Location { .. } => unimplemented!(),
-                    Variable::BuiltinPosition => unimplemented!(),
-                    Variable::BuiltinPointSize => unimplemented!(),
-                    Variable::BuiltinVertexIndex => unreachable!(),
-                    Variable::Imm32(imm) => match src {
-                        Variable::Location { number } => {
-                            assert_eq!(*number, 0);
-                            for (i, imm) in imm.iter_mut().enumerate() {
-                                *imm = state.vertex_shader_output.position.get_as_uint32(i);
-                            }
-                        }
-                        Variable::BuiltinPosition => unimplemented!(),
-                        Variable::BuiltinPointSize => unimplemented!(),
-                        Variable::BuiltinVertexIndex => {
-                            for (i, imm) in imm.iter_mut().enumerate() {
-                                *imm = state.vertex_shader_output.vertex_index;
-                            }
-                        }
-                        Variable::Imm32(src_imm) => {
-                            for (i, imm) in imm.iter_mut().enumerate() {
-                                *imm = src_imm[i];
-                            }
-                        }
-                        Variable::Struct(_) => unimplemented!(),
-                        Variable::Pointer(_) => unimplemented!(),
-                    },
-                    Variable::Struct(_) => unimplemented!(),
-                    Variable::Pointer(_) => unimplemented!(),
-                }
+                src.load(result, &mut state.builtin)
             }
             Instruction::MathMulVectorScalar { id, vector, scalar } => {
                 let [result, vector, scalar] =
@@ -380,7 +276,12 @@ struct State {
     pc: usize,
     labels: HashMap<u32, usize>,
     variables: HashMap<VariableId, Variable>,
-    // TODO: Replace with inserting variable with builtin backing.
+    builtin: BuiltInState,
+}
+
+#[derive(Debug, Default)]
+struct BuiltInState {
+    // TODO: Replace with [u32] buffers for builtins and locations.
     vertex_shader_output: VertexShaderOutput,
     fragment_shader_output: FragmentShaderOutput,
 }
@@ -394,6 +295,86 @@ enum Variable {
     Imm32(Vec<u32>),
     Struct(Vec<Variable>),
     Pointer(Box<Variable>),
+}
+
+impl Variable {
+    fn load(&self, dst: &mut Self, builtin: &mut BuiltInState) {
+        match self {
+            Variable::Location { number } => {
+                assert_eq!(*number, 0);
+                // TODO: Don't use vertex_shader_output, set location in execute_*_shader()
+                let position = builtin
+                    .vertex_shader_output
+                    .position
+                    .components
+                    .iter()
+                    .map(|&x| x as u32)
+                    .collect::<Vec<_>>();
+                dst.store(position.as_slice(), builtin);
+            }
+            Variable::BuiltinPosition => {
+                unimplemented!()
+            }
+            Variable::BuiltinPointSize => {
+                unimplemented!()
+            }
+            Variable::BuiltinVertexIndex => {
+                dst.store(&[builtin.vertex_shader_output.vertex_index], builtin)
+            }
+            Variable::Imm32(imm) => dst.store(imm.as_slice(), builtin),
+            Variable::Struct(_) => {
+                unimplemented!()
+            }
+            Variable::Pointer(_) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    fn store(&mut self, src: &[u32], builtin: &mut BuiltInState) {
+        match self {
+            Variable::Location { number } => {
+                assert_eq!(*number, 0);
+                for (i, dst) in builtin
+                    .fragment_shader_output // TODO: Don't use fragment_shader_output, set location in execute_*_shader()
+                    .color
+                    .components
+                    .iter_mut()
+                    .enumerate()
+                {
+                    *dst = src[i] as u64;
+                }
+            }
+            Variable::BuiltinPosition => {
+                for (i, dst) in builtin
+                    .vertex_shader_output
+                    .position
+                    .components
+                    .iter_mut()
+                    .enumerate()
+                {
+                    *dst = src[i] as u64;
+                }
+            }
+            Variable::BuiltinPointSize => {
+                builtin.vertex_shader_output.point_size = f32::from_bits(src[0]);
+            }
+            Variable::BuiltinVertexIndex => {
+                unimplemented!()
+            }
+            Variable::Imm32(imm) => {
+                for (i, dst) in imm.iter_mut().enumerate() {
+                    *dst = src[i];
+                }
+            }
+            Variable::Struct(_) => {
+                unimplemented!()
+            }
+            Variable::Pointer(pointer) => {
+                pointer.store(src, builtin);
+            }
+        }
+    }
 }
 
 impl From<&VariableDecl> for Variable {
