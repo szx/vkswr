@@ -293,6 +293,16 @@ impl GraphicsPipeline {
         assert_eq!(instance_count, 1);
         assert_eq!(first_vertex, 0);
         assert_eq!(first_instance, 0);
+
+        if self.vertex_input_state.bindings.iter().all(|x| x.is_none()) {
+            return (first_vertex..vertex_count)
+                .map(|index| Vertex {
+                    position: Default::default(),
+                    index,
+                })
+                .collect();
+        }
+
         let Some(binding) = self.vertex_input_state.bindings[0].as_ref() else {
             // TODO: Determine used VertexBindings from vertex shader (if any).
             unreachable!("{:#?}", self.vertex_input_state.bindings)

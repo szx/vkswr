@@ -98,6 +98,8 @@ impl From<Fragment> for FragmentShaderOutput {
 mod tests {
     use super::*;
 
+    // HIRO glslangValidator
+
     #[test]
     fn vertex_shader_points() {
         // Vertex shader taken from dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2

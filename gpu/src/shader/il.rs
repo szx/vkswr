@@ -1,10 +1,10 @@
 use crate::shader::spirv;
-use crate::shader::spirv::Spirv;
+use crate::shader::spirv::{ObjectId, Spirv};
 use crate::{
     Fragment, FragmentShaderOutput, Position, Vertex, VertexInputState, VertexShaderOutput,
 };
 use hashbrown::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct Il {
@@ -27,13 +27,7 @@ impl Il {
         let mut outputs: Vec<VertexShaderOutput> = vec![];
 
         for vertex in vertices {
-            let mut state = State {
-                builtin: BuiltInState {
-                    vertex_shader_output: vertex.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
+            let mut state = State::new(vertex.into(), Default::default());
 
             loop {
                 let instruction = &self.instructions[state.pc];
@@ -41,10 +35,9 @@ impl Il {
                 if end {
                     break;
                 }
-                state.pc += 1;
             }
 
-            outputs.push(state.builtin.vertex_shader_output);
+            outputs.push(state.vertex_shader_output());
         }
         outputs
     }
@@ -53,13 +46,7 @@ impl Il {
         let mut outputs: Vec<FragmentShaderOutput> = vec![];
 
         for fragment in fragments {
-            let mut state = State {
-                builtin: BuiltInState {
-                    fragment_shader_output: fragment.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
+            let mut state = State::new(Default::default(), fragment.into());
 
             loop {
                 let instruction = &self.instructions[state.pc];
@@ -67,206 +54,117 @@ impl Il {
                 if end {
                     break;
                 }
-                state.pc += 1;
             }
 
-            outputs.push(state.builtin.fragment_shader_output);
+            outputs.push(state.fragment_shader_output());
         }
         outputs
     }
     fn execute_instruction(&self, instruction: &Instruction, state: &mut State) -> bool {
-        match instruction {
+        match dbg!(instruction) {
             Instruction::Label { id } => {
                 state.labels.try_insert(*id, state.pc).unwrap();
             }
             Instruction::VariableDecl { id, decl } => {
-                state.variables.try_insert(*id, decl.into()).unwrap();
+                state.add_new_variable(*id, decl);
             }
             Instruction::StoreImm32 { dst, imm } => {
-                let dst = state.variables.get_mut(dst).unwrap();
-                match dst {
-                    Variable::Imm32(dst) => {
-                        dst[0] = *imm;
-                    }
-                    _ => unimplemented!(),
-                }
+                state.store_imm32(dst, &vec![*imm]);
             }
             Instruction::StoreImm32Array { dst, imm } => {
-                let dst = state.variables.get_mut(dst).unwrap();
-                match dst {
-                    Variable::Imm32(dst) => {
-                        dst.copy_from_slice(imm.as_slice());
-                    }
-                    _ => unimplemented!(),
-                }
+                state.store_imm32(dst, imm);
             }
-            Instruction::LoadVariableOffset { id, base, offset } => {
-                let offset = state.variables.get(offset).unwrap();
-                let offset = match &offset {
-                    Variable::Imm32(offset) => offset[0],
-                    _ => {
-                        unimplemented!()
-                    }
-                };
-
-                let base = state.variables.get(base).unwrap();
-                let Variable::Pointer(base) = &base else {
-                    unimplemented!()
-                };
-                let Variable::Struct(members) = base.as_ref() else {
-                    unimplemented!()
-                };
-                let member = members[offset as usize].clone();
-
-                let result = state.variables.get_mut(id).unwrap();
-                *result = member;
+            Instruction::LoadVariableOffset { id, base, offsets } => {
+                state.load_variable_offset(id, base, offsets.clone());
             }
             Instruction::LoadVariableImmOffset { id, base, offset } => {
-                let offset = *offset;
-
-                let base = state.variables.get(base).unwrap();
-                let Variable::Imm32(base) = &base else {
-                    unimplemented!()
-                };
-                let extracted = *base.get(offset as usize).unwrap();
-
-                let result = state.variables.get_mut(id).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unimplemented!()
-                };
-                result[0] = extracted;
+                state.load_variable_offset_imm(id, base, *offset);
             }
             Instruction::StoreVariable { dst_pointer, src } => {
-                let [src, dst_pointer] = state.variables.get_many_mut([src, dst_pointer]).unwrap();
-                let Variable::Imm32(src) = &src else {
-                    unimplemented!()
-                };
-                dst_pointer.store(src, &mut state.builtin);
+                state.store_pointer(*dst_pointer, *src);
             }
             Instruction::StoreVariableArray { dst, values } => {
-                let values = values
-                    .iter()
-                    .map(|x| match state.variables.get(x) {
-                        Some(Variable::Imm32(imm)) => imm[0],
-                        _ => unreachable!(),
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut dst = state.variables.get_mut(dst).unwrap();
-                let Variable::Imm32(dst) = &mut dst else {
-                    unreachable!()
-                };
-
-                dst[..values.len()].copy_from_slice(&values[..]);
+                state.store_array(dst, values);
             }
             Instruction::LoadVariable { id, src_pointer } => {
-                let [result, src_pointer] =
-                    state.variables.get_many_mut([id, src_pointer]).unwrap();
-                let Variable::Pointer(src) = &src_pointer else {
-                    unreachable!()
-                };
-                let src = src.as_ref();
-                src.load(result, &mut state.builtin)
+                state.load_variable(id, src_pointer);
             }
             Instruction::MathMulVectorScalar { id, vector, scalar } => {
-                let [result, vector, scalar] =
-                    state.variables.get_many_mut([id, vector, scalar]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(vector) = &vector else {
-                    unreachable!()
-                };
-                assert_eq!(result.len(), vector.len());
-                let Variable::Imm32(scalar) = &scalar else {
-                    unreachable!()
-                };
-                let &[scalar] = scalar.as_slice() else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    // TODO:  Replace Imm32 with Imm32(F32/I32/U32), use to determine casts.
-                    result[i] = (f32::from_bits(vector[i]) * f32::from_bits(scalar)).to_bits();
-                }
+                state.binary_op(id, vector, scalar, BinaryOpKind::MulVectorScalar);
+            }
+            Instruction::MathAddI32I32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::AddI32I32);
+            }
+            Instruction::MathMulI32I32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::MulI32I32);
             }
             Instruction::MathSubF32F32 { id, op1, op2 } => {
-                let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op1) = &op1 else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op2) = &op2 else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    result[i] = (f32::from_bits(op1[i]) - f32::from_bits(op2[i])).to_bits();
-                }
+                state.binary_op(id, op1, op2, BinaryOpKind::SubF32F32);
             }
             Instruction::MathDivF32F32 { id, op1, op2 } => {
-                let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op1) = &op1 else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op2) = &op2 else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    result[i] = (f32::from_bits(op1[i]) / f32::from_bits(op2[i])).to_bits();
-                }
+                state.binary_op(id, op1, op2, BinaryOpKind::DivF32F3);
             }
             Instruction::MathDivI32I32 { id, op1, op2 } => {
-                let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op1) = &op1 else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op2) = &op2 else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    result[i] =
-                        u32::from_ne_bytes(((op1[i] as i32) / (op2[i] as i32)).to_ne_bytes());
-                }
+                state.binary_op(id, op1, op2, BinaryOpKind::DivI32I32);
+            }
+            Instruction::MathDivU32U32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::DivU32U32);
             }
             Instruction::MathModI32I32 { id, op1, op2 } => {
-                let [result, op1, op2] = state.variables.get_many_mut([id, op1, op2]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op1) = &op1 else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op2) = &op2 else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    result[i] =
-                        u32::from_ne_bytes(((op1[i] as i32) % (op2[i] as i32)).to_ne_bytes());
-                }
+                state.binary_op(id, op1, op2, BinaryOpKind::ModI32I32);
+            }
+            Instruction::MathModU32U32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::ModU32U32);
+            }
+            Instruction::MathBitAnd { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::BitAnd);
+            }
+            Instruction::MathBitShiftRight { id, base, shift } => {
+                state.binary_op(id, base, shift, BinaryOpKind::BitShiftRight);
+            }
+            Instruction::MathEqualI32I32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::EqualI32I32);
+            }
+            Instruction::MathLessThanU32U32 { id, op1, op2 } => {
+                state.binary_op(id, op1, op2, BinaryOpKind::LessThanU32U32);
             }
             Instruction::MathConvertI32F32 { id, op } => {
-                let [result, op] = state.variables.get_many_mut([id, op]).unwrap();
-                let Variable::Imm32(result) = result else {
-                    unreachable!()
-                };
-                let Variable::Imm32(op) = &op else {
-                    unreachable!()
-                };
-                for i in 0..result.len() {
-                    result[i] = (op[i] as f32).to_bits();
-                }
+                state.convert(id, op, ConvertKind::I32F32);
+            }
+            Instruction::MathConvertF32U32 { id, op } => {
+                state.convert(id, op, ConvertKind::F32U32);
+            }
+            Instruction::MathConvertU32F32 { id, op } => {
+                state.convert(id, op, ConvertKind::U32F32);
             }
             Instruction::Return => {
                 return true;
             }
+            Instruction::Select {
+                id,
+                cond,
+                obj1,
+                obj2,
+            } => {
+                todo!()
+            }
+            Instruction::SelectionMerge { .. } => {
+                todo!()
+            }
+            Instruction::LoopMerge { .. } => {
+                todo!()
+            }
+            Instruction::Branch { .. } => {
+                todo!()
+            }
+            Instruction::BranchConditional { .. } => {
+                todo!()
+            }
+            Instruction::Kill => {
+                todo!()
+            }
         };
+        state.pc += 1;
         false
     }
 }
@@ -275,175 +173,114 @@ impl Il {
 struct State {
     pc: usize,
     labels: HashMap<u32, usize>,
-    variables: HashMap<VariableId, Variable>,
-    builtin: BuiltInState,
+    memory: Vec<u32>,
 }
 
-#[derive(Debug, Default)]
-struct BuiltInState {
-    // TODO: Replace with [u32] buffers for builtins and locations.
-    vertex_shader_output: VertexShaderOutput,
-    fragment_shader_output: FragmentShaderOutput,
+impl State {
+    fn new(
+        vertex_shader_output: VertexShaderOutput,
+        fragment_shader_output: FragmentShaderOutput,
+    ) -> Self {
+        Self {
+            pc: 0,
+            labels: Default::default(),
+            memory: vec![0_u32; 10000], // HIRO set memory with vertex_shader_output
+        }
+    }
+    fn vertex_shader_output(&self) -> VertexShaderOutput {
+        todo!()
+    }
+
+    fn fragment_shader_output(&self) -> FragmentShaderOutput {
+        todo!()
+    }
 }
 
-#[derive(Debug, Clone)]
-enum Variable {
-    Location { number: u32 },
-    BuiltinPosition,
-    BuiltinPointSize,
-    BuiltinVertexIndex,
-    Imm32(Vec<u32>),
-    Struct(Vec<Variable>),
-    Pointer(Box<Variable>),
+impl State {
+    // HIRO move to interpreter.rs
+
+    fn add_new_variable(&self, variable: Variable, decl: &VariableDecl) {
+        todo!()
+    }
+    pub(crate) fn load_variable(&self, id: &Variable, src_pointer: &Variable) {
+        todo!()
+    }
+    pub(crate) fn load_variable_offset(
+        &self,
+        id: &Variable,
+        base: &Variable,
+        offsets: Arc<[Variable]>,
+    ) {
+        todo!()
+    }
+
+    pub(crate) fn load_variable_offset_imm(&self, id: &Variable, base: &Variable, offset: u32) {
+        todo!()
+    }
+
+    fn store(&mut self, dst: Variable, src: Variable) {
+        todo!();
+    }
+    pub(crate) fn store_array(&self, dst_pointer: &Variable, src: &Vec<Variable>) {
+        todo!()
+    }
+    pub(crate) fn store_pointer(&self, dst_pointer: Variable, str: Variable) {
+        todo!()
+    }
+    pub(crate) fn store_imm32(&self, variable: &Variable, imm: &Vec<u32>) {
+        todo!()
+    }
+
+    pub(crate) fn binary_op(
+        &self,
+        id: &Variable,
+        op1: &Variable,
+        op2: &Variable,
+        kind: BinaryOpKind,
+    ) {
+        todo!()
+    }
+
+    pub(crate) fn convert(&self, id: &Variable, op: &Variable, kind: ConvertKind) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Variable {
+    address: u32,
+    count: u32,
+    stride: u32,
 }
 
 impl Variable {
-    fn load(&self, dst: &mut Self, builtin: &mut BuiltInState) {
-        match self {
-            Variable::Location { number } => {
-                assert_eq!(*number, 0);
-                // TODO: Don't use vertex_shader_output, set location in execute_*_shader()
-                let position = builtin
-                    .vertex_shader_output
-                    .position
-                    .components
-                    .iter()
-                    .map(|&x| x as u32)
-                    .collect::<Vec<_>>();
-                dst.store(position.as_slice(), builtin);
-            }
-            Variable::BuiltinPosition => {
-                unimplemented!()
-            }
-            Variable::BuiltinPointSize => {
-                unimplemented!()
-            }
-            Variable::BuiltinVertexIndex => {
-                dst.store(&[builtin.vertex_shader_output.vertex_index], builtin)
-            }
-            Variable::Imm32(imm) => dst.store(imm.as_slice(), builtin),
-            Variable::Struct(_) => {
-                unimplemented!()
-            }
-            Variable::Pointer(_) => {
-                unimplemented!()
-            }
-        }
-    }
-
-    fn store(&mut self, src: &[u32], builtin: &mut BuiltInState) {
-        match self {
-            Variable::Location { number } => {
-                assert_eq!(*number, 0);
-                for (i, dst) in builtin
-                    .fragment_shader_output // TODO: Don't use fragment_shader_output, set location in execute_*_shader()
-                    .color
-                    .components
-                    .iter_mut()
-                    .enumerate()
-                {
-                    *dst = src[i] as u64;
-                }
-            }
-            Variable::BuiltinPosition => {
-                for (i, dst) in builtin
-                    .vertex_shader_output
-                    .position
-                    .components
-                    .iter_mut()
-                    .enumerate()
-                {
-                    *dst = src[i] as u64;
-                }
-            }
-            Variable::BuiltinPointSize => {
-                builtin.vertex_shader_output.point_size = f32::from_bits(src[0]);
-            }
-            Variable::BuiltinVertexIndex => {
-                unimplemented!()
-            }
-            Variable::Imm32(imm) => {
-                for (i, dst) in imm.iter_mut().enumerate() {
-                    *dst = src[i];
-                }
-            }
-            Variable::Struct(_) => {
-                unimplemented!()
-            }
-            Variable::Pointer(pointer) => {
-                pointer.store(src, builtin);
-            }
-        }
+    fn from_spirv(spirv_id: u32) -> Self {
+        todo!()
     }
 }
-
-impl From<&VariableDecl> for Variable {
-    fn from(decl: &VariableDecl) -> Self {
-        match &decl.backing {
-            VariableBacking::Memory => {
-                let len = decl.component_count as usize;
-                match decl.kind {
-                    VariableKind::F32 => Variable::Imm32(vec![0; len]),
-                    VariableKind::U32 => Variable::Imm32(vec![0; len]),
-                    VariableKind::I32 => Variable::Imm32(vec![0; len]),
-                    VariableKind::Void => unimplemented!(),
-                    VariableKind::Struct => unimplemented!(),
-                    VariableKind::Pointer => unimplemented!(),
-                }
-            }
-            VariableBacking::Location { number } => Variable::Location { number: *number },
-            VariableBacking::Position => Variable::BuiltinPosition,
-            VariableBacking::PointSize => Variable::BuiltinPointSize,
-            VariableBacking::VertexIndex => Variable::BuiltinVertexIndex,
-            VariableBacking::Struct { members } => {
-                Variable::Struct(members.iter().map(|x| x.into()).collect())
-            }
-            VariableBacking::Pointer { kind } => {
-                Variable::Pointer(Box::new((kind.as_ref()).into()))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct VariableDecl {
-    kind: VariableKind,
-    component_count: u32,
-    storage: VariableStorage,
-    backing: VariableBacking,
-}
-
-#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub(crate) struct VariableId(pub u32);
 
 #[derive(Debug, Copy, Clone)]
-enum VariableKind {
-    F32,
-    U32,
-    I32,
-    Void,
-    Struct,
-    Pointer,
+enum BinaryOpKind {
+    MulVectorScalar,
+    AddI32I32,
+    MulI32I32,
+    SubF32F32,
+    DivF32F3,
+    DivI32I32,
+    DivU32U32,
+    ModI32I32,
+    ModU32U32,
+    BitAnd,
+    BitShiftRight,
+    EqualI32I32,
+    LessThanU32U32,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum VariableStorage {
-    Constant,
-    Variable,
-    Input,
-    Output,
-    FunctionMemory,
-}
-
-#[derive(Debug, Clone)]
-enum VariableBacking {
-    Memory, // TODO: Fold in VariableStorage?
-    Location { number: u32 },
-    Position,
-    PointSize,
-    VertexIndex,
-    Struct { members: Arc<[VariableDecl]> },
-    Pointer { kind: Box<VariableDecl> },
+#[derive(Debug, Copy, Clone)]
+enum ConvertKind {
+    I32F32,
+    F32U32,
+    U32F32,
 }
 
 #[derive(Debug, Clone)]
@@ -452,69 +289,141 @@ pub(crate) enum Instruction {
         id: u32,
     },
     VariableDecl {
-        id: VariableId,
-        decl: VariableDecl,
+        id: Variable,
+        decl: VariableDecl, // HIRO remove, replace with params (size, stride)
     },
     StoreImm32 {
-        dst: VariableId,
+        dst: Variable,
         imm: u32,
     },
     StoreImm32Array {
-        dst: VariableId,
+        dst: Variable,
         imm: Vec<u32>,
     },
     LoadVariableOffset {
-        id: VariableId,
-        base: VariableId,
-        offset: VariableId,
+        id: Variable,
+        base: Variable,
+        offsets: Arc<[Variable]>,
     },
     LoadVariableImmOffset {
-        id: VariableId,
-        base: VariableId,
+        id: Variable,
+        base: Variable,
         offset: u32,
     },
     StoreVariable {
-        dst_pointer: VariableId,
-        src: VariableId,
+        dst_pointer: Variable,
+        src: Variable,
     },
     StoreVariableArray {
-        dst: VariableId,
-        values: Vec<VariableId>,
+        dst: Variable,
+        values: Vec<Variable>,
     },
     LoadVariable {
-        id: VariableId,
-        src_pointer: VariableId,
+        id: Variable,
+        src_pointer: Variable,
     },
     MathMulVectorScalar {
-        id: VariableId,
-        vector: VariableId,
-        scalar: VariableId,
+        id: Variable,
+        vector: Variable,
+        scalar: Variable,
+    },
+    MathAddI32I32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+    MathMulI32I32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
     },
     MathSubF32F32 {
-        id: VariableId,
-        op1: VariableId,
-        op2: VariableId,
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
     },
     MathDivF32F32 {
-        id: VariableId,
-        op1: VariableId,
-        op2: VariableId,
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
     },
     MathDivI32I32 {
-        id: VariableId,
-        op1: VariableId,
-        op2: VariableId,
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+    MathDivU32U32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
     },
     MathModI32I32 {
-        id: VariableId,
-        op1: VariableId,
-        op2: VariableId,
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+    MathModU32U32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+
+    MathBitAnd {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+    MathBitShiftRight {
+        id: Variable,
+        base: Variable,
+        shift: Variable,
+    },
+
+    MathEqualI32I32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
+    },
+    MathLessThanU32U32 {
+        id: Variable,
+        op1: Variable,
+        op2: Variable,
     },
     MathConvertI32F32 {
-        id: VariableId,
-        op: VariableId,
+        id: Variable,
+        op: Variable,
+    },
+    MathConvertF32U32 {
+        id: Variable,
+        op: Variable,
+    },
+    MathConvertU32F32 {
+        id: Variable,
+        op: Variable,
     },
     Return,
+    Select {
+        id: Variable,
+        cond: Variable,
+        obj1: Variable,
+        obj2: Variable,
+    },
+    SelectionMerge {
+        merge_block_label: u32,
+    },
+    LoopMerge {
+        merge_block_label: u32,
+        continue_target_label: u32,
+    },
+    Branch {
+        target_label: u32,
+    },
+    BranchConditional {
+        condition: Variable,
+        true_label: u32,
+        false_label: u32,
+    },
+    Kill,
 }
 
 impl Il {
@@ -534,7 +443,7 @@ impl Il {
                             VariableStorage::Constant,
                             VariableBacking::Memory,
                         );
-                        let id = VariableId(id.0);
+                        let id = Variable::from_spirv(id.0);
                         scalar_variables
                             .push(crate::shader::il::Instruction::VariableDecl { id, decl });
                         scalar_variables.push(crate::shader::il::Instruction::StoreImm32 {
@@ -552,7 +461,7 @@ impl Il {
                             VariableStorage::Constant,
                             VariableBacking::Memory,
                         );
-                        let id = VariableId(id.0);
+                        let id = Variable::from_spirv(id.0);
                         composite_variables
                             .push(crate::shader::il::Instruction::VariableDecl { id, decl });
                         let values = constituents
@@ -579,7 +488,7 @@ impl Il {
                         Self::from_spirv_storage_class(&memory_object.storage_class),
                         Self::from_spirv_decorations(&memory_object.decorations),
                     );
-                    let id = VariableId(id.0);
+                    let id = Variable::from_spirv(id.0);
                     pointer_variables.push(Instruction::VariableDecl { id, decl });
                 }
             }
@@ -608,22 +517,18 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
-                    if let [offset] = indexes.as_slice() {
-                        instructions.push(Instruction::VariableDecl { id, decl });
-                        instructions.push(Instruction::LoadVariableOffset {
-                            id,
-                            base: VariableId(base.0),
-                            offset: VariableId(offset.0),
-                        });
-                    } else {
-                        unimplemented!()
-                    }
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::LoadVariableOffset {
+                        id,
+                        base: Variable::from_spirv(base.0),
+                        offsets: indexes.iter().map(|x| Variable::from_spirv(x.0)).collect(),
+                    });
                 }
                 spirv::Instruction::Store { pointer, object } => {
                     instructions.push(Instruction::StoreVariable {
-                        dst_pointer: VariableId(pointer.0),
-                        src: VariableId(object.0),
+                        dst_pointer: Variable::from_spirv(pointer.0),
+                        src: Variable::from_spirv(object.0),
                     });
                 }
                 spirv::Instruction::Load {
@@ -637,11 +542,11 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::LoadVariable {
                         id,
-                        src_pointer: VariableId(pointer.0),
+                        src_pointer: Variable::from_spirv(pointer.0),
                     });
                 }
                 spirv::Instruction::VectorTimesScalar {
@@ -656,12 +561,52 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathMulVectorScalar {
                         id,
-                        vector: VariableId(vector.0),
-                        scalar: VariableId(scalar.0),
+                        vector: Variable::from_spirv(vector.0),
+                        scalar: Variable::from_spirv(scalar.0),
+                    });
+                }
+                spirv::Instruction::IAdd {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathAddI32I32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+                spirv::Instruction::IMul {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathMulI32I32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
                     });
                 }
                 spirv::Instruction::FSub {
@@ -676,12 +621,12 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathSubF32F32 {
                         id,
-                        op1: VariableId(operand1.0),
-                        op2: VariableId(operand2.0),
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
                     });
                 }
                 spirv::Instruction::FDiv {
@@ -696,12 +641,12 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathDivF32F32 {
                         id,
-                        op1: VariableId(operand1.0),
-                        op2: VariableId(operand2.0),
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
                     });
                 }
                 spirv::Instruction::SDiv {
@@ -716,12 +661,32 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathDivI32I32 {
                         id,
-                        op1: VariableId(operand1.0),
-                        op2: VariableId(operand2.0),
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+                spirv::Instruction::UDiv {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathDivU32U32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
                     });
                 }
                 spirv::Instruction::SMod {
@@ -736,12 +701,113 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathModI32I32 {
                         id,
-                        op1: VariableId(operand1.0),
-                        op2: VariableId(operand2.0),
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+                spirv::Instruction::UMod {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathModU32U32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+                spirv::Instruction::BitwiseAnd {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathBitAnd {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+                spirv::Instruction::ShiftRightLogical {
+                    result_id,
+                    result_type,
+                    base,
+                    shift,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathBitShiftRight {
+                        id,
+                        base: Variable::from_spirv(base.0),
+                        shift: Variable::from_spirv(shift.0),
+                    });
+                }
+                spirv::Instruction::IEqual {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathEqualI32I32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
+                    });
+                }
+
+                spirv::Instruction::ULessThan {
+                    result_id,
+                    result_type,
+                    operand1,
+                    operand2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathLessThanU32U32 {
+                        id,
+                        op1: Variable::from_spirv(operand1.0),
+                        op2: Variable::from_spirv(operand2.0),
                     });
                 }
                 spirv::Instruction::ConvertSToF {
@@ -755,11 +821,47 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathConvertI32F32 {
                         id,
-                        op: VariableId(operand.0),
+                        op: Variable::from_spirv(operand.0),
+                    });
+                }
+                spirv::Instruction::ConvertFToU {
+                    result_id,
+                    result_type,
+                    operand,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathConvertF32U32 {
+                        id,
+                        op: Variable::from_spirv(operand.0),
+                    });
+                }
+                spirv::Instruction::ConvertUToF {
+                    result_id,
+                    result_type,
+                    operand,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::MathConvertU32F32 {
+                        id,
+                        op: Variable::from_spirv(operand.0),
                     });
                 }
                 spirv::Instruction::CompositeExtract {
@@ -774,12 +876,12 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     if let [offset] = indexes.as_slice() {
                         instructions.push(Instruction::VariableDecl { id, decl });
                         instructions.push(Instruction::LoadVariableImmOffset {
                             id,
-                            base: VariableId(composite.0),
+                            base: Variable::from_spirv(composite.0),
                             offset: *offset,
                         });
                     } else {
@@ -797,11 +899,11 @@ impl Il {
                         VariableStorage::Variable,
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     let values = constituents
                         .iter()
-                        .map(|id| VariableId(id.0))
+                        .map(|id| Variable::from_spirv(id.0))
                         .collect::<Vec<_>>();
                     instructions.push(Instruction::StoreVariableArray { dst: id, values });
                 }
@@ -816,11 +918,66 @@ impl Il {
                         Self::from_spirv_storage_class(storage_class),
                         VariableBacking::Memory,
                     );
-                    let id = VariableId(result_id.0);
+                    let id = Variable::from_spirv(result_id.0);
                     instructions.push(Instruction::VariableDecl { id, decl });
+                }
+                spirv::Instruction::Select {
+                    result_id,
+                    result_type,
+                    condition,
+                    object1,
+                    object2,
+                } => {
+                    let decl = Self::get_variable_decl(
+                        &spirv,
+                        result_type,
+                        VariableStorage::Variable,
+                        VariableBacking::Memory,
+                    );
+                    let id = Variable::from_spirv(result_id.0);
+                    instructions.push(Instruction::VariableDecl { id, decl });
+                    instructions.push(Instruction::Select {
+                        id,
+                        cond: Variable::from_spirv(condition.0),
+                        obj1: Variable::from_spirv(object1.0),
+                        obj2: Variable::from_spirv(object2.0),
+                    });
+                }
+                spirv::Instruction::SelectionMerge { merge_block } => {
+                    instructions.push(Instruction::SelectionMerge {
+                        merge_block_label: merge_block.0,
+                    });
+                }
+                spirv::Instruction::LoopMerge {
+                    merge_block,
+                    continue_target_label,
+                } => {
+                    instructions.push(Instruction::LoopMerge {
+                        merge_block_label: merge_block.0,
+                        continue_target_label: continue_target_label.0,
+                    });
+                }
+                spirv::Instruction::Branch { target_label } => {
+                    instructions.push(Instruction::Branch {
+                        target_label: target_label.0,
+                    });
+                }
+                spirv::Instruction::BranchConditional {
+                    condition,
+                    true_label,
+                    false_label,
+                } => {
+                    instructions.push(Instruction::BranchConditional {
+                        condition: Variable::from_spirv(condition.0),
+                        true_label: true_label.0,
+                        false_label: false_label.0,
+                    });
                 }
                 spirv::Instruction::Return => {
                     instructions.push(Instruction::Return);
+                }
+                spirv::Instruction::Kill => {
+                    instructions.push(Instruction::Kill);
                 }
             }
         }
@@ -853,6 +1010,8 @@ impl Il {
             spirv::StorageClass::Input => VariableStorage::Input,
             spirv::StorageClass::Output => VariableStorage::Output,
             spirv::StorageClass::Function => VariableStorage::FunctionMemory,
+            spirv::StorageClass::PushConstant => VariableStorage::PushConstant,
+            spirv::StorageClass::Uniform => VariableStorage::Uniform,
         }
     }
 
@@ -862,6 +1021,7 @@ impl Il {
                 spirv::BuiltInDecoration::Position => VariableBacking::Position,
                 spirv::BuiltInDecoration::PointSize => VariableBacking::PointSize,
                 spirv::BuiltInDecoration::VertexIndex => VariableBacking::VertexIndex,
+                spirv::BuiltInDecoration::FragCoord => VariableBacking::FragCoord,
             }
         } else if let Some(location) = decorations.location {
             VariableBacking::Location {
@@ -892,8 +1052,33 @@ impl Il {
                 }
             }
             spirv::Type::Void => (VariableKind::Void, 0, storage, backing),
+            spirv::Type::Bool => (VariableKind::Bool, 1, storage, backing),
             spirv::Type::Function(_) => {
                 unimplemented!()
+            }
+            spirv::Type::Array {
+                element_type,
+                length,
+                decorations,
+            } => {
+                let element_type = Self::get_variable_decl(spirv, element_type, storage, backing);
+                let &spirv::Constant::Scalar { type_: _, value } =
+                    Self::get_spirv_constant(spirv, length)
+                else {
+                    unreachable!()
+                };
+                let Some(array_stride) = decorations.array_stride else {
+                    unreachable!()
+                };
+                (
+                    VariableKind::Struct,
+                    value,
+                    storage,
+                    VariableBacking::Array {
+                        element_kind: Box::new(element_type),
+                        array_stride,
+                    },
+                )
             }
             spirv::Type::Vector {
                 component_type,
@@ -963,4 +1148,63 @@ impl Il {
             backing,
         }
     }
+}
+
+impl From<&VariableDecl> for Variable {
+    fn from(decl: &VariableDecl) -> Self {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct VariableDecl {
+    kind: VariableKind,
+    component_count: u32,
+    storage: VariableStorage,
+    backing: VariableBacking,
+}
+
+#[derive(Debug, Copy, Clone)]
+enum VariableKind {
+    F32,
+    U32,
+    I32,
+    Void,
+    Bool,
+    Array,
+    Struct,
+    Pointer,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum VariableStorage {
+    Constant,
+    Variable,
+    Input,
+    Output,
+    FunctionMemory,
+    PushConstant,
+    Uniform,
+}
+
+#[derive(Debug, Clone)]
+enum VariableBacking {
+    Memory, // TODO: Fold in VariableStorage?
+    Location {
+        number: u32,
+    },
+    Position,
+    PointSize,
+    VertexIndex,
+    FragCoord,
+    Array {
+        element_kind: Box<VariableDecl>,
+        array_stride: u32,
+    },
+    Struct {
+        members: Arc<[VariableDecl]>,
+    },
+    Pointer {
+        kind: Box<VariableDecl>,
+    },
 }
