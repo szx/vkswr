@@ -253,6 +253,31 @@ pub unsafe extern "C" fn vkCmdBindDescriptorSets(
     );
 }
 
+pub unsafe extern "C" fn vkCmdPushConstants(
+    commandBuffer: VkCommandBuffer,
+    layout: VkPipelineLayout,
+    stageFlags: VkShaderStageFlags,
+    offset: u32,
+    size: u32,
+    pValues: Option<NonNull<std::ffi::c_void>>,
+) {
+    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
+        unreachable!()
+    };
+
+    let Some(pipeline_layout) = PipelineLayout::from_handle(layout) else {
+        unreachable!()
+    };
+
+    let values = pValues.map_or(&[] as &[_], |x| {
+        std::slice::from_raw_parts(x.as_ptr() as *mut u8, size as usize)
+    });
+
+    commandBuffer
+        .lock()
+        .cmd_push_constants(pipeline_layout, stageFlags, offset, values);
+}
+
 pub unsafe extern "C" fn vkCmdBindVertexBuffers(
     commandBuffer: VkCommandBuffer,
     firstBinding: u32,

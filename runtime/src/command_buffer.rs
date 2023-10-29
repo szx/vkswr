@@ -200,6 +200,21 @@ impl CommandBuffer {
         // TODO: Record descriptor sets bindings.
     }
 
+    pub fn cmd_push_constants(
+        &mut self,
+        pipeline: Arc<Mutex<PipelineLayout>>,
+        shader_stage_flags: VkShaderStageFlags,
+        offset: u32,
+        values: &[u8],
+    ) {
+        trace!("CommandBuffer::cmd_push_constants");
+        let _ = pipeline;
+        let _ = shader_stage_flags;
+        let _ = offset;
+        let _ = values;
+        // TODO: Record push constant update.
+    }
+
     pub fn cmd_bind_vertex_buffer(
         &mut self,
         binding: u32,

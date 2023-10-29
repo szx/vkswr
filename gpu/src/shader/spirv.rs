@@ -158,6 +158,7 @@ impl Object {
 #[derive(Debug, Clone)]
 pub(crate) enum Type {
     Void,
+    Bool,
     Function(Vec<ObjectId>),
     Float {
         width: u32,
@@ -165,6 +166,11 @@ pub(crate) enum Type {
     Int {
         width: u32,
         signedness: bool,
+    },
+    Array {
+        element_type: ObjectId,
+        length: ObjectId,
+        decorations: Decorations,
     },
     Vector {
         component_type: ObjectId,
@@ -200,6 +206,9 @@ impl Type {
                 (spirv_::Op::TypeVoid, None, &result_id, &[]) => {
                     data.insert(ObjectId(result_id), Type::Void);
                 }
+                (spirv_::Op::TypeBool, None, &result_id, &[]) => {
+                    data.insert(ObjectId(result_id), Type::Bool);
+                }
                 (spirv_::Op::TypeFunction, None, &result_id, operands) => {
                     data.insert(
                         ObjectId(result_id),
@@ -225,6 +234,21 @@ impl Type {
                         Type::Int {
                             width,
                             signedness: signedness == 1,
+                        },
+                    );
+                }
+                (
+                    spirv_::Op::TypeArray,
+                    None,
+                    &result_id,
+                    &[Operand_::IdRef(element_type), Operand_::IdRef(length)],
+                ) => {
+                    data.insert(
+                        ObjectId(result_id),
+                        Type::Array {
+                            element_type: ObjectId(element_type),
+                            length: ObjectId(length),
+                            decorations: Default::default(),
                         },
                     );
                 }
@@ -315,6 +339,11 @@ impl Type {
                 member_types: _,
                 decorations,
             }) => decorations,
+            Some(Type::Array {
+                element_type: _,
+                length: _,
+                decorations,
+            }) => decorations,
             None => return false,
             _ => unreachable!("{:?}, {:?}", target, type_),
         };
@@ -348,9 +377,11 @@ impl Constant {
             match (opcode, result_type, result_id, operands) {
                 (
                     spirv_::Op::TypeVoid
+                    | spirv_::Op::TypeBool
                     | spirv_::Op::TypeFunction
                     | spirv_::Op::TypeFloat
                     | spirv_::Op::TypeInt
+                    | spirv_::Op::TypeArray
                     | spirv_::Op::TypeVector
                     | spirv_::Op::TypeStruct
                     | spirv_::Op::TypePointer
@@ -413,6 +444,8 @@ pub(crate) enum StorageClass {
     Input,
     Output,
     Function,
+    PushConstant,
+    Uniform,
 }
 
 impl From<spirv_::StorageClass> for StorageClass {
@@ -421,6 +454,8 @@ impl From<spirv_::StorageClass> for StorageClass {
             spirv_::StorageClass::Input => Self::Input,
             spirv_::StorageClass::Output => Self::Output,
             spirv_::StorageClass::Function => Self::Function,
+            spirv_::StorageClass::PushConstant => Self::PushConstant,
+            spirv_::StorageClass::Uniform => Self::Uniform,
             invalid => {
                 unimplemented!("{:#?}", invalid)
             }
@@ -441,9 +476,11 @@ impl Variable {
             match (opcode, result_type, result_id, operands) {
                 (
                     spirv_::Op::TypeVoid
+                    | spirv_::Op::TypeBool
                     | spirv_::Op::TypeFunction
                     | spirv_::Op::TypeFloat
                     | spirv_::Op::TypeInt
+                    | spirv_::Op::TypeArray
                     | spirv_::Op::TypeVector
                     | spirv_::Op::TypeStruct
                     | spirv_::Op::TypePointer
@@ -525,6 +562,10 @@ pub(crate) struct Decorations {
     pub(crate) block: bool,
     pub(crate) location: Option<LocationDecoration>,
     pub(crate) relaxed_precision: bool, // TODO: Implement RelaxedPrecision decoration.
+    pub(crate) byte_offset: Option<u32>, // TODO: Implement Offset decoration for array member type.
+    pub(crate) array_stride: Option<u32>, // TODO: Implement Offset decoration for array type.
+    pub(crate) descriptor_set: Option<u32>, // TODO: Implement DescriptorSet decoration for variable type.
+    pub(crate) binding_point: Option<u32>,  // TODO: Implement Binding decoration for variable type.
 }
 
 impl Decorations {
@@ -541,6 +582,18 @@ impl Decorations {
                 })
             }
             (spirv_::Decoration::RelaxedPrecision, &[]) => self.relaxed_precision = true,
+            (spirv_::Decoration::Offset, &[Operand_::LiteralInt32(byte_offset)]) => {
+                self.byte_offset = Some(byte_offset)
+            }
+            (spirv_::Decoration::ArrayStride, &[Operand_::LiteralInt32(array_stride)]) => {
+                self.array_stride = Some(array_stride)
+            }
+            (spirv_::Decoration::DescriptorSet, &[Operand_::LiteralInt32(descriptor_set)]) => {
+                self.descriptor_set = Some(descriptor_set)
+            }
+            (spirv_::Decoration::Binding, &[Operand_::LiteralInt32(binding_point)]) => {
+                self.binding_point = Some(binding_point)
+            }
             _ => unimplemented!("{:?}, {:?}", value, literals),
         }
     }
@@ -551,6 +604,7 @@ pub(crate) enum BuiltInDecoration {
     Position,
     PointSize,
     VertexIndex,
+    FragCoord,
 }
 
 impl BuiltInDecoration {
@@ -559,6 +613,7 @@ impl BuiltInDecoration {
             Operand_::BuiltIn(spirv_::BuiltIn::Position) => Self::Position,
             Operand_::BuiltIn(spirv_::BuiltIn::PointSize) => Self::PointSize,
             Operand_::BuiltIn(spirv_::BuiltIn::VertexIndex) => Self::VertexIndex,
+            Operand_::BuiltIn(spirv_::BuiltIn::FragCoord) => Self::FragCoord,
             _ => unimplemented!("{operand:?}"),
         }
     }
@@ -730,6 +785,18 @@ pub(crate) enum Instruction {
         vector: ObjectId,
         scalar: ObjectId,
     },
+    IAdd {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    IMul {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
     FSub {
         result_id: ObjectId,
         result_type: ObjectId,
@@ -748,13 +815,61 @@ pub(crate) enum Instruction {
         operand1: ObjectId,
         operand2: ObjectId,
     },
+    UDiv {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
     SMod {
         result_id: ObjectId,
         result_type: ObjectId,
         operand1: ObjectId,
         operand2: ObjectId,
     },
+    UMod {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+
+    BitwiseAnd {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    ShiftRightLogical {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        base: ObjectId,
+        shift: ObjectId,
+    },
+
+    IEqual {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
+    ULessThan {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand1: ObjectId,
+        operand2: ObjectId,
+    },
     ConvertSToF {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand: ObjectId,
+    },
+    ConvertFToU {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        operand: ObjectId,
+    },
+    ConvertUToF {
         result_id: ObjectId,
         result_type: ObjectId,
         operand: ObjectId,
@@ -775,7 +890,30 @@ pub(crate) enum Instruction {
         result_type: ObjectId,
         storage_class: StorageClass,
     },
+    Select {
+        result_id: ObjectId,
+        result_type: ObjectId,
+        condition: ObjectId,
+        object1: ObjectId,
+        object2: ObjectId,
+    },
+    SelectionMerge {
+        merge_block: ObjectId,
+    },
+    LoopMerge {
+        merge_block: ObjectId,
+        continue_target_label: ObjectId,
+    },
+    Branch {
+        target_label: ObjectId,
+    },
+    BranchConditional {
+        condition: ObjectId,
+        true_label: ObjectId,
+        false_label: ObjectId,
+    },
     Return,
+    Kill,
 }
 
 impl Instruction {
@@ -837,6 +975,28 @@ impl Instruction {
                 scalar: ObjectId(*scalar),
             }),
             (
+                spirv_::Op::IAdd,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::IAdd {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::IMul,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::IMul {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
                 spirv_::Op::FSub,
                 &Some(result_type),
                 &Some(result_id),
@@ -870,6 +1030,17 @@ impl Instruction {
                 operand2: ObjectId(*operand2),
             }),
             (
+                spirv_::Op::UDiv,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::UDiv {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
                 spirv_::Op::SMod,
                 &Some(result_type),
                 &Some(result_id),
@@ -881,11 +1052,86 @@ impl Instruction {
                 operand2: ObjectId(*operand2),
             }),
             (
+                spirv_::Op::UMod,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::UMod {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::BitwiseAnd,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::BitwiseAnd {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::ShiftRightLogical,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(base), Operand_::IdRef(shift)],
+            ) => Some(Self::ShiftRightLogical {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                base: ObjectId(*base),
+                shift: ObjectId(*shift),
+            }),
+            (
+                spirv_::Op::IEqual,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::IEqual {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
+                spirv_::Op::ULessThan,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
+            ) => Some(Self::ULessThan {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand1: ObjectId(*operand1),
+                operand2: ObjectId(*operand2),
+            }),
+            (
                 spirv_::Op::ConvertSToF,
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand)],
             ) => Some(Self::ConvertSToF {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand: ObjectId(*operand),
+            }),
+            (
+                spirv_::Op::ConvertFToU,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand)],
+            ) => Some(Self::ConvertFToU {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                operand: ObjectId(*operand),
+            }),
+            (
+                spirv_::Op::ConvertUToF,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(operand)],
+            ) => Some(Self::ConvertUToF {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand: ObjectId(*operand),
@@ -927,10 +1173,54 @@ impl Instruction {
                 result_type: ObjectId(result_type),
                 storage_class: storage_class.into(),
             }),
+            (
+                spirv_::Op::Select,
+                &Some(result_type),
+                &Some(result_id),
+                [Operand_::IdRef(condition), Operand_::IdRef(object1), Operand_::IdRef(object2)],
+            ) => Some(Self::Select {
+                result_id: ObjectId(result_id),
+                result_type: ObjectId(result_type),
+                condition: ObjectId(*condition),
+                object1: ObjectId(*object1),
+                object2: ObjectId(*object2),
+            }),
+            (
+                spirv_::Op::SelectionMerge,
+                None,
+                None,
+                [Operand_::IdRef(merge_block), Operand_::SelectionControl(_selection_control)],
+            ) => Some(Self::SelectionMerge {
+                merge_block: ObjectId(*merge_block),
+            }),
+            (
+                spirv_::Op::LoopMerge,
+                None,
+                None,
+                [Operand_::IdRef(merge_block), Operand_::IdRef(continue_target_label), Operand_::LoopControl(_loop_control), ..],
+            ) => Some(Self::LoopMerge {
+                merge_block: ObjectId(*merge_block),
+                continue_target_label: ObjectId(*continue_target_label),
+            }),
+            (spirv_::Op::Branch, None, None, [Operand_::IdRef(target_label)]) => {
+                Some(Self::Branch {
+                    target_label: ObjectId(*target_label),
+                })
+            }
+            (
+                spirv_::Op::BranchConditional,
+                None,
+                None,
+                [Operand_::IdRef(condition), Operand_::IdRef(true_label), Operand_::IdRef(false_label)],
+            ) => Some(Self::BranchConditional {
+                condition: ObjectId(*condition),
+                true_label: ObjectId(*true_label),
+                false_label: ObjectId(*false_label),
+            }),
             (spirv_::Op::Return, None, None, &[]) => Some(Self::Return),
+            (spirv_::Op::Kill, None, None, &[]) => Some(Self::Kill),
             _ => {
-                error!("{instruction:#?}");
-                None
+                unimplemented!("{instruction:#?}")
             }
         }
     }

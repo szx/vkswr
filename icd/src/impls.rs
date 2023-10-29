@@ -3213,17 +3213,6 @@ pub unsafe extern "C" fn vkCmdSetExtraPrimitiveOverestimationSizeEXT(
     unimplemented!("vkCmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer, extraPrimitiveOverestimationSize")
 }
 
-pub unsafe extern "C" fn vkCmdPushConstants(
-    commandBuffer: VkCommandBuffer,
-    layout: VkPipelineLayout,
-    stageFlags: VkShaderStageFlags,
-    offset: u32,
-    size: u32,
-    pValues: Option<NonNull<std::ffi::c_void>>,
-) {
-    unimplemented!("vkCmdPushConstants(commandBuffer, layout, stageFlags, offset, size, pValues")
-}
-
 pub unsafe extern "C" fn vkCmdDebugMarkerEndEXT(commandBuffer: VkCommandBuffer) {
     unimplemented!("vkCmdDebugMarkerEndEXT(commandBuffer")
 }
