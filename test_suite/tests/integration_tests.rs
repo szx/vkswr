@@ -49,7 +49,7 @@ fn run_executable(
         .env("VK_ICD_FILENAMES", icd_json_path)
         .env("VK_LOADER_DEBUG", "error,warn,debug") // error,warn,info,debug,layer,driver
         //.env("ICD_WAIT_FOR_DEBUGGER", "true")
-        .env("RUST_LOG", "debug");
+        .env("RUST_LOG", "trace");
     let out = if let Some(current_dir) = current_dir {
         out.current_dir(current_dir)
     } else {

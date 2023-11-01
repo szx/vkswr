@@ -41,7 +41,7 @@ impl Shader {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VertexShaderOutput {
     // gl_Position
     pub position: Position,
@@ -97,8 +97,71 @@ impl From<Fragment> for FragmentShaderOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
-    // HIRO glslangValidator
+    fn compile_glsl(stage: &str, glsl_code: &str) -> Vec<u32> {
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+        let glsl_path = temp_dir.join(format!("shader.{stage}"));
+        let spv_path = temp_dir.join(format!("{stage}.spv"));
+        std::fs::write(&*glsl_path, glsl_code).unwrap();
+
+        let mut out = Command::new("glslangValidator");
+        let out = out.args([
+            "-V",
+            &glsl_path.to_string_lossy(),
+            "-o",
+            &spv_path.to_string_lossy(),
+        ]);
+        let out = out.current_dir(&temp_dir);
+        let out = out.output().unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        println!("stdout:\n{}", stdout);
+        assert!(
+            out.status.success(),
+            "Didn't pass: stderr:\n{}",
+            String::from_utf8_lossy(&out.stderr),
+        );
+
+        let spv = std::fs::read(spv_path).unwrap();
+        spv.chunks_exact(4)
+            .map(|x| u32::from_ne_bytes(x.try_into().unwrap()))
+            .collect::<Vec<_>>()
+    }
+
+    #[test]
+    fn vertex_shader_empty() {
+        let spv = compile_glsl(
+            "vert",
+            r#"
+            #version 450
+            void main() {
+            }
+            "#,
+        );
+        let shader = Shader::new("main", spv).unwrap();
+        let mut vertex_input_state = VertexInputState {
+            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
+            bindings: [None; MAX_VERTEX_BINDINGS as usize],
+        };
+        vertex_input_state.attributes[0] = Some(VertexAttribute {
+            location: 0,
+            binding: VertexBindingNumber(0),
+            format: Format::R8G8Unorm,
+            offset: 0,
+        });
+        vertex_input_state.bindings[0] = Some(VertexBinding {
+            number: VertexBindingNumber(0),
+            stride: 0,
+            input_rate: VertexInputRate::Vertex,
+        });
+        let inputs = vec![Vertex {
+            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
+            index: 1,
+        }];
+        let expected = inputs.iter().map(|&x| x.into()).collect::<Vec<_>>();
+        let outputs = shader.il.execute_vertex_shader(&vertex_input_state, inputs);
+        assert_eq!(outputs, expected);
+    }
 
     #[test]
     fn vertex_shader_points() {
