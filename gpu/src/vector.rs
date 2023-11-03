@@ -168,31 +168,33 @@ impl Vector4 {
         self.components[index]
     }
 
-    pub fn to_sfloat32_bytes(
+    pub fn get_as_f32_array(&self) -> [f32; 4] {
+        let x = self.get_as_sfloat32(0);
+        let y = self.get_as_sfloat32(1);
+        let z = self.get_as_sfloat32(2);
+        let w = self.get_as_sfloat32(3);
+        [x, y, z, w]
+    }
+
+    fn to_sfloat32_bytes(
         &self,
         index: impl std::slice::SliceIndex<[u64], Output = u64>,
     ) -> [u8; 4] {
         f32::from_bits(self.components[index] as u32).to_ne_bytes()
     }
 
-    pub fn to_unorm8_byte(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+    fn to_unorm8_byte(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
         let value = f32::from_bits(self.components[index] as u32);
         (value * 255.0f32).round() as u8
     }
 
-    pub fn to_unorm16_bytes(
-        &self,
-        index: impl std::slice::SliceIndex<[u64], Output = u64>,
-    ) -> [u8; 2] {
+    fn to_unorm16_bytes(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 2] {
         let value = f32::from_bits(self.components[index] as u32);
         let value = (value * 65535.0f32).round() as u16;
         value.to_ne_bytes()
     }
 
-    pub fn to_unorm32_bytes(
-        &self,
-        index: impl std::slice::SliceIndex<[u64], Output = u64>,
-    ) -> [u8; 4] {
+    fn to_unorm32_bytes(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 4] {
         let value = f32::from_bits(self.components[index] as u32);
         let value = (value * 4294967295.0f32).round() as u32;
         value.to_ne_bytes()

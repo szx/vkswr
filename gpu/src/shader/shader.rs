@@ -1,4 +1,5 @@
 use crate::shader::il::Il;
+use crate::shader::interpreter::Interpreter;
 use crate::{
     Color, Format, Fragment, Position, Vertex, VertexAttribute, VertexBinding, VertexBindingNumber,
     VertexInputRate, VertexInputState, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS,
@@ -12,22 +13,14 @@ pub struct ShaderState {
 
 #[derive(Debug, Clone)]
 pub struct Shader {
-    pub(crate) il: Il,
+    pub(crate) interpreter: Interpreter,
 }
 
 impl Shader {
     pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
         Some(Self {
-            il: Il::new(name, code)?,
+            interpreter: Interpreter::new(name, code)?,
         })
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            il: Il {
-                instructions: vec![],
-            },
-        }
     }
 }
 
@@ -37,7 +30,8 @@ impl Shader {
         vertex_input_state: &VertexInputState,
         vertices: Vec<Vertex>,
     ) -> Vec<VertexShaderOutput> {
-        self.il.execute_vertex_shader(vertex_input_state, vertices)
+        self.interpreter
+            .execute_vertex_shader(vertex_input_state, vertices)
     }
 }
 
@@ -75,7 +69,7 @@ impl From<Vertex> for VertexShaderOutput {
 
 impl Shader {
     pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
-        self.il.execute_fragment_shader(fragments)
+        self.interpreter.execute_fragment_shader(fragments)
     }
 }
 
@@ -159,7 +153,9 @@ mod tests {
             index: 1,
         }];
         let expected = inputs.iter().map(|&x| x.into()).collect::<Vec<_>>();
-        let outputs = shader.il.execute_vertex_shader(&vertex_input_state, inputs);
+        let outputs = shader
+            .interpreter
+            .execute_vertex_shader(&vertex_input_state, inputs);
         assert_eq!(outputs, expected);
     }
 
@@ -233,7 +229,7 @@ mod tests {
             ),
         ];
 
-        let outputs = shader.il.execute_vertex_shader(&vertex_input_state, inputs);
+        let outputs = shader.execute_vertex_shader(&vertex_input_state, inputs);
 
         let eps = 0.00001f32; // TODO: Use ULP (units in the last place) as defined in Vulkan spec?
         for (output, (position, point_size)) in outputs.iter().zip(references) {

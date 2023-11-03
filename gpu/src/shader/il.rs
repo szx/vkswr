@@ -1,10 +1,5 @@
 use crate::shader::spirv;
-use crate::shader::spirv::{ObjectId, Spirv};
-use crate::{
-    Fragment, FragmentShaderOutput, Position, Vertex, VertexInputState, VertexShaderOutput,
-};
-use hashbrown::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::shader::spirv::Spirv;
 
 #[derive(Debug, Clone)]
 pub struct Il {
@@ -17,237 +12,10 @@ impl Il {
         let instructions = Self::parse_spirv(spirv)?;
         Some(Self { instructions })
     }
-
-    pub fn execute_vertex_shader(
-        &self,
-        vertex_input_state: &VertexInputState,
-        vertices: Vec<Vertex>,
-    ) -> Vec<VertexShaderOutput> {
-        // TODO: Create shader input/output interfaces, check if match between stages.
-        let mut outputs: Vec<VertexShaderOutput> = vec![];
-
-        for vertex in vertices {
-            let mut state = State::new(vertex.into(), Default::default());
-
-            loop {
-                let instruction = &self.instructions[state.pc];
-                let end = self.execute_instruction(instruction, &mut state);
-                if end {
-                    break;
-                }
-            }
-
-            outputs.push(state.vertex_shader_output());
-        }
-        outputs
-    }
-
-    pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
-        let mut outputs: Vec<FragmentShaderOutput> = vec![];
-
-        for fragment in fragments {
-            let mut state = State::new(Default::default(), fragment.into());
-
-            loop {
-                let instruction = &self.instructions[state.pc];
-                let end = self.execute_instruction(instruction, &mut state);
-                if end {
-                    break;
-                }
-            }
-
-            outputs.push(state.fragment_shader_output());
-        }
-        outputs
-    }
-    fn execute_instruction(&self, instruction: &Instruction, state: &mut State) -> bool {
-        match dbg!(instruction) {
-            Instruction::Label { id } => {
-                state.labels.try_insert(*id, state.pc).unwrap();
-            }
-            Instruction::VariableDecl { id, decl } => {
-                state.add_new_variable(*id, decl);
-            }
-            Instruction::StoreImm32 { dst, imm } => {
-                state.store_imm32(dst, &vec![*imm]);
-            }
-            Instruction::StoreImm32Array { dst, imm } => {
-                state.store_imm32(dst, imm);
-            }
-            Instruction::LoadVariableOffset { id, base, offsets } => {
-                state.load_variable_offset(id, base, offsets.clone());
-            }
-            Instruction::LoadVariableImmOffset { id, base, offset } => {
-                state.load_variable_offset_imm(id, base, *offset);
-            }
-            Instruction::StoreVariable { dst_pointer, src } => {
-                state.store_pointer(*dst_pointer, *src);
-            }
-            Instruction::StoreVariableArray { dst, values } => {
-                state.store_array(dst, values);
-            }
-            Instruction::LoadVariable { id, src_pointer } => {
-                state.load_variable(id, src_pointer);
-            }
-            Instruction::MathMulVectorScalar { id, vector, scalar } => {
-                state.binary_op(id, vector, scalar, BinaryOpKind::MulVectorScalar);
-            }
-            Instruction::MathAddI32I32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::AddI32I32);
-            }
-            Instruction::MathMulI32I32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::MulI32I32);
-            }
-            Instruction::MathSubF32F32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::SubF32F32);
-            }
-            Instruction::MathDivF32F32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::DivF32F3);
-            }
-            Instruction::MathDivI32I32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::DivI32I32);
-            }
-            Instruction::MathDivU32U32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::DivU32U32);
-            }
-            Instruction::MathModI32I32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::ModI32I32);
-            }
-            Instruction::MathModU32U32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::ModU32U32);
-            }
-            Instruction::MathBitAnd { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::BitAnd);
-            }
-            Instruction::MathBitShiftRight { id, base, shift } => {
-                state.binary_op(id, base, shift, BinaryOpKind::BitShiftRight);
-            }
-            Instruction::MathEqualI32I32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::EqualI32I32);
-            }
-            Instruction::MathLessThanU32U32 { id, op1, op2 } => {
-                state.binary_op(id, op1, op2, BinaryOpKind::LessThanU32U32);
-            }
-            Instruction::MathConvertI32F32 { id, op } => {
-                state.convert(id, op, ConvertKind::I32F32);
-            }
-            Instruction::MathConvertF32U32 { id, op } => {
-                state.convert(id, op, ConvertKind::F32U32);
-            }
-            Instruction::MathConvertU32F32 { id, op } => {
-                state.convert(id, op, ConvertKind::U32F32);
-            }
-            Instruction::Return => {
-                return true;
-            }
-            Instruction::Select {
-                id,
-                cond,
-                obj1,
-                obj2,
-            } => {
-                todo!()
-            }
-            Instruction::SelectionMerge { .. } => {
-                todo!()
-            }
-            Instruction::LoopMerge { .. } => {
-                todo!()
-            }
-            Instruction::Branch { .. } => {
-                todo!()
-            }
-            Instruction::BranchConditional { .. } => {
-                todo!()
-            }
-            Instruction::Kill => {
-                todo!()
-            }
-        };
-        state.pc += 1;
-        false
-    }
-}
-
-#[derive(Debug, Default)]
-struct State {
-    pc: usize,
-    labels: HashMap<u32, usize>,
-    memory: Vec<u32>,
-}
-
-impl State {
-    fn new(
-        vertex_shader_output: VertexShaderOutput,
-        fragment_shader_output: FragmentShaderOutput,
-    ) -> Self {
-        Self {
-            pc: 0,
-            labels: Default::default(),
-            memory: vec![0_u32; 10000], // HIRO set memory with vertex_shader_output
-        }
-    }
-    fn vertex_shader_output(&self) -> VertexShaderOutput {
-        todo!()
-    }
-
-    fn fragment_shader_output(&self) -> FragmentShaderOutput {
-        todo!()
-    }
-}
-
-impl State {
-    // HIRO move to interpreter.rs
-
-    fn add_new_variable(&self, variable: Variable, decl: &VariableDecl) {
-        todo!()
-    }
-    pub(crate) fn load_variable(&self, id: &Variable, src_pointer: &Variable) {
-        todo!()
-    }
-    pub(crate) fn load_variable_offset(
-        &self,
-        id: &Variable,
-        base: &Variable,
-        offsets: Arc<[Variable]>,
-    ) {
-        todo!()
-    }
-
-    pub(crate) fn load_variable_offset_imm(&self, id: &Variable, base: &Variable, offset: u32) {
-        todo!()
-    }
-
-    fn store(&mut self, dst: Variable, src: Variable) {
-        todo!();
-    }
-    pub(crate) fn store_array(&self, dst_pointer: &Variable, src: &Vec<Variable>) {
-        todo!()
-    }
-    pub(crate) fn store_pointer(&self, dst_pointer: Variable, str: Variable) {
-        todo!()
-    }
-    pub(crate) fn store_imm32(&self, variable: &Variable, imm: &Vec<u32>) {
-        todo!()
-    }
-
-    pub(crate) fn binary_op(
-        &self,
-        id: &Variable,
-        op1: &Variable,
-        op2: &Variable,
-        kind: BinaryOpKind,
-    ) {
-        todo!()
-    }
-
-    pub(crate) fn convert(&self, id: &Variable, op: &Variable, kind: ConvertKind) {
-        todo!()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Variable {
+pub(crate) struct Variable {
     address: u32,
     count: u32,
     stride: u32,
@@ -257,30 +25,6 @@ impl Variable {
     fn from_spirv(spirv_id: u32) -> Self {
         todo!()
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-enum BinaryOpKind {
-    MulVectorScalar,
-    AddI32I32,
-    MulI32I32,
-    SubF32F32,
-    DivF32F3,
-    DivI32I32,
-    DivU32U32,
-    ModI32I32,
-    ModU32U32,
-    BitAnd,
-    BitShiftRight,
-    EqualI32I32,
-    LessThanU32U32,
-}
-
-#[derive(Debug, Copy, Clone)]
-enum ConvertKind {
-    I32F32,
-    F32U32,
-    U32F32,
 }
 
 #[derive(Debug, Clone)]
@@ -303,7 +47,7 @@ pub(crate) enum Instruction {
     LoadVariableOffset {
         id: Variable,
         base: Variable,
-        offsets: Arc<[Variable]>,
+        offsets: Vec<Variable>,
     },
     LoadVariableImmOffset {
         id: Variable,
@@ -444,9 +188,8 @@ impl Il {
                             VariableBacking::Memory,
                         );
                         let id = Variable::from_spirv(id.0);
-                        scalar_variables
-                            .push(crate::shader::il::Instruction::VariableDecl { id, decl });
-                        scalar_variables.push(crate::shader::il::Instruction::StoreImm32 {
+                        scalar_variables.push(Instruction::VariableDecl { id, decl });
+                        scalar_variables.push(Instruction::StoreImm32 {
                             dst: id,
                             imm: *value,
                         });
@@ -462,8 +205,7 @@ impl Il {
                             VariableBacking::Memory,
                         );
                         let id = Variable::from_spirv(id.0);
-                        composite_variables
-                            .push(crate::shader::il::Instruction::VariableDecl { id, decl });
+                        composite_variables.push(Instruction::VariableDecl { id, decl });
                         let values = constituents
                             .iter()
                             .map(|id| match Self::get_spirv_constant(&spirv, id) {
@@ -473,7 +215,7 @@ impl Il {
                                 }
                             })
                             .collect::<Vec<_>>();
-                        composite_variables.push(crate::shader::il::Instruction::StoreImm32Array {
+                        composite_variables.push(Instruction::StoreImm32Array {
                             dst: id,
                             imm: values,
                         });
@@ -1202,7 +944,7 @@ enum VariableBacking {
         array_stride: u32,
     },
     Struct {
-        members: Arc<[VariableDecl]>,
+        members: Vec<VariableDecl>,
     },
     Pointer {
         kind: Box<VariableDecl>,
