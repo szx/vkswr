@@ -1,19 +1,19 @@
 use crate::shader::il;
-use crate::shader::il::Il;
+use crate::shader::il::VariableDecl;
 use crate::{
     Format, Fragment, FragmentShaderOutput, Position, Vector4, Vertex, VertexInputState,
-    VertexShaderOutput,
+    VertexShaderOutput, MAX_CLIP_DISTANCES,
 };
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
-    il: Il,
+    il: il::Il,
 }
 
 impl Interpreter {
     pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
-        let il = Il::new(name, code)?;
+        let il = il::Il::new(name, code)?;
         Some(Self { il })
     }
 }
@@ -75,6 +75,9 @@ struct State {
     pc: usize,
     labels: HashMap<u32, usize>,
     memory: Vec<u8>,
+
+    il_variables: HashMap<il::Variable, Variable>,
+    memory_last_idx: u32,
 }
 
 impl State {
@@ -82,7 +85,10 @@ impl State {
         Self {
             pc: 0,
             labels: Default::default(),
-            memory: vec![0_u8; 10000], // HIRO
+            memory: vec![0_u8; 10000], // TODO: Max memory size.
+
+            il_variables: Default::default(),
+            memory_last_idx: 0,
         }
     }
 
@@ -95,6 +101,12 @@ impl State {
             .copy_from_slice(bytemuck::cast_slice(&[f32::to_bits(1.0f32)]));
         self.memory_mut(self.memory_region_of_built_in(BuiltIn::VertexIndex))
             .copy_from_slice(bytemuck::cast_slice(&[vertex.index]));
+        self.memory_mut(self.memory_region_of_built_in(BuiltIn::ClipDistance))
+            .copy_from_slice(bytemuck::cast_slice(vertex.clip_distances.as_slice()));
+        self.memory_mut(self.memory_region_of_built_in(BuiltIn::CullDistance))
+            .copy_from_slice(bytemuck::cast_slice(&[0.0f32, 0.0f32, 0.0f32, 0.0f32]));
+        let last_builtin = self.memory_region_of_built_in(BuiltIn::CullDistance);
+        self.memory_last_idx = last_builtin.address + last_builtin.size;
     }
 
     fn vertex_shader_output(&self) -> VertexShaderOutput {
@@ -108,10 +120,14 @@ impl State {
         let vertex_index = *bytemuck::from_bytes::<u32>(
             self.memory(self.memory_region_of_built_in(BuiltIn::VertexIndex)),
         );
+        let clip_distances = *bytemuck::from_bytes::<[f32; MAX_CLIP_DISTANCES as usize]>(
+            self.memory(self.memory_region_of_built_in(BuiltIn::ClipDistance)),
+        );
         VertexShaderOutput {
             position,
             point_size,
             vertex_index,
+            clip_distances,
         }
     }
 
@@ -129,12 +145,84 @@ enum BuiltIn {
     Position,
     PointSize,
     VertexIndex,
+    FragCoord,
+    ClipDistance,
+    CullDistance,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MemoryRegion {
-    address: usize,
-    size: usize,
+    address: u32,
+    size: u32,
+    stride: u32,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum Variable {
+    MemoryRegion(MemoryRegion),
+    Struct(Vec<Variable>),
+}
+
+impl Variable {
+    fn size(decl: &VariableDecl) -> u32 {
+        match decl.kind {
+            il::VariableKind::F32 => 4,
+            il::VariableKind::U32 => 4,
+            il::VariableKind::I32 => 4,
+            il::VariableKind::Void => unreachable!(),
+            il::VariableKind::Bool => 1,
+            il::VariableKind::Array => todo!(),
+            il::VariableKind::Struct => todo!(),
+            il::VariableKind::Pointer => todo!(),
+        }
+    }
+
+    fn from_il(decl: &VariableDecl, state: &mut State) -> Self {
+        match &decl.backing {
+            il::VariableBacking::Memory => Self::MemoryRegion(MemoryRegion {
+                address: {
+                    state.memory_last_idx += Self::size(decl) * decl.component_count;
+                    state.memory_last_idx
+                },
+                size: Self::size(decl) * decl.component_count,
+                stride: Self::size(decl),
+            }),
+            il::VariableBacking::Location { .. } => todo!(),
+            il::VariableBacking::Position => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::Position))
+            }
+            il::VariableBacking::PointSize => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::PointSize))
+            }
+            il::VariableBacking::VertexIndex => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::VertexIndex))
+            }
+            il::VariableBacking::FragCoord => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::FragCoord))
+            }
+            il::VariableBacking::ClipDistance => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::ClipDistance))
+            }
+            il::VariableBacking::CullDistance => {
+                Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::CullDistance))
+            }
+            il::VariableBacking::Array {
+                element_kind,
+                array_stride,
+            } => {
+                let variable = Self::from_il(element_kind, state);
+                let element_size = Self::size(element_kind);
+                let array_size = element_size * decl.component_count;
+                let memory_region = state.unwrap_variable(&variable, &[]);
+                assert!(memory_region.size >= array_size); // TODO: Extend memory region to at least decl.component_count
+                Self::MemoryRegion(memory_region)
+            }
+            il::VariableBacking::Struct { members } => {
+                Self::Struct(members.iter().map(|x| Self::from_il(x, state)).collect())
+            }
+            il::VariableBacking::Pointer { kind } => Self::from_il(kind, state),
+        }
+    }
 }
 
 impl State {
@@ -142,48 +230,125 @@ impl State {
         match built_in {
             BuiltIn::Position => MemoryRegion {
                 address: 0,
-                size: std::mem::size_of::<f32>() * 4,
+                size: std::mem::size_of::<f32>() as u32 * 4,
+                stride: std::mem::size_of::<f32>() as u32,
             },
             BuiltIn::PointSize => {
                 let prev = self.memory_region_of_built_in(BuiltIn::Position);
                 MemoryRegion {
                     address: prev.address + prev.size,
-                    size: std::mem::size_of::<f32>(),
+                    size: std::mem::size_of::<f32>() as u32,
+                    stride: std::mem::size_of::<f32>() as u32,
                 }
             }
             BuiltIn::VertexIndex => {
                 let prev = self.memory_region_of_built_in(BuiltIn::PointSize);
                 MemoryRegion {
                     address: prev.address + prev.size,
-                    size: std::mem::size_of::<u32>(),
+                    size: std::mem::size_of::<u32>() as u32,
+                    stride: std::mem::size_of::<u32>() as u32,
+                }
+            }
+            BuiltIn::FragCoord => {
+                let prev = self.memory_region_of_built_in(BuiltIn::VertexIndex);
+                MemoryRegion {
+                    address: prev.address + prev.size,
+                    size: std::mem::size_of::<u32>() as u32,
+                    stride: std::mem::size_of::<u32>() as u32,
+                }
+            }
+            BuiltIn::ClipDistance => {
+                let prev = self.memory_region_of_built_in(BuiltIn::FragCoord);
+                let max_clip_distances = 4; // TODO: Use maxClipDistances limit.
+                MemoryRegion {
+                    address: prev.address + prev.size,
+                    size: std::mem::size_of::<f32>() as u32 * max_clip_distances,
+                    stride: std::mem::size_of::<f32>() as u32,
+                }
+            }
+            BuiltIn::CullDistance => {
+                let prev = self.memory_region_of_built_in(BuiltIn::ClipDistance);
+                let max_cull_distances = 4; // TODO: Use maxCullDistances limit.
+                MemoryRegion {
+                    address: prev.address + prev.size,
+                    size: std::mem::size_of::<f32>() as u32 * max_cull_distances,
+                    stride: std::mem::size_of::<f32>() as u32,
                 }
             }
         }
     }
 
     fn memory(&self, memory_region: MemoryRegion) -> &[u8] {
-        &self.memory[memory_region.address..memory_region.address + memory_region.size]
+        &self.memory[memory_region.address as usize
+            ..memory_region.address as usize + memory_region.size as usize]
     }
 
     fn memory_mut(&mut self, memory_region: MemoryRegion) -> &mut [u8] {
-        &mut self.memory[memory_region.address..memory_region.address + memory_region.size]
+        &mut self.memory[memory_region.address as usize
+            ..memory_region.address as usize + memory_region.size as usize]
+    }
+
+    fn copy_memory_region(&mut self, dst: MemoryRegion, src: MemoryRegion) {
+        let size = src.size.min(dst.size) as usize;
+        self.memory.copy_within(
+            src.address as usize..src.address as usize + size,
+            dst.address as usize,
+        );
+    }
+
+    fn get_memory_region(&self, variable: &il::Variable, offsets: &[u32]) -> MemoryRegion {
+        let variable = self.il_variables.get(variable).unwrap();
+        self.unwrap_variable(variable, offsets)
+    }
+
+    fn unwrap_variable(&self, variable: &Variable, offsets: &[u32]) -> MemoryRegion {
+        match variable {
+            Variable::MemoryRegion(inner) => {
+                if let &[] = offsets {
+                    *inner
+                } else if let &[offset] = offsets {
+                    MemoryRegion {
+                        address: inner.address + offset * inner.stride,
+                        size: inner.size - offset * inner.stride,
+                        stride: inner.stride,
+                    }
+                } else {
+                    unreachable!()
+                }
+            }
+            Variable::Struct(inner) => {
+                self.unwrap_variable(&inner[offsets[0] as usize], &offsets[1..])
+            }
+        }
     }
 }
 
 impl State {
-    fn add_new_variable(&self, variable: il::Variable, decl: &il::VariableDecl) {
-        todo!()
+    fn add_new_variable(&mut self, il_variable: il::Variable, decl: &il::VariableDecl) {
+        if !self.il_variables.contains_key(&il_variable) {
+            let variable = Variable::from_il(decl, self);
+            self.il_variables.insert(il_variable, variable);
+        } else {
+            unreachable!()
+        }
     }
     pub(crate) fn load_variable(&self, id: &il::Variable, src_pointer: &il::Variable) {
         todo!()
     }
-    pub(crate) fn load_variable_offset(
-        &self,
+    pub(crate) fn load_pointer_offset(
+        &mut self,
         id: &il::Variable,
         base: &il::Variable,
         offsets: Vec<il::Variable>,
     ) {
-        todo!()
+        let id = self.get_memory_region(id, &[]);
+        let offsets = offsets
+            .iter()
+            .map(|x| *bytemuck::from_bytes::<u32>(self.memory(self.get_memory_region(x, &[]))))
+            .collect::<Vec<_>>();
+
+        let src = self.get_memory_region(base, &offsets).address;
+        self.store_imm32(id, &[src]);
     }
 
     pub(crate) fn load_variable_offset_imm(
@@ -202,11 +367,29 @@ impl State {
     pub(crate) fn store_array(&self, dst_pointer: &il::Variable, src: &Vec<il::Variable>) {
         todo!()
     }
-    pub(crate) fn store_pointer(&self, dst_pointer: il::Variable, str: il::Variable) {
-        todo!()
+    pub(crate) fn store_through_pointer(&mut self, dst_pointer: il::Variable, src: il::Variable) {
+        let dst_pointer = self.get_memory_region(&dst_pointer, &[]);
+        let src = self.get_memory_region(&src, &[]);
+        dbg!(&self.memory(dst_pointer));
+        let dst_pointer =
+            *bytemuck::from_bytes::<u32>(&self.memory(dst_pointer)[..std::mem::size_of::<u32>()]);
+        let dst = MemoryRegion {
+            address: dst_pointer,
+            size: src.size,
+            stride: src.stride,
+        };
+
+        dbg!(self.memory(dst));
+        dbg!(self.memory(src));
+        self.copy_memory_region(dst, src);
+        dbg!(self.memory(dst));
     }
-    pub(crate) fn store_imm32(&self, variable: &il::Variable, imm: &Vec<u32>) {
-        todo!()
+    pub(crate) fn store_imm32(&mut self, variable: MemoryRegion, imm: &[u32]) {
+        // TODO: Use variable stride.
+        for i in 0..imm.len() {
+            self.memory[variable.address as usize + 4 * i..variable.address as usize + 4 * (i + 1)]
+                .copy_from_slice(&imm[i].to_ne_bytes());
+        }
     }
 }
 
@@ -260,19 +443,21 @@ impl State {
                 self.add_new_variable(*id, decl);
             }
             il::Instruction::StoreImm32 { dst, imm } => {
+                let dst = self.get_memory_region(dst, &[]);
                 self.store_imm32(dst, &vec![*imm]);
             }
             il::Instruction::StoreImm32Array { dst, imm } => {
+                let dst = self.get_memory_region(dst, &[]);
                 self.store_imm32(dst, imm);
             }
             il::Instruction::LoadVariableOffset { id, base, offsets } => {
-                self.load_variable_offset(id, base, offsets.clone());
+                self.load_pointer_offset(id, base, offsets.clone());
             }
             il::Instruction::LoadVariableImmOffset { id, base, offset } => {
                 self.load_variable_offset_imm(id, base, *offset);
             }
             il::Instruction::StoreVariable { dst_pointer, src } => {
-                self.store_pointer(*dst_pointer, *src);
+                self.store_through_pointer(*dst_pointer, *src);
             }
             il::Instruction::StoreVariableArray { dst, values } => {
                 self.store_array(dst, values);

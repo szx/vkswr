@@ -14,16 +14,14 @@ impl Il {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Variable {
-    address: u32,
-    count: u32,
-    stride: u32,
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+pub(crate) enum Variable {
+    ObjectId(u32),
 }
 
 impl Variable {
-    fn from_spirv(spirv_id: u32) -> Self {
-        todo!()
+    fn from_spirv(id: &spirv::ObjectId) -> Self {
+        Self::ObjectId(id.0)
     }
 }
 
@@ -181,13 +179,8 @@ impl Il {
                 spirv::Object::Type(_) => continue,
                 spirv::Object::Constant(constant) => match constant {
                     spirv::Constant::Scalar { type_, value } => {
-                        let decl = Self::get_variable_decl(
-                            &spirv,
-                            type_,
-                            VariableStorage::Constant,
-                            VariableBacking::Memory,
-                        );
-                        let id = Variable::from_spirv(id.0);
+                        let decl = Self::get_variable_decl(&spirv, type_, VariableBacking::Memory);
+                        let id = Variable::from_spirv(id);
                         scalar_variables.push(Instruction::VariableDecl { id, decl });
                         scalar_variables.push(Instruction::StoreImm32 {
                             dst: id,
@@ -198,13 +191,8 @@ impl Il {
                         type_,
                         constituents,
                     } => {
-                        let decl = Self::get_variable_decl(
-                            &spirv,
-                            type_,
-                            VariableStorage::Constant,
-                            VariableBacking::Memory,
-                        );
-                        let id = Variable::from_spirv(id.0);
+                        let decl = Self::get_variable_decl(&spirv, type_, VariableBacking::Memory);
+                        let id = Variable::from_spirv(id);
                         composite_variables.push(Instruction::VariableDecl { id, decl });
                         let values = constituents
                             .iter()
@@ -227,10 +215,9 @@ impl Il {
                     let decl = Self::get_variable_decl(
                         &spirv,
                         &memory_object.type_,
-                        Self::from_spirv_storage_class(&memory_object.storage_class),
                         Self::from_spirv_decorations(&memory_object.decorations),
                     );
-                    let id = Variable::from_spirv(id.0);
+                    let id = Variable::from_spirv(id);
                     pointer_variables.push(Instruction::VariableDecl { id, decl });
                 }
             }
@@ -253,24 +240,20 @@ impl Il {
                     base,
                     indexes,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::LoadVariableOffset {
                         id,
-                        base: Variable::from_spirv(base.0),
-                        offsets: indexes.iter().map(|x| Variable::from_spirv(x.0)).collect(),
+                        base: Variable::from_spirv(base),
+                        offsets: indexes.iter().map(|x| Variable::from_spirv(x)).collect(),
                     });
                 }
                 spirv::Instruction::Store { pointer, object } => {
                     instructions.push(Instruction::StoreVariable {
-                        dst_pointer: Variable::from_spirv(pointer.0),
-                        src: Variable::from_spirv(object.0),
+                        dst_pointer: Variable::from_spirv(pointer),
+                        src: Variable::from_spirv(object),
                     });
                 }
                 spirv::Instruction::Load {
@@ -278,17 +261,13 @@ impl Il {
                     result_type,
                     pointer,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::LoadVariable {
                         id,
-                        src_pointer: Variable::from_spirv(pointer.0),
+                        src_pointer: Variable::from_spirv(pointer),
                     });
                 }
                 spirv::Instruction::VectorTimesScalar {
@@ -297,18 +276,14 @@ impl Il {
                     vector,
                     scalar,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathMulVectorScalar {
                         id,
-                        vector: Variable::from_spirv(vector.0),
-                        scalar: Variable::from_spirv(scalar.0),
+                        vector: Variable::from_spirv(vector),
+                        scalar: Variable::from_spirv(scalar),
                     });
                 }
                 spirv::Instruction::IAdd {
@@ -317,18 +292,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathAddI32I32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::IMul {
@@ -337,18 +308,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathMulI32I32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::FSub {
@@ -357,18 +324,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathSubF32F32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::FDiv {
@@ -377,18 +340,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathDivF32F32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::SDiv {
@@ -397,18 +356,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathDivI32I32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::UDiv {
@@ -417,18 +372,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathDivU32U32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::SMod {
@@ -437,18 +388,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathModI32I32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::UMod {
@@ -457,18 +404,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathModU32U32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::BitwiseAnd {
@@ -477,18 +420,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathBitAnd {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::ShiftRightLogical {
@@ -497,18 +436,14 @@ impl Il {
                     base,
                     shift,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathBitShiftRight {
                         id,
-                        base: Variable::from_spirv(base.0),
-                        shift: Variable::from_spirv(shift.0),
+                        base: Variable::from_spirv(base),
+                        shift: Variable::from_spirv(shift),
                     });
                 }
                 spirv::Instruction::IEqual {
@@ -517,18 +452,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathEqualI32I32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
 
@@ -538,18 +469,14 @@ impl Il {
                     operand1,
                     operand2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathLessThanU32U32 {
                         id,
-                        op1: Variable::from_spirv(operand1.0),
-                        op2: Variable::from_spirv(operand2.0),
+                        op1: Variable::from_spirv(operand1),
+                        op2: Variable::from_spirv(operand2),
                     });
                 }
                 spirv::Instruction::ConvertSToF {
@@ -557,17 +484,13 @@ impl Il {
                     result_type,
                     operand,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathConvertI32F32 {
                         id,
-                        op: Variable::from_spirv(operand.0),
+                        op: Variable::from_spirv(operand),
                     });
                 }
                 spirv::Instruction::ConvertFToU {
@@ -575,17 +498,13 @@ impl Il {
                     result_type,
                     operand,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathConvertF32U32 {
                         id,
-                        op: Variable::from_spirv(operand.0),
+                        op: Variable::from_spirv(operand),
                     });
                 }
                 spirv::Instruction::ConvertUToF {
@@ -593,17 +512,13 @@ impl Il {
                     result_type,
                     operand,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::MathConvertU32F32 {
                         id,
-                        op: Variable::from_spirv(operand.0),
+                        op: Variable::from_spirv(operand),
                     });
                 }
                 spirv::Instruction::CompositeExtract {
@@ -612,18 +527,14 @@ impl Il {
                     composite,
                     indexes,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     if let [offset] = indexes.as_slice() {
                         instructions.push(Instruction::VariableDecl { id, decl });
                         instructions.push(Instruction::LoadVariableImmOffset {
                             id,
-                            base: Variable::from_spirv(composite.0),
+                            base: Variable::from_spirv(composite),
                             offset: *offset,
                         });
                     } else {
@@ -635,17 +546,13 @@ impl Il {
                     result_type,
                     constituents,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     let values = constituents
                         .iter()
-                        .map(|id| Variable::from_spirv(id.0))
+                        .map(|id| Variable::from_spirv(id))
                         .collect::<Vec<_>>();
                     instructions.push(Instruction::StoreVariableArray { dst: id, values });
                 }
@@ -654,13 +561,9 @@ impl Il {
                     result_type,
                     storage_class,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        &result_type,
-                        Self::from_spirv_storage_class(storage_class),
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, &result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                 }
                 spirv::Instruction::Select {
@@ -670,19 +573,15 @@ impl Il {
                     object1,
                     object2,
                 } => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        result_type,
-                        VariableStorage::Variable,
-                        VariableBacking::Memory,
-                    );
-                    let id = Variable::from_spirv(result_id.0);
+                    let decl =
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
+                    let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                     instructions.push(Instruction::Select {
                         id,
-                        cond: Variable::from_spirv(condition.0),
-                        obj1: Variable::from_spirv(object1.0),
-                        obj2: Variable::from_spirv(object2.0),
+                        cond: Variable::from_spirv(condition),
+                        obj1: Variable::from_spirv(object1),
+                        obj2: Variable::from_spirv(object2),
                     });
                 }
                 spirv::Instruction::SelectionMerge { merge_block } => {
@@ -710,7 +609,7 @@ impl Il {
                     false_label,
                 } => {
                     instructions.push(Instruction::BranchConditional {
-                        condition: Variable::from_spirv(condition.0),
+                        condition: Variable::from_spirv(condition),
                         true_label: true_label.0,
                         false_label: false_label.0,
                     });
@@ -747,16 +646,6 @@ impl Il {
         }
     }
 
-    fn from_spirv_storage_class(value: &spirv::StorageClass) -> VariableStorage {
-        match value {
-            spirv::StorageClass::Input => VariableStorage::Input,
-            spirv::StorageClass::Output => VariableStorage::Output,
-            spirv::StorageClass::Function => VariableStorage::FunctionMemory,
-            spirv::StorageClass::PushConstant => VariableStorage::PushConstant,
-            spirv::StorageClass::Uniform => VariableStorage::Uniform,
-        }
-    }
-
     fn from_spirv_decorations(decorations: &spirv::Decorations) -> VariableBacking {
         if let Some(builtin) = decorations.builtin {
             match builtin {
@@ -764,6 +653,8 @@ impl Il {
                 spirv::BuiltInDecoration::PointSize => VariableBacking::PointSize,
                 spirv::BuiltInDecoration::VertexIndex => VariableBacking::VertexIndex,
                 spirv::BuiltInDecoration::FragCoord => VariableBacking::FragCoord,
+                spirv::BuiltInDecoration::ClipDistance => VariableBacking::ClipDistance,
+                spirv::BuiltInDecoration::CullDistance => VariableBacking::CullDistance,
             }
         } else if let Some(location) = decorations.location {
             VariableBacking::Location {
@@ -777,24 +668,23 @@ impl Il {
     fn get_variable_decl(
         spirv: &Spirv,
         type_id: &spirv::ObjectId,
-        storage: VariableStorage,
         backing: VariableBacking,
     ) -> VariableDecl {
-        let (kind, component_count, storage, backing) = match Self::get_spirv_type(spirv, type_id) {
+        let (kind, component_count, backing) = match Self::get_spirv_type(spirv, type_id) {
             spirv::Type::Float { width } => {
                 assert_eq!(*width, 32);
-                (VariableKind::F32, 1, storage, backing)
+                (VariableKind::F32, 1, backing)
             }
             spirv::Type::Int { width, signedness } => {
                 assert_eq!(*width, 32);
                 if !signedness {
-                    (VariableKind::U32, 1, storage, backing)
+                    (VariableKind::U32, 1, backing)
                 } else {
-                    (VariableKind::I32, 1, storage, backing)
+                    (VariableKind::I32, 1, backing)
                 }
             }
-            spirv::Type::Void => (VariableKind::Void, 0, storage, backing),
-            spirv::Type::Bool => (VariableKind::Bool, 1, storage, backing),
+            spirv::Type::Void => (VariableKind::Void, 0, backing),
+            spirv::Type::Bool => (VariableKind::Bool, 1, backing),
             spirv::Type::Function(_) => {
                 unimplemented!()
             }
@@ -803,19 +693,20 @@ impl Il {
                 length,
                 decorations,
             } => {
-                let element_type = Self::get_variable_decl(spirv, element_type, storage, backing);
+                let element_type = Self::get_variable_decl(spirv, element_type, backing);
                 let &spirv::Constant::Scalar { type_: _, value } =
                     Self::get_spirv_constant(spirv, length)
                 else {
                     unreachable!()
                 };
-                let Some(array_stride) = decorations.array_stride else {
-                    unreachable!()
+                let array_stride = match decorations.array_stride {
+                    None if value == 1 => std::mem::size_of::<u32>() as u32,
+                    Some(inner) => inner,
+                    None => 0,
                 };
                 (
-                    VariableKind::Struct,
+                    VariableKind::Array,
                     value,
-                    storage,
                     VariableBacking::Array {
                         element_kind: Box::new(element_type),
                         array_stride,
@@ -826,13 +717,11 @@ impl Il {
                 component_type,
                 component_count,
             } => {
-                let component_type =
-                    Self::get_variable_decl(spirv, component_type, storage, backing);
+                let component_type = Self::get_variable_decl(spirv, component_type, backing);
                 if component_type.component_count == 1 {
                     (
                         component_type.kind,
                         *component_count,
-                        component_type.storage,
                         component_type.backing,
                     )
                 } else {
@@ -849,7 +738,6 @@ impl Il {
                         Self::get_variable_decl(
                             spirv,
                             type_,
-                            storage,
                             Self::from_spirv_decorations(decorations),
                         )
                     })
@@ -858,7 +746,6 @@ impl Il {
                 (
                     VariableKind::Struct,
                     member_types.len() as u32,
-                    storage,
                     VariableBacking::Struct { members },
                 )
             }
@@ -866,16 +753,10 @@ impl Il {
                 storage_class,
                 type_,
             } => {
-                let type_ = Self::get_variable_decl(
-                    spirv,
-                    type_,
-                    Self::from_spirv_storage_class(storage_class),
-                    backing,
-                );
+                let type_ = Self::get_variable_decl(spirv, type_, backing);
                 (
                     VariableKind::Pointer,
                     1,
-                    storage,
                     VariableBacking::Pointer {
                         kind: Box::new(type_),
                     },
@@ -886,7 +767,6 @@ impl Il {
         VariableDecl {
             kind,
             component_count,
-            storage,
             backing,
         }
     }
@@ -900,14 +780,13 @@ impl From<&VariableDecl> for Variable {
 
 #[derive(Debug, Clone)]
 pub(crate) struct VariableDecl {
-    kind: VariableKind,
-    component_count: u32,
-    storage: VariableStorage,
-    backing: VariableBacking,
+    pub(crate) kind: VariableKind,
+    pub(crate) component_count: u32,
+    pub(crate) backing: VariableBacking,
 }
 
 #[derive(Debug, Copy, Clone)]
-enum VariableKind {
+pub(crate) enum VariableKind {
     F32,
     U32,
     I32,
@@ -918,20 +797,9 @@ enum VariableKind {
     Pointer,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum VariableStorage {
-    Constant,
-    Variable,
-    Input,
-    Output,
-    FunctionMemory,
-    PushConstant,
-    Uniform,
-}
-
 #[derive(Debug, Clone)]
-enum VariableBacking {
-    Memory, // TODO: Fold in VariableStorage?
+pub(crate) enum VariableBacking {
+    Memory,
     Location {
         number: u32,
     },
@@ -939,6 +807,8 @@ enum VariableBacking {
     PointSize,
     VertexIndex,
     FragCoord,
+    ClipDistance,
+    CullDistance,
     Array {
         element_kind: Box<VariableDecl>,
         array_stride: u32,

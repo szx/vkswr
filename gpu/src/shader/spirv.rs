@@ -605,6 +605,8 @@ pub(crate) enum BuiltInDecoration {
     PointSize,
     VertexIndex,
     FragCoord,
+    ClipDistance,
+    CullDistance,
 }
 
 impl BuiltInDecoration {
@@ -614,6 +616,8 @@ impl BuiltInDecoration {
             Operand_::BuiltIn(spirv_::BuiltIn::PointSize) => Self::PointSize,
             Operand_::BuiltIn(spirv_::BuiltIn::VertexIndex) => Self::VertexIndex,
             Operand_::BuiltIn(spirv_::BuiltIn::FragCoord) => Self::FragCoord,
+            Operand_::BuiltIn(spirv_::BuiltIn::ClipDistance) => Self::ClipDistance,
+            Operand_::BuiltIn(spirv_::BuiltIn::CullDistance) => Self::CullDistance,
             _ => unimplemented!("{operand:?}"),
         }
     }

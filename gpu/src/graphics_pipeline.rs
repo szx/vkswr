@@ -201,7 +201,9 @@ impl GraphicsPipeline {
                 );
                 Vertex {
                     position: Position::from_sfloat32_raw(x_screen, y_screen, z_screen, 1.0),
+                    point_size: 1.0f32,
                     index: vertex_shader_output.vertex_index,
+                    clip_distances: [0.0f32, 0.0f32, 0.0f32, 0.0f32],
                 }
             })
             .collect::<Vec<_>>();
@@ -298,7 +300,9 @@ impl GraphicsPipeline {
             return (first_vertex..vertex_count)
                 .map(|index| Vertex {
                     position: Default::default(),
+                    point_size: 1.0f32,
                     index,
+                    clip_distances: Default::default(),
                 })
                 .collect();
         }
@@ -346,7 +350,9 @@ impl GraphicsPipeline {
             .take(vertex_count as usize)
             .map(|element| Vertex {
                 position: Position::from_vertex_buffer_bytes(element_format, element),
+                point_size: 1.0f32,
                 index: 0,
+                clip_distances: Default::default(),
             })
             .collect();
         vertices
@@ -385,7 +391,9 @@ impl GraphicsPipeline {
                         as u32;
                 vertices.push(Vertex {
                     position: Default::default(),
+                    point_size: 1.0f32,
                     index,
+                    clip_distances: Default::default(),
                 });
             }
             vertices

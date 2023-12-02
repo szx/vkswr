@@ -326,7 +326,9 @@ pub type Position = Vector4;
 #[derive(Debug, Copy, Clone)]
 pub struct Vertex {
     pub position: Position,
+    pub point_size: f32,
     pub index: u32,
+    pub clip_distances: [f32; crate::MAX_CLIP_DISTANCES as usize],
 }
 
 #[derive(Debug, Copy, Clone)]

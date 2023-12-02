@@ -1,8 +1,8 @@
-use crate::shader::il::Il;
 use crate::shader::interpreter::Interpreter;
 use crate::{
     Color, Format, Fragment, Position, Vertex, VertexAttribute, VertexBinding, VertexBindingNumber,
-    VertexInputRate, VertexInputState, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS,
+    VertexInputRate, VertexInputState, MAX_CLIP_DISTANCES, MAX_VERTEX_ATTRIBUTES,
+    MAX_VERTEX_BINDINGS,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -43,6 +43,8 @@ pub struct VertexShaderOutput {
     pub point_size: f32,
     // gl_VertexIndex
     pub vertex_index: u32,
+    // gl_ClipDistances
+    pub clip_distances: [f32; MAX_CLIP_DISTANCES as usize],
     // TODO: Determine shader output interface using OpEntryPoints and use it to initialize ShaderOutput
     //       https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces
 }
@@ -53,6 +55,7 @@ impl Default for VertexShaderOutput {
             position: Position::from_sfloat32_raw(0.0, 0.0, 0.0, 0.0),
             point_size: 1.0,
             vertex_index: 0,
+            clip_distances: [0.0f32, 0.0f32, 0.0f32, 0.0f32],
         }
     }
 }
@@ -61,8 +64,9 @@ impl From<Vertex> for VertexShaderOutput {
     fn from(vertex: Vertex) -> Self {
         Self {
             position: vertex.position,
+            point_size: vertex.point_size,
             vertex_index: vertex.index,
-            ..Default::default()
+            clip_distances: vertex.clip_distances,
         }
     }
 }
@@ -123,6 +127,56 @@ mod tests {
     }
 
     #[test]
+    fn vertex_shader_set_output() {
+        let spv = compile_glsl(
+            "vert",
+            r#"
+            #version 450
+            void main() {
+                gl_Position = vec4(1,2,3,4);
+                gl_ClipDistance[0] = 0.5f;
+                gl_ClipDistance[2] = 0.9f;
+            }
+            "#,
+        );
+        let shader = Shader::new("main", spv).unwrap();
+        let mut vertex_input_state = VertexInputState {
+            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
+            bindings: [None; MAX_VERTEX_BINDINGS as usize],
+        };
+        vertex_input_state.attributes[0] = Some(VertexAttribute {
+            location: 0,
+            binding: VertexBindingNumber(0),
+            format: Format::R8G8Unorm,
+            offset: 0,
+        });
+        vertex_input_state.bindings[0] = Some(VertexBinding {
+            number: VertexBindingNumber(0),
+            stride: 0,
+            input_rate: VertexInputRate::Vertex,
+        });
+        let inputs = vec![Vertex {
+            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
+            point_size: 1.0f32,
+            index: 1,
+            clip_distances: [0.8f32, 0.4f32, 0.2f32, 0.1f32],
+        }];
+        let expected = inputs
+            .iter()
+            .map(|&x| VertexShaderOutput {
+                position: Position::from_sfloat32_raw(1.0, 2.0, 3.0, 4.0),
+                clip_distances: [0.5f32, 0.4f32, 0.9f32, 0.1f32],
+                ..x.into()
+            })
+            .collect::<Vec<_>>();
+        let outputs = shader
+            .interpreter
+            .execute_vertex_shader(&vertex_input_state, inputs);
+        dbg!(&outputs);
+        assert_eq!(outputs, expected);
+    }
+
+    #[test]
     fn vertex_shader_empty() {
         let spv = compile_glsl(
             "vert",
@@ -150,7 +204,9 @@ mod tests {
         });
         let inputs = vec![Vertex {
             position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
+            point_size: 1.0f32,
             index: 1,
+            clip_distances: [0.0f32, 0.0f32, 0.0f32, 0.0f32],
         }];
         let expected = inputs.iter().map(|&x| x.into()).collect::<Vec<_>>();
         let outputs = shader
@@ -201,15 +257,21 @@ mod tests {
         let inputs = vec![
             Vertex {
                 position: Position::from_raw(101, 228, 0, 0).to_unorm8(),
+                point_size: 1.0f32,
                 index: 0,
+                clip_distances: Default::default(),
             },
             Vertex {
                 position: Position::from_raw(161, 201, 0, 0).to_unorm8(),
+                point_size: 1.0f32,
                 index: 0,
+                clip_distances: Default::default(),
             },
             Vertex {
                 position: Position::from_raw(243, 120, 0, 0).to_unorm8(),
+                point_size: 1.0f32,
                 index: 0,
+                clip_distances: Default::default(),
             },
         ];
 
