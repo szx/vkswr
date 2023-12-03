@@ -1,8 +1,8 @@
 use crate::shader::il;
 use crate::shader::il::VariableDecl;
 use crate::{
-    Format, Fragment, FragmentShaderOutput, Position, Vector4, Vertex, VertexInputState,
-    VertexShaderOutput, MAX_CLIP_DISTANCES,
+    Format, Fragment, FragmentShaderOutput, Position, Vector4, Vertex, VertexAttribute,
+    VertexInputState, VertexShaderOutput, MAX_CLIP_DISTANCES,
 };
 use hashbrown::HashMap;
 
@@ -25,7 +25,10 @@ impl Interpreter {
         vertices: Vec<Vertex>,
     ) -> Vec<VertexShaderOutput> {
         // TODO: Create shader input/output interfaces, check if match between stages.
-        let vertex_format = vertex_input_state.attributes[0].unwrap().format;
+        let vertex_format = match vertex_input_state.attributes[0] {
+            None => return vec![],
+            Some(attribute) => attribute.format,
+        };
 
         let mut outputs: Vec<VertexShaderOutput> = vec![];
 
@@ -105,8 +108,12 @@ impl State {
             .copy_from_slice(bytemuck::cast_slice(vertex.clip_distances.as_slice()));
         self.memory_mut(self.memory_region_of_built_in(BuiltIn::CullDistance))
             .copy_from_slice(bytemuck::cast_slice(&[0.0f32, 0.0f32, 0.0f32, 0.0f32]));
-        let last_builtin = self.memory_region_of_built_in(BuiltIn::CullDistance);
-        self.memory_last_idx = last_builtin.address + last_builtin.size;
+        self.memory_mut(self.memory_region_of_location(0))
+            .copy_from_slice(bytemuck::cast_slice(
+                vertex.position.get_as_f32_array().as_slice(),
+            )); // HIRO use vertex bindings and vertex attributes, use format?
+        let last_location = self.memory_region_of_location(0);
+        self.memory_last_idx = last_location.address + last_location.size;
     }
 
     fn vertex_shader_output(&self) -> VertexShaderOutput {
@@ -187,7 +194,9 @@ impl Variable {
                 size: Self::size(decl) * decl.component_count,
                 stride: Self::size(decl),
             }),
-            il::VariableBacking::Location { .. } => todo!(),
+            il::VariableBacking::Location { number } => {
+                Self::MemoryRegion(state.memory_region_of_location(*number))
+            }
             il::VariableBacking::Position => {
                 Self::MemoryRegion(state.memory_region_of_built_in(BuiltIn::Position))
             }
@@ -220,7 +229,14 @@ impl Variable {
             il::VariableBacking::Struct { members } => {
                 Self::Struct(members.iter().map(|x| Self::from_il(x, state)).collect())
             }
-            il::VariableBacking::Pointer { kind } => Self::from_il(kind, state),
+            il::VariableBacking::Pointer { kind } => Self::MemoryRegion(MemoryRegion {
+                address: {
+                    state.memory_last_idx += std::mem::size_of::<u32>() as u32;
+                    state.memory_last_idx
+                },
+                size: std::mem::size_of::<u32>() as u32,
+                stride: std::mem::size_of::<u32>() as u32,
+            }),
         }
     }
 }
@@ -278,6 +294,19 @@ impl State {
         }
     }
 
+    pub(crate) fn memory_region_of_location(&self, number: u32) -> MemoryRegion {
+        let prev = self.memory_region_of_built_in(BuiltIn::CullDistance);
+        match number {
+            // TODO: Location depends on shader type (i.e. vertex attribute input / fragment shader output / uniform buffer)
+            0 => MemoryRegion {
+                address: prev.address + prev.size,
+                size: std::mem::size_of::<f32>() as u32 * 4,
+                stride: std::mem::size_of::<f32>() as u32,
+            },
+            _ => unimplemented!(),
+        }
+    }
+
     fn memory(&self, memory_region: MemoryRegion) -> &[u8] {
         &self.memory[memory_region.address as usize
             ..memory_region.address as usize + memory_region.size as usize]
@@ -332,14 +361,14 @@ impl State {
             unreachable!()
         }
     }
-    pub(crate) fn load_variable(&self, id: &il::Variable, src_pointer: &il::Variable) {
-        todo!()
+    pub(crate) fn load_variable(&mut self, id: &il::Variable, src_pointer: &il::Variable) {
+        self.load_pointer_offset(id, src_pointer, &[])
     }
     pub(crate) fn load_pointer_offset(
         &mut self,
         id: &il::Variable,
         base: &il::Variable,
-        offsets: Vec<il::Variable>,
+        offsets: &[il::Variable],
     ) {
         let id = self.get_memory_region(id, &[]);
         let offsets = offsets
@@ -352,25 +381,35 @@ impl State {
     }
 
     pub(crate) fn load_variable_offset_imm(
-        &self,
+        &mut self,
         id: &il::Variable,
         base: &il::Variable,
         offset: u32,
     ) {
-        todo!()
+        let id = self.get_memory_region(id, &[]);
+        let src = self.get_memory_region(base, &[offset]).address;
+        self.store_imm32(id, &[src]);
     }
 
     fn store(&mut self, dst: il::Variable, src: il::Variable) {
         todo!();
     }
 
-    pub(crate) fn store_array(&self, dst_pointer: &il::Variable, src: &Vec<il::Variable>) {
-        todo!()
+    pub(crate) fn store_array(&mut self, dst_pointer: il::Variable, src: &[il::Variable]) {
+        let dst_pointer = self.get_memory_region(&dst_pointer, &[]);
+        for (i, src) in src.iter().enumerate() {
+            let src = self.get_memory_region(&src, &[]);
+            let dst = MemoryRegion {
+                address: dst_pointer.address + i as u32 * dst_pointer.stride,
+                size: src.size,
+                stride: src.stride,
+            };
+            self.copy_memory_region(dst, src);
+        }
     }
     pub(crate) fn store_through_pointer(&mut self, dst_pointer: il::Variable, src: il::Variable) {
         let dst_pointer = self.get_memory_region(&dst_pointer, &[]);
         let src = self.get_memory_region(&src, &[]);
-        dbg!(&self.memory(dst_pointer));
         let dst_pointer =
             *bytemuck::from_bytes::<u32>(&self.memory(dst_pointer)[..std::mem::size_of::<u32>()]);
         let dst = MemoryRegion {
@@ -378,11 +417,7 @@ impl State {
             size: src.size,
             stride: src.stride,
         };
-
-        dbg!(self.memory(dst));
-        dbg!(self.memory(src));
         self.copy_memory_region(dst, src);
-        dbg!(self.memory(dst));
     }
     pub(crate) fn store_imm32(&mut self, variable: MemoryRegion, imm: &[u32]) {
         // TODO: Use variable stride.
@@ -419,13 +454,48 @@ enum ConvertKind {
 
 impl State {
     pub(crate) fn binary_op(
-        &self,
+        &mut self,
         id: &il::Variable,
         op1: &il::Variable,
         op2: &il::Variable,
         kind: BinaryOpKind,
     ) {
-        todo!()
+        let id = self.get_memory_region(id, &[]);
+        let op1 = self.get_memory_region(op1, &[]);
+        let op2 = self.get_memory_region(op2, &[]);
+        match kind {
+            BinaryOpKind::MulVectorScalar => {
+                let vector: Vec<f32> = bytemuck::cast_slice(self.memory(op1)).to_vec();
+                let scalar = *bytemuck::from_bytes::<f32>(self.memory(op2));
+                for (i, value) in vector.iter().enumerate() {
+                    let value = value * scalar;
+                    self.memory_mut(id)
+                        [i * std::mem::size_of::<f32>()..(i + 1) * std::mem::size_of::<f32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            BinaryOpKind::AddI32I32 => todo!(),
+            BinaryOpKind::MulI32I32 => todo!(),
+            BinaryOpKind::SubF32F32 => {
+                let op1: Vec<f32> = bytemuck::cast_slice(self.memory(op1)).to_vec();
+                let op2: Vec<f32> = bytemuck::cast_slice(self.memory(op2)).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 - op2;
+                    self.memory_mut(id)
+                        [i * std::mem::size_of::<f32>()..(i + 1) * std::mem::size_of::<f32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            BinaryOpKind::DivF32F3 => todo!(),
+            BinaryOpKind::DivI32I32 => todo!(),
+            BinaryOpKind::DivU32U32 => todo!(),
+            BinaryOpKind::ModI32I32 => todo!(),
+            BinaryOpKind::ModU32U32 => todo!(),
+            BinaryOpKind::BitAnd => todo!(),
+            BinaryOpKind::BitShiftRight => todo!(),
+            BinaryOpKind::EqualI32I32 => todo!(),
+            BinaryOpKind::LessThanU32U32 => todo!(),
+        }
     }
 
     pub(crate) fn convert(&self, id: &il::Variable, op: &il::Variable, kind: ConvertKind) {
@@ -435,7 +505,7 @@ impl State {
 
 impl State {
     fn interpret_il_instruction(&mut self, instruction: &il::Instruction) -> bool {
-        match dbg!(instruction) {
+        match instruction {
             il::Instruction::Label { id } => {
                 self.labels.try_insert(*id, self.pc).unwrap();
             }
@@ -444,14 +514,14 @@ impl State {
             }
             il::Instruction::StoreImm32 { dst, imm } => {
                 let dst = self.get_memory_region(dst, &[]);
-                self.store_imm32(dst, &vec![*imm]);
+                self.store_imm32(dst, &[*imm]);
             }
             il::Instruction::StoreImm32Array { dst, imm } => {
                 let dst = self.get_memory_region(dst, &[]);
                 self.store_imm32(dst, imm);
             }
             il::Instruction::LoadVariableOffset { id, base, offsets } => {
-                self.load_pointer_offset(id, base, offsets.clone());
+                self.load_pointer_offset(id, base, offsets.as_slice());
             }
             il::Instruction::LoadVariableImmOffset { id, base, offset } => {
                 self.load_variable_offset_imm(id, base, *offset);
@@ -460,7 +530,7 @@ impl State {
                 self.store_through_pointer(*dst_pointer, *src);
             }
             il::Instruction::StoreVariableArray { dst, values } => {
-                self.store_array(dst, values);
+                self.store_array(*dst, values);
             }
             il::Instruction::LoadVariable { id, src_pointer } => {
                 self.load_variable(id, src_pointer);

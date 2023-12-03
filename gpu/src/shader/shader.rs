@@ -172,7 +172,6 @@ mod tests {
         let outputs = shader
             .interpreter
             .execute_vertex_shader(&vertex_input_state, inputs);
-        dbg!(&outputs);
         assert_eq!(outputs, expected);
     }
 
