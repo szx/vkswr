@@ -176,6 +176,52 @@ mod tests {
     }
 
     #[test]
+    fn vertex_shader_set_position() {
+        let spv = compile_glsl(
+            "vert",
+            r#"
+            #version 450
+            void main() {
+                gl_Position = vec4(1,2,3,4);
+            }
+            "#,
+        );
+        let shader = Shader::new("main", spv).unwrap();
+        let mut vertex_input_state = VertexInputState {
+            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
+            bindings: [None; MAX_VERTEX_BINDINGS as usize],
+        };
+        vertex_input_state.attributes[0] = Some(VertexAttribute {
+            location: 0,
+            binding: VertexBindingNumber(0),
+            format: Format::R8G8Unorm,
+            offset: 0,
+        });
+        vertex_input_state.bindings[0] = Some(VertexBinding {
+            number: VertexBindingNumber(0),
+            stride: 0,
+            input_rate: VertexInputRate::Vertex,
+        });
+        let inputs = vec![Vertex {
+            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
+            point_size: 1.0f32,
+            index: 1,
+            clip_distances: [0.8f32, 0.4f32, 0.2f32, 0.1f32],
+        }];
+        let expected = inputs
+            .iter()
+            .map(|&x| VertexShaderOutput {
+                position: Position::from_sfloat32_raw(1.0, 2.0, 3.0, 4.0),
+                ..x.into()
+            })
+            .collect::<Vec<_>>();
+        let outputs = shader
+            .interpreter
+            .execute_vertex_shader(&vertex_input_state, inputs);
+        assert_eq!(outputs, expected);
+    }
+
+    #[test]
     fn vertex_shader_empty() {
         let spv = compile_glsl(
             "vert",

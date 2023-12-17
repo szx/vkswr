@@ -32,7 +32,7 @@ pub(crate) enum Instruction {
     },
     VariableDecl {
         id: Variable,
-        decl: VariableDecl, // HIRO remove, replace with params (size, stride)
+        decl: VariableDecl,
     },
     StoreImm32 {
         dst: Variable,
@@ -694,19 +694,21 @@ impl Il {
                 decorations,
             } => {
                 let element_type = Self::get_variable_decl(spirv, element_type, backing);
-                let &spirv::Constant::Scalar { type_: _, value } =
-                    Self::get_spirv_constant(spirv, length)
+                let &spirv::Constant::Scalar {
+                    type_: _,
+                    value: length,
+                } = Self::get_spirv_constant(spirv, length)
                 else {
                     unreachable!()
                 };
                 let array_stride = match decorations.array_stride {
-                    None if value == 1 => std::mem::size_of::<u32>() as u32,
+                    None if length == 1 => std::mem::size_of::<u32>() as u32,
                     Some(inner) => inner,
                     None => 0,
                 };
                 (
                     VariableKind::Array,
-                    value,
+                    length,
                     VariableBacking::Array {
                         element_kind: Box::new(element_type),
                         array_stride,

@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use std::ops::Range;
 
 #[derive(Debug, Copy, Clone)]
@@ -81,7 +82,7 @@ impl Format {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct Vector4 {
     /// Bit representation of components.
     pub components: [u64; 4],
@@ -316,6 +317,17 @@ impl Vector4 {
             self.get_as_unorm32(2),
             self.get_as_unorm32(3),
         )
+    }
+}
+
+impl std::fmt::Debug for Vector4 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Vector4")
+            .field("x", &self.get_as_sfloat32(0))
+            .field("y", &self.get_as_sfloat32(1))
+            .field("z", &self.get_as_sfloat32(2))
+            .field("w", &self.get_as_sfloat32(3))
+            .finish()
     }
 }
 

@@ -23,6 +23,7 @@ impl Spirv {
             .ok()?;
         let module = loader.module();
         debug!("spirv shader:\n{}", module.disassemble());
+        println!("spirv shader:\n{}", module.disassemble());
 
         let entry_point = EntryPoint::parse(&module)?;
         Version::parse(&module)?;

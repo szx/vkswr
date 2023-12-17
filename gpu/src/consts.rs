@@ -9,3 +9,4 @@ pub const VIEWPORT_BOUNDS_RANGE: (f32, f32) = (
     2.0 * (MAX_VIEWPORT_DIMENSIONS.1 - 1) as f32,
 );
 pub const MAX_CLIP_DISTANCES: u32 = 4;
+pub const MAX_CULL_DISTANCES: u32 = 4;
