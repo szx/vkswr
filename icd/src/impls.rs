@@ -89,6 +89,34 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     *pProperties.as_ptr() = physicalDevice.lock().properties();
 }
 
+pub unsafe extern "C" fn vkGetPhysicalDeviceToolProperties(
+    physicalDevice: VkPhysicalDevice,
+    pToolCount: Option<NonNull<u32>>,
+    pToolProperties: Option<NonNull<VkPhysicalDeviceToolProperties>>,
+) -> VkResult {
+    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
+        unreachable!()
+    };
+
+    if pToolProperties.is_none() {
+        if let Some(pToolCount) = pToolCount {
+            *pToolCount.as_ptr() = physicalDevice.lock().tool_properties().len() as u32;
+        }
+    } else {
+        let Some(pToolProperties) = pToolProperties else {
+            unreachable!()
+        };
+        let tool_properties = physicalDevice.lock().tool_properties();
+        std::ptr::copy_nonoverlapping(
+            tool_properties.as_ptr(),
+            pToolProperties.as_ptr(),
+            tool_properties.len(),
+        );
+    }
+
+    VkResult::VK_SUCCESS
+}
+
 pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     physicalDevice: VkPhysicalDevice,
     pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
@@ -5662,14 +5690,6 @@ pub unsafe extern "C" fn vkSetBufferCollectionBufferConstraintsFUCHSIA(
     unimplemented!(
         "vkSetBufferCollectionBufferConstraintsFUCHSIA(device, collection, pBufferConstraintsInfo"
     )
-}
-
-pub unsafe extern "C" fn vkGetPhysicalDeviceToolProperties(
-    physicalDevice: VkPhysicalDevice,
-    pToolCount: Option<NonNull<u32>>,
-    pToolProperties: Option<NonNull<VkPhysicalDeviceToolProperties>>,
-) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceToolProperties(physicalDevice, pToolCount, pToolProperties")
 }
 
 pub unsafe extern "C" fn vkBuildAccelerationStructuresKHR(

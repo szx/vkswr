@@ -39,16 +39,36 @@ impl PhysicalDevice {
         Self::extension_properties().len()
     }
 
-    pub fn extension_properties() -> [VkExtensionProperties; 1] {
+    pub fn extension_properties() -> [VkExtensionProperties; 3] {
         c_char_array!(
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_MAX_EXTENSION_NAME_SIZE,
             "VK_KHR_swapchain"
         );
-        [VkExtensionProperties {
-            extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            specVersion: 70,
-        }]
+        c_char_array!(
+            VK_KHR_TOOLING_INFO_NAME,
+            VK_MAX_EXTENSION_NAME_SIZE,
+            "VK_EXT_tooling_info"
+        );
+        c_char_array!(
+            VK_KHR_DEBUG_MARKER_NAME,
+            VK_MAX_EXTENSION_NAME_SIZE,
+            "VK_EXT_debug_marker"
+        );
+        [
+            VkExtensionProperties {
+                extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                specVersion: 70,
+            },
+            VkExtensionProperties {
+                extensionName: *VK_KHR_TOOLING_INFO_NAME,
+                specVersion: 1,
+            },
+            VkExtensionProperties {
+                extensionName: *VK_KHR_DEBUG_MARKER_NAME,
+                specVersion: 4,
+            },
+        ]
     }
 
     pub fn properties(&self) -> VkPhysicalDeviceProperties {
@@ -188,6 +208,10 @@ impl PhysicalDevice {
                 residencyNonResidentStrict: 0,
             },
         }
+    }
+
+    pub fn tool_properties(&self) -> [VkPhysicalDeviceToolProperties; 0] {
+        []
     }
 
     pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
