@@ -4,6 +4,8 @@ use crate::{
     VertexInputState, VertexShaderOutput, MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES,
 };
 use hashbrown::HashMap;
+use log::{debug, info};
+use std::iter;
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
@@ -24,10 +26,6 @@ impl Interpreter {
         vertices: Vec<Vertex>,
     ) -> Vec<VertexShaderOutput> {
         // TODO: Create shader input/output interfaces, check if match between stages.
-        let vertex_format = match vertex_input_state.attributes[0] {
-            None => return vec![],
-            Some(attribute) => attribute.format,
-        };
 
         let mut outputs: Vec<VertexShaderOutput> = vec![];
 
@@ -248,7 +246,7 @@ impl State {
         self.location_variables.insert(0, variable);
         self.store_imm32(
             *self.array_variable(self.location_variable(0)),
-            bytemuck::cast_slice(fragment.position.get_as_f32_array().as_slice()),
+            bytemuck::cast_slice(fragment.color.get_as_f32_array().as_slice()),
         ); // TODO: use descriptors
     }
 
@@ -263,7 +261,6 @@ impl State {
             Format::R32G32B32A32Sfloat,
             bytemuck::cast_slice(self.load_imm32(*self.array_variable(self.location_variable(0)))), // TODO: Determine using fragment shader interface.
         );
-
         FragmentShaderOutput { position, color }
     }
 }
@@ -629,7 +626,7 @@ enum BinaryOpKind {
     AddI32I32,
     MulI32I32,
     SubF32F32,
-    DivF32F3,
+    DivF32F32,
     DivI32I32,
     DivU32U32,
     ModI32I32,
@@ -682,10 +679,37 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::DivF32F3 => todo!(),
-            BinaryOpKind::DivI32I32 => todo!(),
+            BinaryOpKind::DivF32F32 => {
+                let op1: Vec<f32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
+                let op2: Vec<f32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 / op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<f32>()..(i + 1) * std::mem::size_of::<f32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            BinaryOpKind::DivI32I32 => {
+                let op1: Vec<i32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 / op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<i32>()..(i + 1) * std::mem::size_of::<i32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::DivU32U32 => todo!(),
-            BinaryOpKind::ModI32I32 => todo!(),
+            BinaryOpKind::ModI32I32 => {
+                let op1: Vec<i32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 % op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<i32>()..(i + 1) * std::mem::size_of::<i32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::ModU32U32 => todo!(),
             BinaryOpKind::BitAnd => todo!(),
             BinaryOpKind::BitShiftRight => todo!(),
@@ -694,8 +718,43 @@ impl State {
         }
     }
 
-    pub(crate) fn il_convert(&self, result: &il::Variable, op: &il::Variable, kind: ConvertKind) {
-        todo!()
+    pub(crate) fn il_convert(
+        &mut self,
+        result: &il::Variable,
+        op: &il::Variable,
+        kind: ConvertKind,
+    ) {
+        let result = *self.array_variable(self.il_variable(result));
+        let op = *self.array_variable(self.il_variable(op));
+        match kind {
+            ConvertKind::I32F32 => {
+                let op: Vec<i32> = bytemuck::cast_slice(self.memory(&op.memory_region)).to_vec();
+                for (i, &op) in op.iter().enumerate() {
+                    let value = op as f32;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<f32>()..(i + 1) * std::mem::size_of::<f32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            ConvertKind::F32U32 => {
+                let op: Vec<f32> = bytemuck::cast_slice(self.memory(&op.memory_region)).to_vec();
+                for (i, &op) in op.iter().enumerate() {
+                    let value = op as u32;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u32>()..(i + 1) * std::mem::size_of::<u32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            ConvertKind::U32F32 => {
+                let op: Vec<u32> = bytemuck::cast_slice(self.memory(&op.memory_region)).to_vec();
+                for (i, &op) in op.iter().enumerate() {
+                    let value = op as f32;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<f32>()..(i + 1) * std::mem::size_of::<f32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+        }
     }
 }
 
@@ -742,7 +801,7 @@ impl State {
                 self.il_binary_op(id, op1, op2, BinaryOpKind::SubF32F32);
             }
             il::Instruction::MathDivF32F32 { id, op1, op2 } => {
-                self.il_binary_op(id, op1, op2, BinaryOpKind::DivF32F3);
+                self.il_binary_op(id, op1, op2, BinaryOpKind::DivF32F32);
             }
             il::Instruction::MathDivI32I32 { id, op1, op2 } => {
                 self.il_binary_op(id, op1, op2, BinaryOpKind::DivI32I32);

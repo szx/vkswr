@@ -6,6 +6,7 @@ use crate::{
 };
 use byteorder::ByteOrder;
 use hashbrown::HashMap;
+use log::debug;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default)]
@@ -410,6 +411,7 @@ impl GraphicsPipeline {
             .vertex_shader
             .as_ref()
             .unwrap_or_else(|| unreachable!());
+
         shader.execute_vertex_shader(vertex_input_state, vertices)
     }
 
