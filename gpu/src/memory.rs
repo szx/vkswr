@@ -73,17 +73,14 @@ impl Memory {
         size: u64,
     ) {
         let [src, dst] = self.get_memory_many_mut(&[src, dst]);
-        let src = src[src_offset as usize..(src_offset + size) as usize].as_ptr();
-        let dst = dst[dst_offset as usize..(dst_offset + size) as usize].as_mut_ptr();
-        unsafe {
-            std::ptr::copy_nonoverlapping(src, dst, size as usize);
-        }
+        let src = &src[src_offset as usize..(src_offset + size) as usize];
+        let dst = &mut dst[dst_offset as usize..(dst_offset + size) as usize];
+        dst.copy_from_slice(src);
     }
 
     pub fn write_bytes(&mut self, src: &[u8], dst: &impl MemoryHandle, dst_offset: u64) {
         let dst = self.get_memory_mut(dst);
         let size = src.len();
-        let src = src.as_ptr();
 
         if dst_offset as usize >= dst.len()
             || (dst_offset as usize).checked_add(size).is_none()
@@ -103,10 +100,8 @@ impl Memory {
             start: dst_offset as usize,
             end: dst_offset as usize + size,
         };
-        let dst = dst[dst_range].as_mut_ptr();
-        unsafe {
-            std::ptr::copy_nonoverlapping(src, dst, size);
-        }
+        let dst = &mut dst[dst_range];
+        dst.copy_from_slice(src);
     }
 
     pub fn read_bytes(&self, src: &impl MemoryHandle, offset: u64, size: u64) -> &[u8] {
@@ -121,13 +116,13 @@ impl Memory {
         memory_allocation: MemoryAllocation,
         offset: u64,
         size: u64,
-    ) -> NonNull<std::ffi::c_void> {
+    ) -> Option<NonNull<std::ffi::c_void>> {
         let memory = self
             .allocations
             .get_mut(&memory_allocation.handle)
             .unwrap_or_else(|| unreachable!());
         let ptr = memory[offset as usize..(offset + size) as usize].as_mut_ptr();
-        unsafe { NonNull::new_unchecked(ptr as *mut std::ffi::c_void) }
+        NonNull::new(ptr as *mut std::ffi::c_void)
     }
 
     pub const fn unmap_host(&self, _memory_allocation: MemoryAllocation) {

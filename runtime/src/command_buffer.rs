@@ -393,7 +393,7 @@ impl CommandBuffer {
 
     pub fn cmd_execute_commands(
         &mut self,
-        command_buffers: impl IntoIterator<Item = Arc<Mutex<CommandBuffer>>>,
+        command_buffers: impl IntoIterator<Item = Arc<Mutex<Self>>>,
     ) {
         for command_buffer in command_buffers {
             self.gpu_command_buffer

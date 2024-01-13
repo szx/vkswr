@@ -29,7 +29,7 @@ impl PhysicalDevice {
         info!("new PhysicalDevice");
         let physical_device = Self {
             handle: VkDispatchableHandle(None),
-            physical_device_name: "vulkan_software_rasterizer physical device",
+            physical_device_name: "VkSWR physical device",
             gpu: gpu::Gpu::new(),
         };
         physical_device.register_object()
@@ -75,7 +75,7 @@ impl PhysicalDevice {
         c_char_array!(
             DEVICE_NAME,
             VK_MAX_PHYSICAL_DEVICE_NAME_SIZE,
-            "vulkan_software_rasterizer physical device"
+            "VkSWR physical device"
         );
 
         VkPhysicalDeviceProperties {
@@ -210,7 +210,7 @@ impl PhysicalDevice {
         }
     }
 
-    pub fn tool_properties(&self) -> [VkPhysicalDeviceToolProperties; 0] {
+    pub const fn tool_properties(&self) -> [VkPhysicalDeviceToolProperties; 0] {
         []
     }
 
@@ -2705,7 +2705,7 @@ impl PhysicalDevice {
             let code = module.lock().code.clone();
 
             let shader =
-                gpu::Shader::new(&name, code).ok_or(VkResult::VK_ERROR_INVALID_SHADER_NV)?;
+                gpu::Shader::new(&name, code).map_err(|_| VkResult::VK_ERROR_INVALID_SHADER_NV)?;
 
             match shader_stage.stage {
                 VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT => {

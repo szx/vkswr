@@ -69,14 +69,14 @@ pub unsafe extern "C" fn vkMapMemory(
 
     let Some(pData) = ppData else { unreachable!() };
 
-    let result = match memory.lock().map_host(offset, size) {
+    let mapped_memory = memory.lock().map_host(offset, size);
+    match mapped_memory {
         Ok(ptr) => {
             *pData.as_ptr() = ptr;
             VkResult::VK_SUCCESS
         }
         Err(e) => e,
-    };
-    result
+    }
 }
 
 pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory) {

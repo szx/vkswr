@@ -13,6 +13,10 @@ log = { workspace = true }
 rspirv = "0.11.0"
 byteorder = "1.4.3"
 bytemuck = "1.14.0"
+anyhow = { workspace = true }
 
 [dev-dependencies]
 assert_fs = { workspace = true }
+
+[lints]
+workspace = true

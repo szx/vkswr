@@ -27,7 +27,7 @@ impl VkXml {
     pub fn from(vk_xml_path: impl AsRef<Path>) -> Result<Self, ParseVkXmlError> {
         let vk_xml_path = vk_xml_path.as_ref();
         let vk_xml_str = std::fs::read_to_string(vk_xml_path)?;
-        let mut vk_xml = read_vk_xml(&vk_xml_str)?;
+        let vk_xml = read_vk_xml(&vk_xml_str)?;
         Ok(vk_xml)
     }
 }
@@ -55,73 +55,70 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
         match reader.read_event_into(&mut buf) {
             Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
             Ok(Event::Eof) => break,
-            Ok(Event::Start(e)) => {
-                //dbg!(&e);
-                match e.name().as_ref() {
-                    b"enums" => {
-                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                        let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
-                            vk_xml.enums.push(e.fix());
-                        }
+            Ok(Event::Start(e)) => match e.name().as_ref() {
+                b"enums" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    if let Ok(e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
+                        vk_xml.enums.push(e.fix());
                     }
-                    b"type" => {
-                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                        let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(mut x) = quick_xml::de::from_str::<VkStructSerde>(str) {
-                            if let Some(x) = x.fix(str) {
-                                vk_xml.structs.insert(x);
-                                continue;
-                            }
-                        }
-                        if let Ok(x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
-                            if let Some(x) = x.fix() {
-                                vk_xml.typedefs.insert(x);
-                            }
-                            continue;
-                        }
-                        if let Ok(x) = quick_xml::de::from_str::<VkTypeAttributesSerde>(str) {
-                            vk_xml.type_attributes.insert(x.fix());
-                            continue;
-                        }
-                        if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
-                            vk_xml.type_externs.insert(x.fix());
-                            continue;
-                        }
-                        if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
-                            if let Some(x) = x.fix(str) {
-                                vk_xml.type_externs.insert(x);
-                            }
-                            continue;
-                        }
-                        if str.contains(r#"category="define""#) || str.contains(r#"name=""#) {
-                            continue;
-                        }
-                        unreachable!("{:?}", str);
-                    }
-                    b"command" => {
-                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                        let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
-                            if let Some(x) = x.fix(str) {
-                                vk_xml.commands.insert(x);
-                            }
-                            continue;
-                        }
-                    }
-                    b"extension" | b"feature" => {
-                        let bytes = read_to_end_into_buffer(&mut reader, &e)?;
-                        let str = std::str::from_utf8(&bytes)?;
-                        if let Ok(x) = quick_xml::de::from_str::<VkExtensionSerde>(str) {
-                            if let Some(x) = x.fix() {
-                                vk_xml.extensions.insert(x);
-                            }
-                            continue;
-                        }
-                    }
-                    _ => (),
                 }
-            }
+                b"type" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    if let Ok(mut x) = quick_xml::de::from_str::<VkStructSerde>(str) {
+                        if let Some(x) = x.fix(str) {
+                            vk_xml.structs.insert(x);
+                            continue;
+                        }
+                    }
+                    if let Ok(x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
+                        if let Some(x) = x.fix() {
+                            vk_xml.typedefs.insert(x);
+                        }
+                        continue;
+                    }
+                    if let Ok(x) = quick_xml::de::from_str::<VkTypeAttributesSerde>(str) {
+                        vk_xml.type_attributes.insert(x.fix());
+                        continue;
+                    }
+                    if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
+                        vk_xml.type_externs.insert(x.fix());
+                        continue;
+                    }
+                    if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
+                        if let Some(x) = x.fix(str) {
+                            vk_xml.type_externs.insert(x);
+                        }
+                        continue;
+                    }
+                    if str.contains(r#"category="define""#) || str.contains(r#"name=""#) {
+                        continue;
+                    }
+                    unreachable!("{:?}", str);
+                }
+                b"command" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    if let Ok(x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
+                        if let Some(x) = x.fix(str) {
+                            vk_xml.commands.insert(x);
+                        }
+                        continue;
+                    }
+                }
+                b"extension" | b"feature" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    if let Ok(x) = quick_xml::de::from_str::<VkExtensionSerde>(str) {
+                        if let Some(x) = x.fix() {
+                            vk_xml.extensions.insert(x);
+                        }
+                        continue;
+                    }
+                }
+                _ => (),
+            },
             _ => (),
         }
         buf.clear();
@@ -412,7 +409,6 @@ impl VkStructMemberSerde {
         let name = self.name.clone().into();
         let type_ = VkFFIType::new(&self.type_);
 
-        let in_union = in_union;
         VkStructMember::Member {
             name,
             type_,
@@ -955,14 +951,16 @@ impl VkExtensionEnumMemberSerde {
             let Some(extends) = &self.extends else {
                 unreachable!()
             };
-            let offset = parse_int::parse::<isize>(offset).unwrap();
-            let extension_number =
-                parse_int::parse::<isize>(if let Some(extnumber) = &self.extnumber {
-                    extnumber.as_ref()
-                } else {
-                    extension.number.as_ref()
-                })
-                .unwrap();
+            let Ok(offset) = parse_int::parse::<isize>(offset) else {
+                unreachable!()
+            };
+            let Ok(extension_number) = parse_int::parse::<isize>(
+                self.extnumber
+                    .as_ref()
+                    .map_or_else(|| extension.number.as_ref(), |extnumber| extnumber.as_ref()),
+            ) else {
+                unreachable!()
+            };
             let number = 1000000000 + (extension_number - 1) * 1000 + offset;
             Some(VkExtensionEnumMember::ExtendsOffset {
                 name: self.name.clone(),
@@ -979,18 +977,21 @@ impl VkExtensionEnumMemberSerde {
                 extends: extends.clone(),
             })
         } else if let Some(alias) = &self.alias {
-            if let Some(extends) = &self.extends {
-                Some(VkExtensionEnumMember::ExtendsAlias {
-                    name: self.name.clone(),
-                    alias: alias.clone(),
-                    extends: extends.clone(),
-                })
-            } else {
-                Some(VkExtensionEnumMember::Alias {
-                    name: self.name.clone(),
-                    alias: alias.clone(),
-                })
-            }
+            self.extends.as_ref().map_or_else(
+                || {
+                    Some(VkExtensionEnumMember::Alias {
+                        name: self.name.clone(),
+                        alias: alias.clone(),
+                    })
+                },
+                |extends| {
+                    Some(VkExtensionEnumMember::ExtendsAlias {
+                        name: self.name.clone(),
+                        alias: alias.clone(),
+                        extends: extends.clone(),
+                    })
+                },
+            )
         } else {
             None
         }

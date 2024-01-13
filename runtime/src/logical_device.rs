@@ -36,10 +36,12 @@ impl LogicalDevice {
         }
 
         let queue = Queue::create(physical_device.clone(), queue_create_info);
-        let queue = Queue::from_handle(queue).unwrap();
+        let queue = Queue::from_handle(queue)
+            .map_or_else(|| Err(VkResult::VK_ERROR_INITIALIZATION_FAILED), Ok)?;
+
         let logical_device = Self {
             handle: VkDispatchableHandle(None),
-            driver_name: "vulkan_software_rasterizer",
+            driver_name: "VkSWR",
             physical_device: physical_device.clone(),
             enabled_features: *enabled_features.unwrap_or(&physical_device.lock().features()),
             queue,
@@ -77,7 +79,7 @@ impl LogicalDevice {
         }
     }
 
-    pub fn wait_idle(&self) -> VkResult {
+    pub const fn wait_idle(&self) -> VkResult {
         // TODO: LogicalDevice wait idle.
         VkResult::VK_SUCCESS
     }

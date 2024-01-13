@@ -20,16 +20,17 @@ pub struct Instance {
 }
 impl Instance {
     // TODO: Remove all create() accepting create info.
-    pub fn create() -> VkDispatchableHandle {
+    pub fn create() -> Result<VkDispatchableHandle, VkResult> {
         let physical_device = PhysicalDevice::create();
-        let physical_device = PhysicalDevice::from_handle(physical_device).unwrap();
+        let physical_device = PhysicalDevice::from_handle(physical_device)
+            .map_or_else(|| Err(VkResult::VK_ERROR_INITIALIZATION_FAILED), Ok)?;
 
         let instance = Self {
             handle: VkDispatchableHandle(None),
             physical_device,
-            driver_name: "vulkan_software_rasterizer",
+            driver_name: "VkSWR",
         };
-        instance.register_object()
+        Ok(instance.register_object())
     }
 
     pub const fn physical_device_count() -> usize {

@@ -139,14 +139,14 @@ pub unsafe extern "C" fn vkQueuePresentKHR(
             std::slice::from_raw_parts(x.as_ptr(), present_info.waitSemaphoreCount as usize)
         })
         .iter()
-        .map(|&handle| Semaphore::from_handle(handle).unwrap());
+        .flat_map(|&handle| Semaphore::from_handle(handle));
     let swapchains = present_info
         .pSwapchains
         .map_or(&[] as &[_], |x| {
             std::slice::from_raw_parts(x.as_ptr(), present_info.swapchainCount as usize)
         })
         .iter()
-        .map(|&handle| Swapchain::from_handle(handle).unwrap());
+        .flat_map(|&handle| Swapchain::from_handle(handle));
     let image_indices = present_info.pImageIndices.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), present_info.swapchainCount as usize)
     });
@@ -158,8 +158,5 @@ pub unsafe extern "C" fn vkQueuePresentKHR(
         .lock()
         .present(wait_semaphores, swapchains, image_indices, results);
     // TODO: Refactor unwrapping Result<T, T>
-    match result {
-        Ok(result) => result,
-        Err(result) => result,
-    }
+    result.unwrap_or_else(|result| result)
 }

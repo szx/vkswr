@@ -24,7 +24,7 @@ pub struct FormatInfo {
 impl Format {
     pub const fn info(&self) -> FormatInfo {
         match *self {
-            Format::R8Unorm => FormatInfo {
+            Self::R8Unorm => FormatInfo {
                 bytes_per_pixel: 1,
                 bytes_per_component: Some(1),
                 bytes0: Some(0..1),
@@ -33,7 +33,7 @@ impl Format {
                 bytes3: None,
                 is_unorm: true,
             },
-            Format::R8G8Unorm => FormatInfo {
+            Self::R8G8Unorm => FormatInfo {
                 bytes_per_pixel: 2,
                 bytes_per_component: Some(1),
                 bytes0: Some(0..1),
@@ -42,7 +42,7 @@ impl Format {
                 bytes3: None,
                 is_unorm: true,
             },
-            Format::R8G8B8A8Unorm => FormatInfo {
+            Self::R8G8B8A8Unorm => FormatInfo {
                 bytes_per_pixel: 4,
                 bytes_per_component: Some(1),
                 bytes0: Some(0..1),
@@ -51,7 +51,7 @@ impl Format {
                 bytes3: Some(3..4),
                 is_unorm: true,
             },
-            Format::R32G32B32A32Sfloat => FormatInfo {
+            Self::R32G32B32A32Sfloat => FormatInfo {
                 bytes_per_pixel: 16,
                 bytes_per_component: Some(4),
                 bytes0: Some(0..4),
@@ -60,7 +60,7 @@ impl Format {
                 bytes3: Some(12..16),
                 is_unorm: false,
             },
-            Format::A2b10g10r10UnormPack32 => FormatInfo {
+            Self::A2b10g10r10UnormPack32 => FormatInfo {
                 bytes_per_pixel: 4,
                 bytes_per_component: None,
                 bytes0: todo!(),
@@ -69,7 +69,7 @@ impl Format {
                 bytes3: todo!(),
                 is_unorm: false,
             },
-            Format::D16Unorm => FormatInfo {
+            Self::D16Unorm => FormatInfo {
                 bytes_per_pixel: 2,
                 bytes_per_component: Some(2),
                 bytes0: Some(0..2),
@@ -117,7 +117,7 @@ impl Vector4 {
         }
     }
 
-    pub fn from_sfloat32(v: Vector4) -> Self {
+    pub fn from_sfloat32(v: Self) -> Self {
         Self::from_sfloat32_raw(
             v.get_as_sfloat32(0),
             v.get_as_sfloat32(1),
@@ -126,7 +126,7 @@ impl Vector4 {
         )
     }
 
-    pub fn from_sfloat64(v: Vector4) -> Self {
+    pub fn from_sfloat64(v: Self) -> Self {
         Self::from_sfloat64_raw(
             v.get_as_sfloat64(0),
             v.get_as_sfloat64(1),
@@ -177,25 +177,22 @@ impl Vector4 {
         [x, y, z, w]
     }
 
-    fn to_sfloat32_bytes(
-        &self,
-        index: impl std::slice::SliceIndex<[u64], Output = u64>,
-    ) -> [u8; 4] {
+    fn to_sfloat32_bytes(self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 4] {
         f32::from_bits(self.components[index] as u32).to_ne_bytes()
     }
 
-    fn to_unorm8_byte(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
+    fn to_unorm8_byte(self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> u8 {
         let value = f32::from_bits(self.components[index] as u32);
         (value * 255.0f32).round() as u8
     }
 
-    fn to_unorm16_bytes(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 2] {
+    fn to_unorm16_bytes(self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 2] {
         let value = f32::from_bits(self.components[index] as u32);
         let value = (value * 65535.0f32).round() as u16;
         value.to_ne_bytes()
     }
 
-    fn to_unorm32_bytes(&self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 4] {
+    fn to_unorm32_bytes(self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 4] {
         let value = f32::from_bits(self.components[index] as u32);
         let value = (value * 4294967295.0f32).round() as u32;
         value.to_ne_bytes()

@@ -72,7 +72,7 @@ impl MemoryAllocation {
                     .gpu
                     .memory
                     .map_host(self.gpu_memory_allocation, offset, size);
-                Ok(ptr)
+                Ok(ptr.ok_or(VkResult::VK_ERROR_MEMORY_MAP_FAILED)?)
             },
         }
     }

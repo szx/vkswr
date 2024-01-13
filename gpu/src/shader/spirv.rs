@@ -1,5 +1,6 @@
+use anyhow::{bail, Context};
 use hashbrown::HashMap;
-use log::{debug, error};
+use log::debug;
 use rspirv::binary::Disassemble;
 use rspirv::dr::{
     Block as Block_, Instruction as Instruction_, Module as Module_, Operand as Operand_, Operand,
@@ -7,20 +8,21 @@ use rspirv::dr::{
 use rspirv::spirv as spirv_;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Spirv {
+pub struct Spirv {
     pub(crate) entry_point: EntryPoint,
     pub(crate) objects: HashMap<ObjectId, Object>,
     pub(crate) functions: HashMap<ObjectId, Function>,
 }
 
 impl Spirv {
-    pub(crate) fn new(name: &str, code: Vec<u32>) -> Option<Self> {
+    pub(crate) fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
         let mut loader = rspirv::dr::Loader::new();
         assert_eq!(rspirv::spirv::MAGIC_NUMBER, code[0]);
 
-        rspirv::binary::parse_words(&code, &mut loader)
-            .map_err(|e| debug!("spriv error: {:#?}\nname: {:?}\ncode: {:?}", e, name, code))
-            .ok()?;
+        rspirv::binary::parse_words(&code, &mut loader).map_or_else(
+            |e| bail!("spriv error: {:#?}\nname: {:?}\ncode: {:?}", e, name, code),
+            |_| Ok(()),
+        )?;
         let module = loader.module();
         debug!("spirv shader:\n{}", module.disassemble());
         println!("spirv shader:\n{}", module.disassemble());
@@ -33,7 +35,7 @@ impl Spirv {
         let objects = Object::parse(&module)?;
         let functions = Function::parse(&module)?;
 
-        Some(Self {
+        Ok(Self {
             entry_point,
             objects,
             functions,
@@ -42,15 +44,18 @@ impl Spirv {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct EntryPoint {
+pub struct EntryPoint {
     pub(crate) entry_point: ObjectId,
     pub(crate) interfaces: Vec<ObjectId>,
 }
 
 impl EntryPoint {
     /// Parses OpEntryPoint.
-    fn parse(module: &Module_) -> Option<Self> {
-        let entry_point = module.entry_points.first()?;
+    fn parse(module: &Module_) -> anyhow::Result<Self> {
+        let entry_point = module
+            .entry_points
+            .first()
+            .context("failed to get spirv entry point")?;
         match &entry_point.operands[..] {
             [Operand_::ExecutionModel(
                 spirv_::ExecutionModel::Vertex | spirv_::ExecutionModel::Fragment,
@@ -59,14 +64,13 @@ impl EntryPoint {
                     .iter()
                     .map(|x| ObjectId(x.unwrap_id_ref()))
                     .collect::<Vec<_>>();
-                Some(Self {
+                Ok(Self {
                     entry_point: ObjectId(*entry_point),
                     interfaces,
                 })
             }
             invalid => {
-                debug!("spriv error: invalid OpEntryPoint {:#?}", invalid);
-                None
+                bail!("spriv error: invalid OpEntryPoint {:#?}", invalid);
             }
         }
     }
@@ -80,9 +84,13 @@ struct Version {
 
 impl Version {
     /// Returns supported SPIR-V version..
-    fn parse(module: &Module_) -> Option<Self> {
-        let (major, minor) = module.header.as_ref()?.version();
-        Some(Self { major, minor })
+    fn parse(module: &Module_) -> anyhow::Result<Self> {
+        let (major, minor) = module
+            .header
+            .as_ref()
+            .context("failed to get spirv version")?
+            .version();
+        Ok(Self { major, minor })
     }
 }
 
@@ -91,13 +99,15 @@ struct Capability {}
 
 impl Capability {
     /// Parses OpCapability.
-    fn parse(module: &Module_) -> Option<Self> {
-        let capability = module.capabilities.first()?;
+    fn parse(module: &Module_) -> anyhow::Result<Self> {
+        let capability = module
+            .capabilities
+            .first()
+            .context("failed to get spirv capabilities")?;
         match &capability.operands[..] {
-            [Operand_::Capability(spirv_::Capability::Shader)] => Some(Self {}),
+            [Operand_::Capability(spirv_::Capability::Shader)] => Ok(Self {}),
             invalid => {
-                debug!("spriv error: invalid OpCapability {:#?}", invalid);
-                None
+                bail!("spriv error: invalid OpCapability {:#?}", invalid);
             }
         }
     }
@@ -108,33 +118,35 @@ struct MemoryModel {}
 
 impl MemoryModel {
     /// Parses OpMemoryModel.
-    fn parse(module: &Module_) -> Option<Self> {
-        let memory_model = &module.memory_model.as_ref()?;
+    fn parse(module: &Module_) -> anyhow::Result<Self> {
+        let memory_model = &module
+            .memory_model
+            .as_ref()
+            .context("failed to get spirv memory model")?;
         match &memory_model.operands[..] {
             [Operand_::AddressingModel(spirv_::AddressingModel::Logical), Operand_::MemoryModel(spirv_::MemoryModel::GLSL450)] => {
-                Some(Self {})
+                Ok(Self {})
             }
             invalid => {
-                debug!("spriv error: invalid OpMemoryModel {:#?}", invalid);
-                None
+                bail!("spriv error: invalid OpMemoryModel {:#?}", invalid);
             }
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Object {
+pub enum Object {
     Type(Type),
     Constant(Constant),
     Variable(Variable),
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub(crate) struct ObjectId(pub u32);
+pub struct ObjectId(pub u32);
 
 impl Object {
     /// Parses global types, constants and variables.
-    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> anyhow::Result<HashMap<ObjectId, Self>> {
         let mut types = Type::parse(module)?;
         let mut constants = Constant::parse(module)?;
         let mut variables = Variable::parse(module)?;
@@ -152,12 +164,12 @@ impl Object {
                 .iter()
                 .map(|(id, x)| (*id, Self::Variable(x.clone()))),
         );
-        Some(data)
+        Ok(data)
     }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Type {
+pub enum Type {
     Void,
     Bool,
     Function(Vec<ObjectId>),
@@ -188,32 +200,32 @@ pub(crate) enum Type {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MemberType {
+pub struct MemberType {
     pub(crate) type_: ObjectId,
     pub(crate) decorations: Decorations,
 }
 
 impl Type {
     /// Parses types.
-    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> anyhow::Result<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
             let (opcode, result_type, Some(result_id), operands) = deconstruct_instruction(inst)
             else {
-                return None;
+                bail!("unsupported inst {:?}", inst)
             };
             match (opcode, result_type, result_id, operands) {
                 (spirv_::Op::TypeVoid, None, &result_id, &[]) => {
-                    data.insert(ObjectId(result_id), Type::Void);
+                    data.insert(ObjectId(result_id), Self::Void);
                 }
                 (spirv_::Op::TypeBool, None, &result_id, &[]) => {
-                    data.insert(ObjectId(result_id), Type::Bool);
+                    data.insert(ObjectId(result_id), Self::Bool);
                 }
                 (spirv_::Op::TypeFunction, None, &result_id, operands) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Function(
+                        Self::Function(
                             operands
                                 .iter()
                                 .map(|x| ObjectId(x.unwrap_id_ref()))
@@ -222,7 +234,7 @@ impl Type {
                     );
                 }
                 (spirv_::Op::TypeFloat, None, &result_id, &[Operand_::LiteralInt32(width)]) => {
-                    data.insert(ObjectId(result_id), Type::Float { width });
+                    data.insert(ObjectId(result_id), Self::Float { width });
                 }
                 (
                     spirv_::Op::TypeInt,
@@ -232,7 +244,7 @@ impl Type {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Int {
+                        Self::Int {
                             width,
                             signedness: signedness == 1,
                         },
@@ -246,7 +258,7 @@ impl Type {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Array {
+                        Self::Array {
                             element_type: ObjectId(element_type),
                             length: ObjectId(length),
                             decorations: Default::default(),
@@ -261,7 +273,7 @@ impl Type {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Vector {
+                        Self::Vector {
                             component_type: ObjectId(component_type),
                             component_count,
                         },
@@ -270,7 +282,7 @@ impl Type {
                 (spirv_::Op::TypeStruct, None, &result_id, operands) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Struct {
+                        Self::Struct {
                             member_types: operands
                                 .iter()
                                 .map(|x| MemberType {
@@ -290,7 +302,7 @@ impl Type {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Type::Pointer {
+                        Self::Pointer {
                             storage_class: storage_class.into(),
                             type_: ObjectId(type_),
                         },
@@ -304,7 +316,7 @@ impl Type {
                 }
             }
         }
-        Some(data)
+        Ok(data)
     }
 
     fn decorate_member(
@@ -315,16 +327,19 @@ impl Type {
         literals: &[Operand_],
     ) {
         let member_types = match data.get_mut(&ObjectId(*target)) {
-            Some(Type::Struct {
+            Some(Self::Struct {
                 member_types,
                 decorations: _,
             }) => member_types,
             _ => unreachable!(),
         };
-        let MemberType {
+        let Some(MemberType {
             type_: _,
             decorations,
-        } = member_types.get_mut(*member as usize).unwrap();
+        }) = member_types.get_mut(*member as usize)
+        else {
+            unreachable!()
+        };
         decorations.decorate(decoration, literals);
     }
 
@@ -336,11 +351,11 @@ impl Type {
     ) -> bool {
         let type_ = data.get_mut(&ObjectId(*target));
         let decorations = match type_ {
-            Some(Type::Struct {
+            Some(Self::Struct {
                 member_types: _,
                 decorations,
             }) => decorations,
-            Some(Type::Array {
+            Some(Self::Array {
                 element_type: _,
                 length: _,
                 decorations,
@@ -354,7 +369,7 @@ impl Type {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Constant {
+pub enum Constant {
     Scalar {
         type_: ObjectId,
         value: u32,
@@ -367,13 +382,13 @@ pub(crate) enum Constant {
 
 impl Constant {
     /// Parses constants.
-    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> anyhow::Result<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
             let (opcode, result_type, Some(result_id), operands) = deconstruct_instruction(inst)
             else {
-                return None;
+                bail!("unsupported inst {:?}", inst)
             };
             match (opcode, result_type, result_id, operands) {
                 (
@@ -399,7 +414,7 @@ impl Constant {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Constant::Scalar {
+                        Self::Scalar {
                             type_: ObjectId(result_type),
                             value,
                         },
@@ -413,7 +428,7 @@ impl Constant {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Constant::Scalar {
+                        Self::Scalar {
                             type_: ObjectId(result_type),
                             value: value.to_bits(),
                         },
@@ -422,7 +437,7 @@ impl Constant {
                 (spirv_::Op::ConstantComposite, &Some(result_type), &result_id, operands) => {
                     data.insert(
                         ObjectId(result_id),
-                        Constant::Composite {
+                        Self::Composite {
                             type_: ObjectId(result_type),
                             constituents: operands
                                 .iter()
@@ -436,12 +451,12 @@ impl Constant {
                 }
             }
         }
-        Some(data)
+        Ok(data)
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum StorageClass {
+pub enum StorageClass {
     Input,
     Output,
     Function,
@@ -466,13 +481,13 @@ impl From<spirv_::StorageClass> for StorageClass {
 
 impl Variable {
     /// Parses variables.
-    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> anyhow::Result<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
 
         for inst in &module.types_global_values {
             let (opcode, result_type, Some(result_id), operands) = deconstruct_instruction(inst)
             else {
-                return None;
+                bail!("unsupported inst {:?}", inst)
             };
             match (opcode, result_type, result_id, operands) {
                 (
@@ -499,7 +514,7 @@ impl Variable {
                 ) => {
                     data.insert(
                         ObjectId(result_id),
-                        Variable::Pointer(Pointer::ToMemoryObject {
+                        Self::Pointer(Pointer::ToMemoryObject {
                             memory_object: MemoryObject {
                                 type_: ObjectId(pointer_type),
                                 storage_class: storage_class.into(),
@@ -513,7 +528,7 @@ impl Variable {
                 }
             }
         }
-        Some(data)
+        Ok(data)
     }
 
     fn decorate(
@@ -524,7 +539,7 @@ impl Variable {
     ) -> bool {
         let type_ = data.get_mut(&ObjectId(*target));
         let decorations = match type_ {
-            Some(Variable::Pointer(Pointer::ToMemoryObject {
+            Some(Self::Pointer(Pointer::ToMemoryObject {
                 memory_object:
                     MemoryObject {
                         type_: _,
@@ -532,7 +547,7 @@ impl Variable {
                         decorations,
                     },
             })) => decorations,
-            Some(Variable::Pointer(_)) => return false,
+            Some(Self::Pointer(_)) => return false,
             None => return false,
         };
         decorations.decorate(decoration, literals);
@@ -541,24 +556,24 @@ impl Variable {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Variable {
+pub enum Variable {
     Pointer(Pointer),
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Pointer {
+pub enum Pointer {
     ToMemoryObject { memory_object: MemoryObject },
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MemoryObject {
+pub struct MemoryObject {
     pub(crate) type_: ObjectId,
     pub(crate) storage_class: StorageClass,
     pub(crate) decorations: Decorations,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-pub(crate) struct Decorations {
+pub struct Decorations {
     pub(crate) builtin: Option<BuiltInDecoration>,
     pub(crate) block: bool,
     pub(crate) location: Option<LocationDecoration>,
@@ -601,7 +616,7 @@ impl Decorations {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum BuiltInDecoration {
+pub enum BuiltInDecoration {
     Position,
     PointSize,
     VertexIndex,
@@ -625,7 +640,7 @@ impl BuiltInDecoration {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct LocationDecoration {
+pub struct LocationDecoration {
     pub number: u32,
 }
 
@@ -669,7 +684,7 @@ impl Decorations {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Function {
+pub struct Function {
     pub(crate) result_type: ObjectId,
     pub(crate) function_type: ObjectId,
     pub(crate) instructions: Vec<Instruction>,
@@ -677,7 +692,7 @@ pub(crate) struct Function {
 
 impl Function {
     /// Parses functions.
-    fn parse(module: &Module_) -> Option<HashMap<ObjectId, Self>> {
+    fn parse(module: &Module_) -> anyhow::Result<HashMap<ObjectId, Self>> {
         let mut data = HashMap::default();
         for function in &module.functions {
             let builder = FunctionBuilder::new();
@@ -687,20 +702,24 @@ impl Function {
                 &Some(result_type),
                 &Some(result_id),
                 &[Operand_::FunctionControl(function_control), Operand_::IdRef(function_type)],
-            ) = deconstruct_instruction(function.def.as_ref().unwrap())
-            {
+            ) = deconstruct_instruction(
+                function
+                    .def
+                    .as_ref()
+                    .context("failed to get spirv function def")?,
+            ) {
                 builder.def(result_id, result_type, function_control, function_type)
             } else {
-                return None;
+                bail!("Unsupported function: {:?}", function.def);
             };
             assert!(function.parameters.is_empty()); // TODO: Parse SPIR-V function parameters.
             for block in &function.blocks {
-                builder = builder.block(block);
+                builder = builder.block(block)?;
             }
             let (result_id, function) = builder.build();
             data.insert(result_id, function);
         }
-        Some(data)
+        Ok(data)
     }
 }
 
@@ -738,18 +757,17 @@ impl FunctionBuilder {
         self
     }
 
-    fn block(mut self, block: &Block_) -> Self {
-        self = self.instruction(block.label.as_ref().unwrap());
+    fn block(mut self, block: &Block_) -> anyhow::Result<Self> {
+        self = self.instruction(block.label.as_ref().context("failed to get block label")?)?;
         for inst in &block.instructions {
-            self = self.instruction(inst);
+            self = self.instruction(inst)?;
         }
-        self
+        Ok(self)
     }
 
-    fn instruction(mut self, instruction: &Instruction_) -> Self {
-        self.instructions
-            .push(Instruction::parse(instruction).unwrap());
-        self
+    fn instruction(mut self, instruction: &Instruction_) -> anyhow::Result<Self> {
+        self.instructions.push(Instruction::parse(instruction)?);
+        Ok(self)
     }
 
     fn build(self) -> (ObjectId, Function) {
@@ -765,7 +783,7 @@ impl FunctionBuilder {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Instruction {
+pub enum Instruction {
     Label {
         result_id: ObjectId,
     },
@@ -923,10 +941,10 @@ pub(crate) enum Instruction {
 
 impl Instruction {
     /// Parses instruction.
-    fn parse(instruction: &Instruction_) -> Option<Self> {
+    fn parse(instruction: &Instruction_) -> anyhow::Result<Self> {
         let (opcode, result_type, result_id, operands) = deconstruct_instruction(instruction);
         match (opcode, result_type, result_id, operands) {
-            (spirv_::Op::Label, None, &Some(result_id), &[]) => Some(Self::Label {
+            (spirv_::Op::Label, None, &Some(result_id), &[]) => Ok(Self::Label {
                 result_id: ObjectId(result_id),
             }),
             (
@@ -934,7 +952,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(base), indexes @ ..],
-            ) => Some(Self::AccessChain {
+            ) => Ok(Self::AccessChain {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 base: ObjectId(*base),
@@ -950,7 +968,7 @@ impl Instruction {
                 [Operand_::IdRef(pointer), Operand_::IdRef(object), memory_operands @ ..],
             ) => {
                 assert_eq!(memory_operands.len(), 0);
-                Some(Self::Store {
+                Ok(Self::Store {
                     pointer: ObjectId(*pointer),
                     object: ObjectId(*object),
                 })
@@ -962,7 +980,7 @@ impl Instruction {
                 [Operand_::IdRef(pointer), memory_operands @ ..],
             ) => {
                 assert_eq!(memory_operands.len(), 0);
-                Some(Self::Load {
+                Ok(Self::Load {
                     result_id: ObjectId(result_id),
                     result_type: ObjectId(result_type),
                     pointer: ObjectId(*pointer),
@@ -973,7 +991,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(vector), Operand_::IdRef(scalar)],
-            ) => Some(Self::VectorTimesScalar {
+            ) => Ok(Self::VectorTimesScalar {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 vector: ObjectId(*vector),
@@ -984,7 +1002,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::IAdd {
+            ) => Ok(Self::IAdd {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -995,7 +1013,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::IMul {
+            ) => Ok(Self::IMul {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1006,7 +1024,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::FSub {
+            ) => Ok(Self::FSub {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1017,7 +1035,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::FDiv {
+            ) => Ok(Self::FDiv {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1028,7 +1046,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::SDiv {
+            ) => Ok(Self::SDiv {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1039,7 +1057,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::UDiv {
+            ) => Ok(Self::UDiv {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1050,7 +1068,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::SMod {
+            ) => Ok(Self::SMod {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1061,7 +1079,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::UMod {
+            ) => Ok(Self::UMod {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1072,7 +1090,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::BitwiseAnd {
+            ) => Ok(Self::BitwiseAnd {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1083,7 +1101,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(base), Operand_::IdRef(shift)],
-            ) => Some(Self::ShiftRightLogical {
+            ) => Ok(Self::ShiftRightLogical {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 base: ObjectId(*base),
@@ -1094,7 +1112,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::IEqual {
+            ) => Ok(Self::IEqual {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1105,7 +1123,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand1), Operand_::IdRef(operand2)],
-            ) => Some(Self::ULessThan {
+            ) => Ok(Self::ULessThan {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand1: ObjectId(*operand1),
@@ -1116,7 +1134,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand)],
-            ) => Some(Self::ConvertSToF {
+            ) => Ok(Self::ConvertSToF {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand: ObjectId(*operand),
@@ -1126,7 +1144,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand)],
-            ) => Some(Self::ConvertFToU {
+            ) => Ok(Self::ConvertFToU {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand: ObjectId(*operand),
@@ -1136,7 +1154,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(operand)],
-            ) => Some(Self::ConvertUToF {
+            ) => Ok(Self::ConvertUToF {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 operand: ObjectId(*operand),
@@ -1146,7 +1164,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(composite), indexes @ ..],
-            ) => Some(Self::CompositeExtract {
+            ) => Ok(Self::CompositeExtract {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 composite: ObjectId(*composite),
@@ -1160,7 +1178,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [constituents @ ..],
-            ) => Some(Self::CompositeConstruct {
+            ) => Ok(Self::CompositeConstruct {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 constituents: constituents
@@ -1173,7 +1191,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 &[Operand_::StorageClass(storage_class)],
-            ) => Some(Self::Variable {
+            ) => Ok(Self::Variable {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 storage_class: storage_class.into(),
@@ -1183,7 +1201,7 @@ impl Instruction {
                 &Some(result_type),
                 &Some(result_id),
                 [Operand_::IdRef(condition), Operand_::IdRef(object1), Operand_::IdRef(object2)],
-            ) => Some(Self::Select {
+            ) => Ok(Self::Select {
                 result_id: ObjectId(result_id),
                 result_type: ObjectId(result_type),
                 condition: ObjectId(*condition),
@@ -1195,7 +1213,7 @@ impl Instruction {
                 None,
                 None,
                 [Operand_::IdRef(merge_block), Operand_::SelectionControl(_selection_control)],
-            ) => Some(Self::SelectionMerge {
+            ) => Ok(Self::SelectionMerge {
                 merge_block: ObjectId(*merge_block),
             }),
             (
@@ -1203,27 +1221,25 @@ impl Instruction {
                 None,
                 None,
                 [Operand_::IdRef(merge_block), Operand_::IdRef(continue_target_label), Operand_::LoopControl(_loop_control), ..],
-            ) => Some(Self::LoopMerge {
+            ) => Ok(Self::LoopMerge {
                 merge_block: ObjectId(*merge_block),
                 continue_target_label: ObjectId(*continue_target_label),
             }),
-            (spirv_::Op::Branch, None, None, [Operand_::IdRef(target_label)]) => {
-                Some(Self::Branch {
-                    target_label: ObjectId(*target_label),
-                })
-            }
+            (spirv_::Op::Branch, None, None, [Operand_::IdRef(target_label)]) => Ok(Self::Branch {
+                target_label: ObjectId(*target_label),
+            }),
             (
                 spirv_::Op::BranchConditional,
                 None,
                 None,
                 [Operand_::IdRef(condition), Operand_::IdRef(true_label), Operand_::IdRef(false_label)],
-            ) => Some(Self::BranchConditional {
+            ) => Ok(Self::BranchConditional {
                 condition: ObjectId(*condition),
                 true_label: ObjectId(*true_label),
                 false_label: ObjectId(*false_label),
             }),
-            (spirv_::Op::Return, None, None, &[]) => Some(Self::Return),
-            (spirv_::Op::Kill, None, None, &[]) => Some(Self::Kill),
+            (spirv_::Op::Return, None, None, &[]) => Ok(Self::Return),
+            (spirv_::Op::Kill, None, None, &[]) => Ok(Self::Kill),
             _ => {
                 unimplemented!("{instruction:#?}")
             }
@@ -1242,11 +1258,11 @@ fn deconstruct_instruction(
     let Instruction_ {
         class:
             rspirv::grammar::Instruction {
-                opname,
+                opname: _,
                 opcode,
-                capabilities,
-                extensions,
-                operands: grammar_operands,
+                capabilities: _,
+                extensions: _,
+                operands: _grammar_operands,
             },
         result_type,
         result_id,

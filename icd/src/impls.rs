@@ -43,7 +43,10 @@ pub unsafe extern "C" fn vkCreateInstance(
         unreachable!()
     };
 
-    *pInstance.as_ptr() = Instance::create();
+    *pInstance.as_ptr() = match Instance::create() {
+        Ok(inner) => inner,
+        Err(e) => return e,
+    };
 
     VkResult::VK_SUCCESS
 }
@@ -573,12 +576,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
     let properties = physicalDevice
         .lock()
         .image_format_properties(format, type_, tiling, usage, flags);
-    if let Some(properties) = properties {
+    properties.map_or(VkResult::VK_ERROR_FORMAT_NOT_SUPPORTED, |properties| {
         *pImageFormatProperties.as_ptr() = properties;
         VkResult::VK_SUCCESS
-    } else {
-        VkResult::VK_ERROR_FORMAT_NOT_SUPPORTED
-    }
+    })
 }
 
 pub unsafe extern "C" fn vkDestroyDevice(
@@ -726,7 +727,7 @@ pub unsafe extern "C" fn vkWaitForFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let fences = pFences
         .iter()
-        .map(|&handle| Fence::from_handle(handle).unwrap())
+        .flat_map(|&handle| Fence::from_handle(handle))
         .collect::<Vec<_>>();
 
     device.lock().wait_for_fences(fences, waitAll != 0, timeout);
@@ -752,7 +753,7 @@ pub unsafe extern "C" fn vkResetFences(
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let mut fences = pFences
         .iter()
-        .map(|&handle| Fence::from_handle(handle).unwrap())
+        .flat_map(|&handle| Fence::from_handle(handle))
         .collect::<Vec<_>>();
 
     device.lock().reset_fences(fences);
@@ -780,7 +781,7 @@ pub unsafe extern "C" fn vkQueueSubmit(
                 std::slice::from_raw_parts(x.as_ptr(), submit.waitSemaphoreCount as usize)
             })
             .iter()
-            .map(|&handle| Semaphore::from_handle(handle).unwrap());
+            .flat_map(|&handle| Semaphore::from_handle(handle));
         let wait_semaphores_stage_flags = submit.pWaitDstStageMask.map_or(&[] as &[_], |x| {
             std::slice::from_raw_parts(x.as_ptr(), submit.waitSemaphoreCount as usize)
         });
@@ -790,14 +791,14 @@ pub unsafe extern "C" fn vkQueueSubmit(
                 std::slice::from_raw_parts(x.as_ptr(), submit.signalSemaphoreCount as usize)
             })
             .iter()
-            .map(|&handle| Semaphore::from_handle(handle).unwrap());
+            .flat_map(|&handle| Semaphore::from_handle(handle));
         let command_buffers = submit
             .pCommandBuffers
             .map_or(&[] as &[_], |x| {
                 std::slice::from_raw_parts(x.as_ptr(), submit.commandBufferCount as usize)
             })
             .iter()
-            .map(|&handle| CommandBuffer::from_handle(handle).unwrap());
+            .flat_map(|&handle| CommandBuffer::from_handle(handle));
 
         queue.lock().submit(
             wait_semaphores,

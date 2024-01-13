@@ -1,5 +1,6 @@
 use crate::shader::spirv;
 use crate::shader::spirv::Spirv;
+use anyhow::Context;
 
 #[derive(Debug, Clone)]
 pub struct Il {
@@ -7,26 +8,26 @@ pub struct Il {
 }
 
 impl Il {
-    pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
+    pub fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
         let spirv = Spirv::new(name, code)?;
         let instructions = Self::parse_spirv(spirv)?;
-        Some(Self { instructions })
+        Ok(Self { instructions })
     }
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub(crate) enum Variable {
+pub enum Variable {
     ObjectId(u32),
 }
 
 impl Variable {
-    fn from_spirv(id: &spirv::ObjectId) -> Self {
+    pub const fn from_spirv(id: &spirv::ObjectId) -> Self {
         Self::ObjectId(id.0)
     }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Instruction {
+pub enum Instruction {
     Label {
         id: u32,
     },
@@ -169,7 +170,7 @@ pub(crate) enum Instruction {
 }
 
 impl Il {
-    fn parse_spirv(spirv: Spirv) -> Option<Vec<Instruction>> {
+    fn parse_spirv(spirv: Spirv) -> anyhow::Result<Vec<Instruction>> {
         let mut scalar_variables = vec![];
         let mut composite_variables = vec![];
         let mut pointer_variables = vec![];
@@ -197,7 +198,7 @@ impl Il {
                         let values = constituents
                             .iter()
                             .map(|id| match Self::get_spirv_constant(&spirv, id) {
-                                spirv::Constant::Scalar { type_, value } => *value,
+                                spirv::Constant::Scalar { type_: _, value } => *value,
                                 spirv::Constant::Composite { .. } => {
                                     unreachable!()
                                 }
@@ -228,7 +229,10 @@ impl Il {
         instructions.extend(composite_variables);
         instructions.extend(pointer_variables);
 
-        let main = spirv.functions.get(&spirv.entry_point.entry_point)?;
+        let main = spirv
+            .functions
+            .get(&spirv.entry_point.entry_point)
+            .context("failed to get spirv function")?;
         for instruction in &main.instructions {
             match instruction {
                 spirv::Instruction::Label { result_id } => {
@@ -247,7 +251,7 @@ impl Il {
                     instructions.push(Instruction::LoadVariableOffset {
                         id,
                         base: Variable::from_spirv(base),
-                        offsets: indexes.iter().map(|x| Variable::from_spirv(x)).collect(),
+                        offsets: indexes.iter().map(Variable::from_spirv).collect(),
                     });
                 }
                 spirv::Instruction::Store { pointer, object } => {
@@ -552,17 +556,17 @@ impl Il {
                     instructions.push(Instruction::VariableDecl { id, decl });
                     let values = constituents
                         .iter()
-                        .map(|id| Variable::from_spirv(id))
+                        .map(Variable::from_spirv)
                         .collect::<Vec<_>>();
                     instructions.push(Instruction::StoreVariableArray { dst: id, values });
                 }
                 spirv::Instruction::Variable {
                     result_id,
                     result_type,
-                    storage_class,
+                    storage_class: _,
                 } => {
                     let decl =
-                        Self::get_variable_decl(&spirv, &result_type, VariableBacking::Memory);
+                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
                     let id = Variable::from_spirv(result_id);
                     instructions.push(Instruction::VariableDecl { id, decl });
                 }
@@ -622,7 +626,7 @@ impl Il {
                 }
             }
         }
-        Some(instructions)
+        Ok(instructions)
     }
 
     fn get_spirv_type<'a>(spirv: &'a Spirv, id: &spirv::ObjectId) -> &'a spirv::Type {
@@ -646,7 +650,7 @@ impl Il {
         }
     }
 
-    fn from_spirv_decorations(decorations: &spirv::Decorations) -> VariableBacking {
+    const fn from_spirv_decorations(decorations: &spirv::Decorations) -> VariableBacking {
         if let Some(builtin) = decorations.builtin {
             match builtin {
                 spirv::BuiltInDecoration::Position => VariableBacking::Position,
@@ -752,7 +756,7 @@ impl Il {
                 )
             }
             spirv::Type::Pointer {
-                storage_class,
+                storage_class: _,
                 type_,
             } => {
                 let type_ = Self::get_variable_decl(spirv, type_, backing);
@@ -775,20 +779,20 @@ impl Il {
 }
 
 impl From<&VariableDecl> for Variable {
-    fn from(decl: &VariableDecl) -> Self {
+    fn from(_decl: &VariableDecl) -> Self {
         todo!()
     }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct VariableDecl {
+pub struct VariableDecl {
     pub(crate) kind: VariableKind,
     pub(crate) component_count: u32,
     pub(crate) backing: VariableBacking,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum VariableKind {
+pub enum VariableKind {
     F32,
     U32,
     I32,
@@ -800,7 +804,7 @@ pub(crate) enum VariableKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum VariableBacking {
+pub enum VariableBacking {
     Memory,
     Location {
         number: u32,

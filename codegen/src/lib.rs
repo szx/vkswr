@@ -86,7 +86,7 @@ lazy_static! {
 }
 
 fn seen(name: Arc<str>) -> bool {
-    let mut seen = SEEN.lock().unwrap();
+    let mut seen = SEEN.lock().expect("failed to unlock SEEN");
     if seen.iter().any(|x| x == &name) {
         true
     } else {
@@ -112,7 +112,7 @@ impl ToTokens for VkEnums {
             Self::Enum { name, members } => {
                 let type_ = format_ident!("{}", enum_type_from_name(name));
                 let name = format_ident!("{}", name.as_ref());
-                let mut enumerators = members.iter().filter(|x| {
+                let enumerators = members.iter().filter(|x| {
                     matches!(x, VkEnumsMember::MemberValue { .. })
                         || matches!(x, VkEnumsMember::MemberBitpos { .. })
                 });
@@ -207,7 +207,7 @@ impl ToTokens for VkEnumsMember {
             Self::MemberBitpos {
                 name,
                 bitpos,
-                enum_name,
+                enum_name: _,
             } => {
                 let name = format_ident!("{}", name.as_ref());
                 let bitpos = Literal::isize_unsuffixed(parse_int::parse(bitpos).expect("integer"));
@@ -387,7 +387,7 @@ impl ToTokens for VkCommand {
 
 impl ToTokens for VkExtension {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let VkExtension {
+        let Self {
             name,
             number,
             enum_members,

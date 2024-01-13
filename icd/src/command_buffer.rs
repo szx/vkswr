@@ -68,10 +68,7 @@ pub unsafe extern "C" fn vkAllocateCommandBuffers(
     };
 
     let command_buffer_count = allocate_info.commandBufferCount as usize;
-    let command_buffers = vec![CommandBuffer::create(allocate_info); command_buffer_count]
-        .iter()
-        .map(|x| *x)
-        .collect::<Vec<_>>();
+    let command_buffers = vec![CommandBuffer::create(allocate_info); command_buffer_count].to_vec();
     std::ptr::copy_nonoverlapping(
         command_buffers.as_ptr(),
         pCommandBuffers.as_ptr(),
@@ -506,7 +503,7 @@ pub unsafe extern "C" fn vkCmdExecuteCommands(
             std::slice::from_raw_parts(x.as_ptr(), commandBufferCount as usize)
         })
         .iter()
-        .map(|&handle| CommandBuffer::from_handle(handle).unwrap());
+        .flat_map(|&handle| CommandBuffer::from_handle(handle));
 
     commandBuffer.lock().cmd_execute_commands(command_buffers);
 }

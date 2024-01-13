@@ -1,11 +1,9 @@
 use crate::shader::il;
 use crate::{
-    Format, Fragment, FragmentShaderOutput, Memory, Position, Vector4, Vertex, VertexAttribute,
-    VertexInputState, VertexShaderOutput, MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES,
+    Format, Fragment, FragmentShaderOutput, Vector4, Vertex, VertexInputState, VertexShaderOutput,
+    MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES,
 };
 use hashbrown::HashMap;
-use log::{debug, info};
-use std::iter;
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
@@ -13,16 +11,16 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
+    pub fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
         let il = il::Il::new(name, code)?;
-        Some(Self { il })
+        Ok(Self { il })
     }
 }
 
 impl Interpreter {
     pub(crate) fn execute_vertex_shader(
         &self,
-        vertex_input_state: &VertexInputState,
+        _vertex_input_state: &VertexInputState,
         vertices: Vec<Vertex>,
     ) -> Vec<VertexShaderOutput> {
         // TODO: Create shader input/output interfaces, check if match between stages.
@@ -107,10 +105,10 @@ impl State {
 impl State {
     fn store_imm32(&mut self, variable: ArrayVariable, imm: &[u32]) {
         // TODO: Use variable stride.
-        for i in 0..imm.len() {
+        for (i, src) in imm.iter().enumerate() {
             self.memory[variable.memory_region.address as usize + 4 * i
                 ..variable.memory_region.address as usize + 4 * (i + 1)]
-                .copy_from_slice(&imm[i].to_ne_bytes());
+                .copy_from_slice(&src.to_ne_bytes());
         }
     }
 
@@ -276,33 +274,33 @@ enum BuiltIn {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct MemoryRegion {
+pub struct MemoryRegion {
     address: u32,
     size: u32,
 }
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum Variable {
+pub enum Variable {
     Array(ArrayVariableId),
     Struct(StructVariableId),
     Pointer(PointerVariableId),
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub(crate) struct ArrayVariableId(u32);
+pub struct ArrayVariableId(u32);
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub(crate) struct StructVariableId(u32);
+pub struct StructVariableId(u32);
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub(crate) struct PointerVariableId(u32);
+pub struct PointerVariableId(u32);
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct ArrayVariable {
+pub struct ArrayVariable {
     memory_region: MemoryRegion,
     stride: u32,
 }
 
 impl ArrayVariable {
-    pub(crate) fn len(&self) -> u32 {
+    const fn len(&self) -> u32 {
         self.memory_region.size / self.stride
     }
 
@@ -319,12 +317,12 @@ impl ArrayVariable {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct StructVariable {
+pub struct StructVariable {
     members: Vec<Variable>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PointerVariable {
+pub struct PointerVariable {
     pointer: Option<Variable>,
 }
 
@@ -566,7 +564,7 @@ impl State {
         self.store_array(result, src);
     }
 
-    fn il_store(&mut self, dst: &il::Variable, src: &il::Variable) {
+    fn il_store(&mut self, _dst: &il::Variable, _src: &il::Variable) {
         todo!();
     }
 
@@ -613,9 +611,9 @@ impl State {
         let dst = self
             .array_variable(self.il_variable(variable))
             .memory_region;
-        for i in 0..imm.len() {
+        for (i, src) in imm.iter().enumerate() {
             self.memory[dst.address as usize + 4 * i..dst.address as usize + 4 * (i + 1)]
-                .copy_from_slice(&imm[i].to_ne_bytes());
+                .copy_from_slice(&src.to_ne_bytes());
         }
     }
 }
@@ -762,7 +760,7 @@ impl State {
     fn interpret_il_instruction(&mut self, instruction: &il::Instruction) -> bool {
         match instruction {
             il::Instruction::Label { id } => {
-                self.labels.try_insert(*id, self.pc).unwrap();
+                self.labels.insert_unique_unchecked(*id, self.pc);
             }
             il::Instruction::VariableDecl { id, decl } => {
                 self.il_add_new_variable(id, decl);
@@ -840,10 +838,10 @@ impl State {
                 return true;
             }
             il::Instruction::Select {
-                id,
-                cond,
-                obj1,
-                obj2,
+                id: _,
+                cond: _,
+                obj1: _,
+                obj2: _,
             } => {
                 todo!()
             }

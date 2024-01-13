@@ -353,7 +353,7 @@ pub unsafe extern "C" fn vkCreateFramebuffer(
             std::slice::from_raw_parts(x.as_ptr(), create_info.attachmentCount as usize)
         })
         .iter()
-        .map(|&handle| ImageView::from_handle(handle).unwrap())
+        .flat_map(|&handle| ImageView::from_handle(handle))
         .collect::<Vec<_>>();
     let Some(render_pass) = RenderPass::from_handle(create_info.renderPass) else {
         unreachable!()

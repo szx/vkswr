@@ -172,6 +172,7 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
     let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
+    /*
     let descriptor_writes = pDescriptorWrites
         .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorWriteCount as usize));
     let descriptor_copies = pDescriptorCopies
@@ -184,4 +185,5 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
     descriptor_copies.map(|descriptor_copy| {
         // TODO: Descriptor write.
     });
+    */
 }

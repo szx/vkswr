@@ -6,7 +6,7 @@ use crate::{
 };
 use byteorder::ByteOrder;
 use hashbrown::HashMap;
-use log::debug;
+
 use std::ops::{Index, IndexMut};
 
 #[derive(Default)]
@@ -61,18 +61,16 @@ impl GraphicsPipeline {
 
         let bytes_per_pixel = rt.format.info().bytes_per_pixel;
         let dst_offset = rt.image.extent.width * area.offset.y as u32 * bytes_per_pixel as u32;
-        let dst = memory.get_memory_mut(&rt.image.binding);
-        let mut dst = dst[dst_offset as usize..].as_mut_ptr();
+        let mut dst = memory.get_memory_mut(&rt.image.binding);
+        dst = &mut dst[dst_offset as usize..];
         let src = color.to_bytes(rt.format);
+        let src = src.as_slice();
 
-        unsafe {
-            let src = src.as_ptr();
-            for _y in 0..area.extent.height {
-                dst = dst.offset(area.offset.x as isize * bytes_per_pixel as isize);
-                for _x in 0..area.extent.width {
-                    std::ptr::copy_nonoverlapping(src, dst, bytes_per_pixel as usize);
-                    dst = dst.offset(bytes_per_pixel as isize);
-                }
+        for _y in 0..area.extent.height {
+            for _x in 0..area.extent.width {
+                let dst_offset = area.offset.x as usize * bytes_per_pixel as usize;
+                dst[dst_offset..dst_offset + bytes_per_pixel as usize].copy_from_slice(src);
+                dst = &mut dst[bytes_per_pixel as usize..];
             }
         }
     }
@@ -196,9 +194,9 @@ impl GraphicsPipeline {
                     viewport.depth.min,
                 );
                 let (x_screen, y_screen, z_screen) = (
-                    (p_x / 2.0) * x_ndc + o_x,
-                    (p_y / 2.0) * y_ndc + o_y,
-                    p_z * z_ndc + o_z,
+                    (p_x / 2.0).mul_add(x_ndc, o_x),
+                    (p_y / 2.0).mul_add(y_ndc, o_y),
+                    p_z.mul_add(z_ndc, o_z),
                 );
                 Vertex {
                     position: Position::from_sfloat32_raw(x_screen, y_screen, z_screen, 1.0),
@@ -287,7 +285,7 @@ impl GraphicsPipeline {
 impl GraphicsPipeline {
     fn fetch_vertex_input(
         &mut self,
-        memory: &mut Memory,
+        memory: &Memory,
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
@@ -361,11 +359,11 @@ impl GraphicsPipeline {
 
     fn fetch_vertex_input_indexed(
         &self,
-        memory: &mut Memory,
+        memory: &Memory,
         index_count: u32,
         instance_count: u32,
         first_index: u32,
-        vertex_offset: i32,
+        _vertex_offset: i32,
         first_instance: u32,
     ) -> Vec<Vertex> {
         assert_eq!(instance_count, 1);
@@ -376,29 +374,32 @@ impl GraphicsPipeline {
             unreachable!()
         };
 
-        if let Some(binding) = self.vertex_input_state.bindings[0].as_ref() {
-            // TODO: Determine used VertexBindings from vertex shader (if any).
-            todo!();
-        } else {
-            let mut vertices = vec![];
-            for index in first_index..first_index + index_count {
-                let bytes = memory.read_bytes(
-                    &index_buffer.buffer.binding,
-                    index_buffer.offset + index as u64 * index_buffer.index_size as u64,
-                    index_buffer.index_size as u64,
-                );
-                let index =
-                    byteorder::NativeEndian::read_uint(bytes, index_buffer.index_size as usize)
-                        as u32;
-                vertices.push(Vertex {
-                    position: Default::default(),
-                    point_size: 1.0f32,
-                    index,
-                    clip_distances: Default::default(),
-                });
-            }
-            vertices
-        }
+        self.vertex_input_state.bindings[0].as_ref().map_or_else(
+            || {
+                let mut vertices = vec![];
+                for index in first_index..first_index + index_count {
+                    let bytes = memory.read_bytes(
+                        &index_buffer.buffer.binding,
+                        index_buffer.offset + index as u64 * index_buffer.index_size as u64,
+                        index_buffer.index_size as u64,
+                    );
+                    let index =
+                        byteorder::NativeEndian::read_uint(bytes, index_buffer.index_size as usize)
+                            as u32;
+                    vertices.push(Vertex {
+                        position: Default::default(),
+                        point_size: 1.0f32,
+                        index,
+                        clip_distances: Default::default(),
+                    });
+                }
+                vertices
+            },
+            |_binding| {
+                // TODO: Determine used VertexBindings from vertex shader (if any).
+                todo!();
+            },
+        )
     }
 
     fn execute_vertex_shader(

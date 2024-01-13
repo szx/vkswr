@@ -1,9 +1,5 @@
 use crate::shader::interpreter::Interpreter;
-use crate::{
-    Color, Format, Fragment, Position, Vertex, VertexAttribute, VertexBinding, VertexBindingNumber,
-    VertexInputRate, VertexInputState, MAX_CLIP_DISTANCES, MAX_VERTEX_ATTRIBUTES,
-    MAX_VERTEX_BINDINGS,
-};
+use crate::{Color, Fragment, Position, Vertex, VertexInputState, MAX_CLIP_DISTANCES};
 
 #[derive(Debug, Clone, Default)]
 pub struct ShaderState {
@@ -17,8 +13,8 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn new(name: &str, code: Vec<u32>) -> Option<Self> {
-        Some(Self {
+    pub fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
+        Ok(Self {
             interpreter: Interpreter::new(name, code)?,
         })
     }
@@ -95,6 +91,10 @@ impl From<Fragment> for FragmentShaderOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        Format, VertexAttribute, VertexBinding, VertexBindingNumber, VertexInputRate,
+        MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS,
+    };
     use std::process::Command;
 
     fn compile_glsl(stage: &str, glsl_code: &str) -> Vec<u32> {

@@ -14,3 +14,7 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 xcb = { workspace = true }
 itertools = { workspace = true }
+anyhow = { workspace = true }
+
+[lints]
+workspace = true

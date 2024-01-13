@@ -152,7 +152,6 @@ where
 
     fn register_object(self) -> VkDispatchableHandle {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
-        let context = &mut context;
         let handle = VkDispatchableHandle(NonNull::new(Box::leak(Box::new(
             VkDispatchableHandleInner {
                 loader_data: VkLoaderData {
@@ -162,7 +161,7 @@ where
             },
         ))));
         let object = Arc::new(Mutex::new(self));
-        Self::get_hash_mut(context).insert(handle, object.clone());
+        Self::get_hash_mut(&mut context).insert(handle, object.clone());
         object.lock().set_handle(handle);
         handle
     }
@@ -175,7 +174,7 @@ where
     fn drop_handle(handle: VkDispatchableHandle) {
         let mut context = CONTEXT.write();
         Self::get_hash_mut(&mut context).remove(&handle);
-        let inner = unsafe { Box::from_raw(handle.0.unwrap().as_ptr()) };
+        let inner = unsafe { Box::from_raw(handle.0.expect("null handle").as_ptr()) };
         drop(inner);
     }
 }
@@ -195,11 +194,10 @@ where
 
     fn register_object(self) -> VkNonDispatchableHandle {
         let mut context: RwLockWriteGuard<'_, _> = CONTEXT.write();
-        let context = &mut context;
         let handle =
             VkNonDispatchableHandle(NonZeroU64::new(ID_COUNTER.fetch_add(1, Ordering::Relaxed)));
         let object = Arc::new(Mutex::new(self));
-        Self::get_hash_mut(context).insert(handle, object.clone());
+        Self::get_hash_mut(&mut context).insert(handle, object.clone());
         object.lock().set_handle(handle);
         handle
     }
