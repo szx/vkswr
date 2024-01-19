@@ -7,6 +7,7 @@ use crate::{
 use byteorder::ByteOrder;
 use hashbrown::HashMap;
 
+use log::warn;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default)]
@@ -149,16 +150,16 @@ impl GraphicsPipeline {
         // Vertex shader.
         let vertices = self.execute_vertex_shader(&self.vertex_input_state, vertices);
 
-        // TODO: tesselation assembler
-        // TODO: tesselation control shader
-        // TODO: tesselation primitive generation
-        // TODO: tesselation evaluation shader
-        // TODO: geometry assembler
-        // TODO: geometry shader
+        warn!("TODO: tesselation assembler");
+        warn!("TODO: tesselation control shader");
+        warn!("TODO: tesselation primitive generation");
+        warn!("TODO: tesselation evaluation shader");
+        warn!("TODO: geometry assembler");
+        warn!("TODO: geometry shader");
 
         // Primitive assembler.
         let Some(viewport) = self.viewport_state.viewports[ViewportIndex(0)].as_ref() else {
-            // TODO: Use all set viewports.
+            warn!("TODO: Use all set viewports");
             unreachable!();
         };
         assert_eq!(viewport.offset.x, 0.0f32);
@@ -176,9 +177,9 @@ impl GraphicsPipeline {
                 let x_ndc = x / w;
                 let y_ndc = y / w;
                 let z_ndc = z / w;
-                // TODO: Depth test.
-                // TODO: Back-face culling.
-                // TODO: Clipping.
+                warn!("TODO: Depth test.");
+                warn!("TODO: Back-face culling.");
+                warn!("TODO: Clipping.");
                 // Viewport transformation
                 // NOTE: https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#vertexpostproc-viewport\
                 assert_eq!(viewport.offset.x, 0.0);
@@ -209,12 +210,12 @@ impl GraphicsPipeline {
 
         // Rasterization.
         let Some(rt) = self.render_targets.get_mut(&RenderTargetIndex(0)).cloned() else {
-            // TODO: Determine used RenderTarget from fragment shader.
+            warn!("TODO: Determine used RenderTarget from fragment shader");
             unreachable!()
         };
 
-        // TODO: Determine color in vertex shader.
-        // TODO: Color interpolation.
+        warn!("TODO: Determine color in vertex shader");
+        warn!("TODO: Color interpolation");
         let color = Color::from_sfloat32_raw(1.0f32, 1.0f32, 1.0f32, 1.0f32);
 
         let mut fragments = vec![];
@@ -229,7 +230,7 @@ impl GraphicsPipeline {
                         triangle.try_into().unwrap_or_else(|_| unreachable!());
                     match self.rasterization_state.polygon_mode {
                         PolygonMode::Fill | PolygonMode::Line => {
-                            // TODO: Implement PolygonMode::Fill.
+                            warn!("TODO: Implement PolygonMode::Fill");
                             for i in 0..3 {
                                 draw_line_bresenham(
                                     vertices[i],
@@ -255,16 +256,16 @@ impl GraphicsPipeline {
             PrimitiveTopology::PatchList => unimplemented!(),
         };
 
-        // TODO: early per-fragment operations
+        warn!("TODO: early per-fragment operations");
 
         // Fragment shader.
         let fragments = self.execute_fragment_shader(fragments);
 
-        // TODO: late per-fragment operations
-        // TODO: color/blending operations
+        warn!("TODO: late per-fragment operations");
+        warn!("TODO: color/blending operations");
 
         // Color attachment output
-        // TODO: Fragment shader should write directly to render target.
+        warn!("TODO: Fragment shader should write directly to render target");
         for fragment in fragments {
             let position = fragment.position;
             let color = fragment.color.to_bytes(rt.format);
@@ -277,7 +278,8 @@ impl GraphicsPipeline {
             assert!(framebuffer_y < framebuffer_height);
             let dst_offset = (framebuffer_x + framebuffer_y * framebuffer_width)
                 * rt.format.info().bytes_per_pixel as u64;
-            memory.write_bytes(&color, &rt.image.binding, dst_offset); // TODO: Write texel to image function.
+            warn!("TODO: Write texel to image function");
+            memory.write_bytes(&color, &rt.image.binding, dst_offset);
         }
     }
 }
@@ -307,14 +309,14 @@ impl GraphicsPipeline {
         }
 
         let Some(binding) = self.vertex_input_state.bindings[0].as_ref() else {
-            // TODO: Determine used VertexBindings from vertex shader (if any).
+            warn!("TODO: Determine used VertexBindings from vertex shader (if any)");
             unreachable!("{:#?}", self.vertex_input_state.bindings)
         };
         assert!(binding.stride < MAX_VERTEX_BINDING_STRIDE);
         assert_eq!(binding.input_rate, VertexInputRate::Vertex);
 
         let Some(attribute) = self.vertex_input_state.attributes[0].as_ref() else {
-            // TODO: Determine used VertexAttributes from vertex shader (if any).
+            warn!("TODO: Determine used VertexAttributes from vertex shader (if any)");
             unreachable!()
         };
         assert_eq!(attribute.binding, binding.number);
@@ -341,9 +343,10 @@ impl GraphicsPipeline {
                 vertex_buffer.offset,
                 vertex_buffer_size,
             )
-            .to_vec(); // TODO: Stream vertex buffer bytes instead of reading all of them?
+            .to_vec();
+        warn!("TODO: Stream vertex buffer bytes instead of reading all of them?");
 
-        // TODO: Determine vertex element components in shader?
+        warn!("TODO: Determine vertex element components in shader?");
         let vertices = bytes
             .chunks_exact(element_stride as usize)
             .take(vertex_count as usize)
@@ -396,7 +399,7 @@ impl GraphicsPipeline {
                 vertices
             },
             |_binding| {
-                // TODO: Determine used VertexBindings from vertex shader (if any).
+                warn!("TODO: Determine used VertexBindings from vertex shader (if any)");
                 todo!();
             },
         )

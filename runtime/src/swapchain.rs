@@ -74,7 +74,7 @@ impl Swapchain {
         let color_space = create_info.imageColorSpace;
         let present_mode = create_info.presentMode;
 
-        // TODO: Parse rest of swapchain create info.
+        warn!("TODO: Parse rest of swapchain create info");
         let _ = create_info.imageSharingMode;
         let _ = create_info.queueFamilyIndexCount;
         let _ = create_info.pQueueFamilyIndices;
@@ -106,7 +106,7 @@ impl Swapchain {
         semaphore: Option<Arc<Mutex<Semaphore>>>,
         fence: Option<Arc<Mutex<Fence>>>,
     ) -> u32 {
-        // TODO: Acquire next swapchain image.
+        warn!("TODO: Acquire next swapchain image");
         let _ = timeout;
         let _ = semaphore;
         let _ = fence;

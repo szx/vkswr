@@ -4,6 +4,7 @@ use crate::{
     MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES,
 };
 use hashbrown::HashMap;
+use log::warn;
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
@@ -23,7 +24,7 @@ impl Interpreter {
         _vertex_input_state: &VertexInputState,
         vertices: Vec<Vertex>,
     ) -> Vec<VertexShaderOutput> {
-        // TODO: Create shader input/output interfaces, check if match between stages.
+        warn!("TODO: Create shader input/output interfaces, check if match between stages");
 
         let mut outputs: Vec<VertexShaderOutput> = vec![];
 
@@ -104,7 +105,7 @@ impl State {
 
 impl State {
     fn store_imm32(&mut self, variable: ArrayVariable, imm: &[u32]) {
-        // TODO: Use variable stride.
+        warn!("TODO: Use variable stride");
         for (i, src) in imm.iter().enumerate() {
             self.memory[variable.memory_region.address as usize + 4 * i
                 ..variable.memory_region.address as usize + 4 * (i + 1)]
@@ -113,12 +114,12 @@ impl State {
     }
 
     fn load_imm32(&self, variable: ArrayVariable) -> &[u32] {
-        // TODO: Use variable stride.
+        warn!("TODO: Use variable stride");
         bytemuck::cast_slice(self.memory(&variable.memory_region))
     }
 
     fn store_array(&mut self, dst: ArrayVariable, src: ArrayVariable) {
-        // TODO: Use variable stride.
+        warn!("TODO: Use variable stride");
         self.copy_memory_region(dst.memory_region, src.memory_region);
     }
 }
@@ -194,7 +195,8 @@ impl State {
         self.store_imm32(
             *self.array_variable(self.location_variable(0)),
             bytemuck::cast_slice(vertex.position.get_as_f32_array().as_slice()),
-        ); // TODO: use vertex bindings and vertex attributes?
+        );
+        warn!("TODO: use vertex bindings and vertex attributes?");
     }
 
     fn vertex_shader_output(&self) -> VertexShaderOutput {
@@ -245,7 +247,8 @@ impl State {
         self.store_imm32(
             *self.array_variable(self.location_variable(0)),
             bytemuck::cast_slice(fragment.color.get_as_f32_array().as_slice()),
-        ); // TODO: use descriptors
+        );
+        warn!("TODO: use descriptors");
     }
 
     fn fragment_shader_output(&mut self) -> FragmentShaderOutput {
@@ -255,9 +258,10 @@ impl State {
                 self.load_imm32(*self.array_variable(self.built_in_variable(BuiltIn::FragCoord))),
             ),
         );
+        warn!("TODO: Determine color using fragment shader interface");
         let color = Vector4::from_vertex_buffer_bytes(
             Format::R32G32B32A32Sfloat,
-            bytemuck::cast_slice(self.load_imm32(*self.array_variable(self.location_variable(0)))), // TODO: Determine using fragment shader interface.
+            bytemuck::cast_slice(self.load_imm32(*self.array_variable(self.location_variable(0)))),
         );
         FragmentShaderOutput { position, color }
     }
@@ -591,6 +595,7 @@ impl State {
             Variable::Pointer(_) => unreachable!(),
         }
     }
+
     pub(crate) fn il_store_through_pointer(
         &mut self,
         dst_pointer: &il::Variable,
@@ -603,11 +608,12 @@ impl State {
             .as_ref()
             .unwrap_or_else(|| unreachable!());
 
-        // TODO: Match for identical object types.
+        warn!("TODO: Match for identical object types");
         self.store_array(*self.array_variable(dst), *self.array_variable(src));
     }
+
     pub(crate) fn il_store_imm32(&mut self, variable: &il::Variable, imm: &[u32]) {
-        // TODO: Use variable stride.
+        warn!("TODO: Use variable stride");
         let dst = self
             .array_variable(self.il_variable(variable))
             .memory_region;

@@ -68,19 +68,19 @@ impl LogicalDevice {
             if fence.lock().logical_device.data_ptr() as *const _ != self as *const _ {
                 continue;
             }
-            // TODO: Wait for one or more fences to become signaled.
+            warn!("TODO: Wait for one or more fences to become signaled");
         }
     }
 
     pub fn reset_fences(&self, fences: Vec<Arc<Mutex<Fence>>>) {
         for mut fence in fences {
-            // TODO: VUID-vkResetFences-pFences-01123
+            warn!("TODO: VUID-vkResetFences-pFences-01123");
             fence.lock().reset();
         }
     }
 
-    pub const fn wait_idle(&self) -> VkResult {
-        // TODO: LogicalDevice wait idle.
+    pub fn wait_idle(&self) -> VkResult {
+        warn!("TODO: LogicalDevice wait idle");
         VkResult::VK_SUCCESS
     }
 

@@ -87,8 +87,7 @@ impl Queue {
     }
 
     pub fn wait_idle(&self) -> VkResult {
-        info!("Queue::wait_idle");
-        // TODO: LogicalDevice wait idle.
+        warn!("TODO: LogicalDevice wait idle");
         VkResult::VK_SUCCESS
     }
 }

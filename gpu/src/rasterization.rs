@@ -1,9 +1,10 @@
 use crate::{Color, Fragment, Position, Vertex};
+use log::warn;
 
 pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>, color: Color) {
     // Bresenham's line algorithm
-    // TODO: Replace line segment rasterization with
-    //       https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#primsrast-lines-basic
+    warn!("TODO: Replace line segment rasterization.");
+    // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#primsrast-lines-basic
     let v0 = v0.position;
     let v1 = v1.position;
 

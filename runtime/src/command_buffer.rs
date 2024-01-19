@@ -73,18 +73,15 @@ impl CommandBuffer {
     }
 
     pub fn begin(&mut self) {
-        trace!("CommandBuffer::begin");
-        // TODO: Start recording command buffer.
+        warn!("TODO: Start recording command buffer");
     }
 
     pub fn end(&mut self) {
-        trace!("CommandBuffer::end");
-        // TODO: Finish recording command buffer.
+        warn!("TODO: Stop recording command buffer");
     }
 
     pub fn cmd_pipeline_barrier(&mut self) {
-        trace!("CommandBuffer::cmd_pipeline_barrier");
-        // TODO: Record pipeline barrier.
+        warn!("TODO: Record pipeline barrier");
     }
 
     pub fn cmd_begin_render_pass(
@@ -160,7 +157,31 @@ impl CommandBuffer {
                     }
                     _ => unreachable!(),
                 };
-                // TODO: Stencil commands support.
+
+                match description.stencil_load_pp {
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD => {
+                        warn!("TODO: Stencil commands support");
+                    }
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR => {
+                        warn!("TODO: Stencil commands support");
+                    }
+                    VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE
+                    | VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_NONE_EXT => {
+                        // No-op.
+                    }
+                    _ => unreachable!(),
+                };
+
+                match description.stencil_store_op {
+                    VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE => {
+                        warn!("TODO: Stencil commands support");
+                    }
+                    VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE
+                    | VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_NONE => {
+                        // No-op.
+                    }
+                    _ => unreachable!(),
+                };
             });
     }
 

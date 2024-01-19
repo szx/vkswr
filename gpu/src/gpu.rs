@@ -3,6 +3,7 @@ use crate::{
     RasterizationState, RenderArea, RenderTarget, RenderTargetIndex, ShaderState, VertexBuffer,
     VertexInputState, ViewportState,
 };
+use log::warn;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Default)]
@@ -20,7 +21,7 @@ impl Gpu {
     }
 
     pub fn submit(&mut self, command_buffer: CommandBuffer) {
-        // TODO: Just submit, mpsc event loop on other thread.
+        warn!("TODO: Just submit, mpsc event loop on other thread?");
         for command in command_buffer.commands {
             match command {
                 Command::CopyBufferToImage {
@@ -45,7 +46,7 @@ impl Gpu {
                     self.copy_buffer_to_buffer(src_buffer, dst_buffer, region);
                 }
                 Command::ExecuteCommands { command_buffer } => {
-                    // TODO: Avoid submit recursion.
+                    warn!("TODO: Avoid submit recursion.");
                     self.submit(command_buffer);
                 }
                 Command::BindRenderTarget { render_target } => {
@@ -137,7 +138,7 @@ impl Gpu {
         dst_image: DescriptorImage,
         region: RegionCopyBufferImage,
     ) {
-        // TODO: Complete buffer to image copy algorithm.
+        warn!("TODO: Complete buffer to image copy algorithm");
         let buffer_image_height = if region.buffer_image_height == 0 {
             region.image_extent.height
         } else {
@@ -175,7 +176,7 @@ impl Gpu {
         dst_buffer: DescriptorBuffer,
         region: RegionCopyBufferImage,
     ) {
-        // TODO: Complete buffer to image copy algorithm.
+        warn!("TODO: Complete buffer to image copy algorithm");
         assert_eq!(region.buffer_offset, 0);
         let buffer_image_height = if region.buffer_image_height == 0 {
             region.image_extent.height

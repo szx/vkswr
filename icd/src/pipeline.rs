@@ -1,6 +1,7 @@
 //! VkPipeline device commands
 
 use headers::vk_decls::*;
+use log::warn;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::ImageView;
 use runtime::logical_device::LogicalDevice;
@@ -293,7 +294,7 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
         let input_assembly_state = create_info
             .pInputAssemblyState
             .map(|x| PhysicalDevice::parse_input_assembly_state(*x.as_ref()));
-        // TODO: Parse rest of Vulkan pipeline states.
+        warn!("TODO: Parse rest of Vulkan pipeline states");
         let tessellation_state = create_info.pTessellationState.map(|x| x.as_ref());
         let viewport_state = create_info
             .pViewportState

@@ -1,6 +1,7 @@
 //! VkDescriptorSets device commands
 
 use headers::vk_decls::*;
+use log::warn;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::descriptor::*;
 use runtime::logical_device::LogicalDevice;
@@ -156,7 +157,7 @@ pub unsafe extern "C" fn vkFreeDescriptorSets(
 
     for descriptor_set in descriptor_sets {
         DescriptorSet::drop_handle(*descriptor_set);
-        // TODO: Remove from DescriptorPool in DescriptorSet::drop().
+        warn!("TODO: Remove from DescriptorPool in DescriptorSet::drop()");
     }
 
     VkResult::VK_SUCCESS
@@ -172,18 +173,17 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
     let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
-    /*
+
     let descriptor_writes = pDescriptorWrites
         .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorWriteCount as usize));
     let descriptor_copies = pDescriptorCopies
         .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorCopyCount as usize));
 
-    descriptor_writes.map(|descriptor_write| {
-        // TODO: Descriptor write.
-    });
+    if let Some(_descriptor_write) = descriptor_writes {
+        warn!("TODO: Descriptor write")
+    }
 
-    descriptor_copies.map(|descriptor_copy| {
-        // TODO: Descriptor write.
-    });
-    */
+    if let Some(_descriptor_copy) = descriptor_copies {
+        warn!("TODO: Descriptor copy")
+    }
 }

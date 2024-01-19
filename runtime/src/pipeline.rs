@@ -202,7 +202,7 @@ impl Pipeline {
         command_buffer.record(gpu::Command::SetRasterizationState {
             rasterization_state: self.rasterization_state.clone(),
         });
-        // TODO: Record rest of pipeline state.
+        warn!("TODO: Record rest of pipeline state");
     }
 }
 
