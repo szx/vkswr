@@ -4,7 +4,7 @@ use crate::impl_dispatchable_trait;
 use crate::impl_non_dispatchable_trait;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
-use log::*;
+
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::num::NonZeroU64;

@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
 use xcb;
-use xcb::x::Blanking::Default;
+
 
 /// ICD has to return pointer to struct with the first field being VkLoaderData.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

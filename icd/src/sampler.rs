@@ -4,7 +4,6 @@ use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::logical_device::LogicalDevice;
 use runtime::sampler::*;
-use runtime::*;
 
 pub unsafe extern "C" fn vkCreateSampler(
     device: VkDevice,

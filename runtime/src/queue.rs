@@ -2,16 +2,16 @@
 
 use crate::command_buffer::CommandBuffer;
 use crate::context::Dispatchable;
-use crate::memory::MemoryAllocation;
+
 use crate::physical_device::PhysicalDevice;
 use crate::semaphore::Semaphore;
 use crate::swapchain::Swapchain;
 use headers::vk_decls::*;
-use itertools::izip;
+
 use log::*;
 use parking_lot::Mutex;
 use std::fmt::Debug;
-use std::ops::DerefMut;
+
 use std::sync::Arc;
 
 /// Queue associated with `LogicalDevice`.

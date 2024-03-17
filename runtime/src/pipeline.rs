@@ -1,6 +1,6 @@
 //! Pipeline
 
-use crate::command_buffer::CommandBuffer;
+
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;

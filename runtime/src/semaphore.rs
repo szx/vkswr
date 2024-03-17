@@ -1,13 +1,13 @@
 //! Semaphore
 
 use crate::context::NonDispatchable;
-use crate::logical_device::LogicalDevice;
-use crate::memory::MemoryAllocation;
+
+
 use headers::vk_decls::*;
 use log::*;
-use parking_lot::Mutex;
+
 use std::fmt::Debug;
-use std::sync::Arc;
+
 
 /// Synchronization primitive that can be used to insert a dependency between queue operations or
 /// between a queue operation and the host.

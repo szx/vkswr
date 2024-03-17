@@ -5,7 +5,7 @@ use crate::logical_device::LogicalDevice;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
-use std::collections::HashMap;
+
 use std::fmt::Debug;
 use std::sync::Arc;
 

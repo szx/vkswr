@@ -2,16 +2,16 @@
 
 use crate::context::Dispatchable;
 use crate::fence::Fence;
-use crate::memory::MemoryAllocation;
+
 use crate::physical_device::PhysicalDevice;
 use crate::queue::Queue;
-use headers::c_char_array;
+
 use headers::vk_decls::*;
-use lazy_static::lazy_static;
+
 use log::*;
-use parking_lot::{Mutex, MutexGuard, RawMutex};
+use parking_lot::{Mutex, MutexGuard};
 use std::fmt::{Debug, Formatter};
-use std::ops::Deref;
+
 use std::sync::Arc;
 
 /// Identifier used to associate functions with a `PhysicalDevice`.
@@ -73,7 +73,7 @@ impl LogicalDevice {
     }
 
     pub fn reset_fences(&self, fences: Vec<Arc<Mutex<Fence>>>) {
-        for mut fence in fences {
+        for fence in fences {
             warn!("TODO: VUID-vkResetFences-pFences-01123");
             fence.lock().reset();
         }

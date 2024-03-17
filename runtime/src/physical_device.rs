@@ -2157,9 +2157,9 @@ impl PhysicalDevice {
         &self,
         format: VkFormat,
         type_: VkImageType,
-        tiling: VkImageTiling,
+        _tiling: VkImageTiling,
         usage: VkImageUsageFlags,
-        flags: VkImageCreateFlags,
+        _flags: VkImageCreateFlags,
     ) -> Option<VkImageFormatProperties> {
         let is_cube_compatible = (Into::<VkImageCreateFlagBits>::into(usage)
             & VkImageCreateFlagBits::VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
