@@ -1,4 +1,4 @@
-use crate::{Color, Fragment, Position, Vertex};
+use common::math::{Color, Fragment, Position, Vertex};
 use log::warn;
 
 pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>, color: Color) {

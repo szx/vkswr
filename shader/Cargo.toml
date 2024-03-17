@@ -1,5 +1,5 @@
 [package]
-name = "gpu"
+name = "shader"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,12 +8,12 @@ crate-type = ["lib"]
 
 [dependencies]
 common = { path = "../common" }
-shader = { path = "../shader" }
-itertools = { workspace = true }
-hashbrown = { workspace = true }
-log = { workspace = true }
-byteorder = "1.4.3"
 anyhow = { workspace = true }
+log = { workspace = true }
+hashbrown = { workspace = true }
+bytemuck = { workspace = true }
+itertools = { workspace = true }
+rspirv = "0.11.0"
 
 [dev-dependencies]
 assert_fs = { workspace = true }

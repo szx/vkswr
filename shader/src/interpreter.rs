@@ -1,8 +1,8 @@
-use crate::shader::il;
-use crate::{
-    Format, Fragment, FragmentShaderOutput, Vector4, Vertex, VertexInputState, VertexShaderOutput,
-    MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES,
-};
+use crate::glsl::{FragmentShaderOutput, VertexShaderOutput};
+use crate::il;
+use common::consts::{MAX_CLIP_DISTANCES, MAX_CULL_DISTANCES};
+use common::graphics::VertexInputState;
+use common::math::{Format, Fragment, Vector4, Vertex};
 use hashbrown::HashMap;
 use log::warn;
 

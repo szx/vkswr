@@ -1,11 +1,15 @@
 //! Pipeline
 
+use crate::command_buffer::CommandBuffer;
 use crate::context::NonDispatchable;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
+use common::graphics::VertexInputState;
+use gpu::{Command, InputAssemblyState, RasterizationState, ViewportState};
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
+use shader::glsl::ShaderState;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -153,22 +157,22 @@ pub struct Pipeline {
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 
-    pub shader_state: gpu::ShaderState,
-    pub vertex_input_state: gpu::VertexInputState,
-    pub input_assembly_state: gpu::InputAssemblyState,
-    pub viewport_state: gpu::ViewportState,
-    pub rasterization_state: gpu::RasterizationState,
+    pub shader_state: ShaderState,
+    pub vertex_input_state: VertexInputState,
+    pub input_assembly_state: InputAssemblyState,
+    pub viewport_state: ViewportState,
+    pub rasterization_state: RasterizationState,
 }
 
 impl Pipeline {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
-        shader_state: gpu::ShaderState,
-        vertex_input_state: Option<gpu::VertexInputState>,
-        input_assembly_state: Option<gpu::InputAssemblyState>,
-        viewport_state: Option<gpu::ViewportState>,
-        rasterization_state: Option<gpu::RasterizationState>,
+        shader_state: ShaderState,
+        vertex_input_state: Option<VertexInputState>,
+        input_assembly_state: Option<InputAssemblyState>,
+        viewport_state: Option<ViewportState>,
+        rasterization_state: Option<RasterizationState>,
     ) -> VkNonDispatchableHandle {
         info!("new Pipeline");
         let handle = VK_NULL_HANDLE;
@@ -187,19 +191,19 @@ impl Pipeline {
     }
 
     pub fn bind_states(&self, command_buffer: &mut gpu::CommandBuffer) {
-        command_buffer.record(gpu::Command::SetShaderState {
+        command_buffer.record(Command::SetShaderState {
             shader_state: self.shader_state.clone(),
         });
-        command_buffer.record(gpu::Command::SetVertexInputState {
+        command_buffer.record(Command::SetVertexInputState {
             vertex_input_state: self.vertex_input_state.clone(),
         });
-        command_buffer.record(gpu::Command::SetInputAssemblyState {
+        command_buffer.record(Command::SetInputAssemblyState {
             input_assembly_state: self.input_assembly_state.clone(),
         });
-        command_buffer.record(gpu::Command::SetViewportState {
+        command_buffer.record(Command::SetViewportState {
             viewport_state: self.viewport_state.clone(),
         });
-        command_buffer.record(gpu::Command::SetRasterizationState {
+        command_buffer.record(Command::SetRasterizationState {
             rasterization_state: self.rasterization_state.clone(),
         });
         warn!("TODO: Record rest of pipeline state");

@@ -1,9 +1,9 @@
+use common::graphics::MemoryBinding;
 use hashbrown::HashMap;
 use log::trace;
 use std::ops::Range;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 #[derive(Default)]
 pub struct Memory {
@@ -142,31 +142,6 @@ impl MemoryHandle for MemoryAllocation {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct MemoryBinding {
-    /// Thanks to Arc cloned resource binding points to the same MemoryAllocation
-    memory_handle: Arc<AtomicU64>,
-    pub offset: u64,
-    pub size: u64,
-}
-
-impl MemoryBinding {
-    pub fn new() -> Self {
-        Self {
-            memory_handle: Arc::new(Default::default()),
-            offset: 0,
-            size: 0,
-        }
-    }
-
-    pub fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64) {
-        self.memory_handle
-            .store(memory_allocation.handle.0, Ordering::Relaxed);
-        self.offset = offset;
-        self.size = size;
-    }
-}
-
 impl MemoryHandle for MemoryBinding {
     fn memory_handle(&self) -> MemoryAllocationHandle {
         MemoryAllocationHandle(self.memory_handle.load(Ordering::Relaxed))
@@ -174,8 +149,21 @@ impl MemoryHandle for MemoryBinding {
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub struct MemoryAllocationHandle(u64);
+pub struct MemoryAllocationHandle(pub u64);
 
 pub trait MemoryHandle {
     fn memory_handle(&self) -> MemoryAllocationHandle;
+}
+
+impl MemoryHandleStore for MemoryBinding {
+    fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64) {
+        self.memory_handle
+            .store(memory_allocation.handle.0, Ordering::Relaxed);
+        self.offset = offset;
+        self.size = size;
+    }
+}
+
+pub trait MemoryHandleStore {
+    fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64);
 }

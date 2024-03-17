@@ -9,6 +9,8 @@ crate-type = ["lib"]
 [dependencies]
 headers = { path = "../headers" }
 gpu = { path = "../gpu" }
+common = { path = "../common" }
+shader = { path = "../shader" }
 lazy_static = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }

@@ -2,10 +2,23 @@
 
 use crate::context::{Dispatchable, NonDispatchable};
 use crate::pipeline::ShaderModule;
+use common::consts::{
+    MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
+    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS, MAX_VIEWPORT_DIMENSIONS, VIEWPORT_BOUNDS_RANGE,
+};
+use common::graphics::{
+    VertexAttribute, VertexBinding, VertexBindingNumber, VertexInputRate, VertexInputState,
+};
+use common::math::{Extent2, Offset2, Range2};
+use gpu::{
+    InputAssemblyState, PrimitiveTopology, RasterizationState, RenderArea, Scissor, Viewport,
+    ViewportState,
+};
 use headers::c_char_array;
 use headers::vk_decls::*;
 use lazy_static::lazy_static;
 use log::*;
+use shader::glsl::{Shader, ShaderState};
 use std::fmt::{Debug, Formatter};
 
 /// Performs rendering operations.
@@ -119,10 +132,10 @@ impl PhysicalDevice {
                 maxDescriptorSetSampledImages: 0,
                 maxDescriptorSetStorageImages: 0,
                 maxDescriptorSetInputAttachments: 0,
-                maxVertexInputAttributes: gpu::MAX_VERTEX_ATTRIBUTES,
-                maxVertexInputBindings: gpu::MAX_VERTEX_BINDINGS,
-                maxVertexInputAttributeOffset: gpu::MAX_VERTEX_ATTRIBUTE_OFFSET,
-                maxVertexInputBindingStride: gpu::MAX_VERTEX_BINDING_STRIDE,
+                maxVertexInputAttributes: MAX_VERTEX_ATTRIBUTES,
+                maxVertexInputBindings: MAX_VERTEX_BINDINGS,
+                maxVertexInputAttributeOffset: MAX_VERTEX_ATTRIBUTE_OFFSET,
+                maxVertexInputBindingStride: MAX_VERTEX_BINDING_STRIDE,
                 maxVertexOutputComponents: 0,
                 maxTessellationGenerationLevel: 0,
                 maxTessellationPatchSize: 0,
@@ -152,12 +165,9 @@ impl PhysicalDevice {
                 maxDrawIndirectCount: 0,
                 maxSamplerLodBias: 0.0,
                 maxSamplerAnisotropy: 0.0,
-                maxViewports: gpu::MAX_VIEWPORTS,
-                maxViewportDimensions: [
-                    gpu::MAX_VIEWPORT_DIMENSIONS.0,
-                    gpu::MAX_VIEWPORT_DIMENSIONS.1,
-                ],
-                viewportBoundsRange: [gpu::VIEWPORT_BOUNDS_RANGE.0, gpu::VIEWPORT_BOUNDS_RANGE.0],
+                maxViewports: MAX_VIEWPORTS,
+                maxViewportDimensions: [MAX_VIEWPORT_DIMENSIONS.0, MAX_VIEWPORT_DIMENSIONS.1],
+                viewportBoundsRange: [VIEWPORT_BOUNDS_RANGE.0, VIEWPORT_BOUNDS_RANGE.0],
                 viewportSubPixelBits: 0,
                 minMemoryMapAlignment: 0,
                 minTexelBufferOffsetAlignment: 0,
@@ -2512,7 +2522,7 @@ impl PhysicalDevice {
 impl PhysicalDevice {
     pub unsafe fn parse_vertex_input_state(
         vertex_input_state: VkPipelineVertexInputStateCreateInfo,
-    ) -> gpu::VertexInputState {
+    ) -> VertexInputState {
         let vk_attributes =
             vertex_input_state
                 .pVertexAttributeDescriptions
@@ -2530,7 +2540,7 @@ impl PhysicalDevice {
                     vertex_input_state.vertexBindingDescriptionCount as usize,
                 )
             });
-        let mut vertex_input_state = gpu::VertexInputState::default();
+        let mut vertex_input_state = VertexInputState::default();
         for vk_attribute in vk_attributes {
             let Some(attribute) = vertex_input_state
                 .attributes
@@ -2538,9 +2548,9 @@ impl PhysicalDevice {
             else {
                 unreachable!()
             };
-            *attribute = Some(gpu::VertexAttribute {
+            *attribute = Some(VertexAttribute {
                 location: vk_attribute.location,
-                binding: gpu::VertexBindingNumber(vk_attribute.binding),
+                binding: VertexBindingNumber(vk_attribute.binding),
                 format: vk_attribute.format.into(),
                 offset: vk_attribute.offset,
             });
@@ -2552,8 +2562,8 @@ impl PhysicalDevice {
             else {
                 unreachable!()
             };
-            *binding = Some(gpu::VertexBinding {
-                number: gpu::VertexBindingNumber(vk_binding.binding),
+            *binding = Some(VertexBinding {
+                number: VertexBindingNumber(vk_binding.binding),
                 stride: vk_binding.stride,
                 input_rate: Self::parse_vertex_input_rate(vk_binding.inputRate),
             });
@@ -2561,69 +2571,57 @@ impl PhysicalDevice {
         vertex_input_state
     }
 
-    pub(crate) fn parse_vertex_input_rate(
-        vertex_input_rate: VkVertexInputRate,
-    ) -> gpu::VertexInputRate {
+    pub(crate) fn parse_vertex_input_rate(vertex_input_rate: VkVertexInputRate) -> VertexInputRate {
         match vertex_input_rate {
-            VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX => gpu::VertexInputRate::Vertex,
-            VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE => gpu::VertexInputRate::Instance,
+            VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX => VertexInputRate::Vertex,
+            VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE => VertexInputRate::Instance,
             _ => unreachable!(),
         }
     }
 
     pub fn parse_input_assembly_state(
         input_assembly_state: VkPipelineInputAssemblyStateCreateInfo,
-    ) -> gpu::InputAssemblyState {
-        gpu::InputAssemblyState {
+    ) -> InputAssemblyState {
+        InputAssemblyState {
             topology: Self::parse_primitive_topology(input_assembly_state.topology),
             primitive_restart: input_assembly_state.primitiveRestartEnable != 0,
         }
     }
 
-    pub(crate) fn parse_primitive_topology(
-        topology: VkPrimitiveTopology,
-    ) -> gpu::PrimitiveTopology {
+    pub(crate) fn parse_primitive_topology(topology: VkPrimitiveTopology) -> PrimitiveTopology {
         match topology {
-            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_POINT_LIST => {
-                gpu::PrimitiveTopology::PointList
-            }
-            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_LIST => {
-                gpu::PrimitiveTopology::LineList
-            }
-            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_STRIP => {
-                gpu::PrimitiveTopology::LineStrip
-            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_POINT_LIST => PrimitiveTopology::PointList,
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_LIST => PrimitiveTopology::LineList,
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_STRIP => PrimitiveTopology::LineStrip,
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST => {
-                gpu::PrimitiveTopology::TriangleList
+                PrimitiveTopology::TriangleList
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP => {
-                gpu::PrimitiveTopology::TriangleStrip
+                PrimitiveTopology::TriangleStrip
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN => {
-                gpu::PrimitiveTopology::TriangleFan
+                PrimitiveTopology::TriangleFan
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY => {
-                gpu::PrimitiveTopology::LineListWithAdjacency
+                PrimitiveTopology::LineListWithAdjacency
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY => {
-                gpu::PrimitiveTopology::LineStripWithAdjacency
+                PrimitiveTopology::LineStripWithAdjacency
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY => {
-                gpu::PrimitiveTopology::TriangleListWithAdjacency
+                PrimitiveTopology::TriangleListWithAdjacency
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY => {
-                gpu::PrimitiveTopology::TriangleStripWithAdjacency
+                PrimitiveTopology::TriangleStripWithAdjacency
             }
-            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_PATCH_LIST => {
-                gpu::PrimitiveTopology::PatchList
-            }
+            VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_PATCH_LIST => PrimitiveTopology::PatchList,
             _ => unreachable!(),
         }
     }
 
     pub unsafe fn parse_viewport_state(
         viewport_state: VkPipelineViewportStateCreateInfo,
-    ) -> gpu::ViewportState {
+    ) -> ViewportState {
         let vk_viewports = viewport_state.pViewports.map_or(&[] as &[_], |x| {
             std::slice::from_raw_parts(x.as_ptr(), viewport_state.viewportCount as usize)
         });
@@ -2631,21 +2629,21 @@ impl PhysicalDevice {
             std::slice::from_raw_parts(x.as_ptr(), viewport_state.scissorCount as usize)
         });
 
-        let mut viewport_state = gpu::ViewportState::default();
+        let mut viewport_state = ViewportState::default();
         for (i, vk_viewport) in vk_viewports.iter().enumerate() {
             let Some(viewport) = viewport_state.viewports.get_mut(i) else {
                 unreachable!()
             };
-            *viewport = Some(gpu::Viewport {
-                offset: gpu::Offset2 {
+            *viewport = Some(Viewport {
+                offset: Offset2 {
                     x: vk_viewport.x,
                     y: vk_viewport.y,
                 },
-                extent: gpu::Extent2 {
+                extent: Extent2 {
                     width: vk_viewport.width,
                     height: vk_viewport.height,
                 },
-                depth: gpu::Range2 {
+                depth: Range2 {
                     min: vk_viewport.minDepth,
                     max: vk_viewport.maxDepth,
                 },
@@ -2655,13 +2653,13 @@ impl PhysicalDevice {
             let Some(scissor) = viewport_state.scissors.get_mut(i) else {
                 unreachable!()
             };
-            *scissor = Some(gpu::Scissor {
-                render_area: gpu::RenderArea {
-                    extent: gpu::Extent2 {
+            *scissor = Some(Scissor {
+                render_area: RenderArea {
+                    extent: Extent2 {
                         width: vk_scissor.extent.width,
                         height: vk_scissor.extent.height,
                     },
-                    offset: gpu::Offset2 {
+                    offset: Offset2 {
                         x: vk_scissor.offset.x,
                         y: vk_scissor.offset.y,
                     },
@@ -2673,8 +2671,8 @@ impl PhysicalDevice {
 
     pub fn parse_rasterization_state(
         rasterization_state: VkPipelineRasterizationStateCreateInfo,
-    ) -> gpu::RasterizationState {
-        gpu::RasterizationState {
+    ) -> RasterizationState {
+        RasterizationState {
             depth_clamp_enable: rasterization_state.depthClampEnable != 0,
             rasterizer_discard_enable: rasterization_state.rasterizerDiscardEnable != 0,
             polygon_mode: rasterization_state.polygonMode.into(),
@@ -2690,8 +2688,8 @@ impl PhysicalDevice {
 
     pub fn parse_shader_stages(
         shader_stages: &[VkPipelineShaderStageCreateInfo],
-    ) -> Result<gpu::ShaderState, VkResult> {
-        let mut shader_state = gpu::ShaderState::default();
+    ) -> Result<ShaderState, VkResult> {
+        let mut shader_state = ShaderState::default();
         for shader_stage in shader_stages {
             assert_eq!(shader_stage.flags, 0);
             let name = shader_stage.pName.unwrap_or_else(|| unreachable!());
@@ -2705,7 +2703,7 @@ impl PhysicalDevice {
             let code = module.lock().code.clone();
 
             let shader =
-                gpu::Shader::new(&name, code).map_err(|_| VkResult::VK_ERROR_INVALID_SHADER_NV)?;
+                Shader::new(&name, code).map_err(|_| VkResult::VK_ERROR_INVALID_SHADER_NV)?;
 
             match shader_stage.stage {
                 VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT => {

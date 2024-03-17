@@ -5,6 +5,9 @@ use crate::context::{Dispatchable, NonDispatchable};
 use crate::image::Image;
 use crate::logical_device::LogicalDevice;
 use crate::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
+use common::graphics::{IndexBuffer, VertexBindingNumber, VertexBuffer};
+use common::math::{Extent2, Extent3, Offset2, Offset3};
+use gpu::{Command, RegionCopyBufferImage};
 use headers::vk_decls::*;
 use itertools::izip;
 use log::*;
@@ -101,11 +104,11 @@ impl CommandBuffer {
         let _ = contents;
 
         let render_area = gpu::RenderArea {
-            extent: gpu::Extent2::<u32> {
+            extent: Extent2::<u32> {
                 width: render_area.extent.width,
                 height: render_area.extent.height,
             },
-            offset: gpu::Offset2::<i32> {
+            offset: Offset2::<i32> {
                 x: render_area.offset.x,
                 y: render_area.offset.y,
             },
@@ -118,27 +121,25 @@ impl CommandBuffer {
                 let index = gpu::RenderTargetIndex(index);
                 self.gpu_bound_render_target_indices.push(index);
 
-                self.gpu_command_buffer
-                    .record(gpu::Command::BindRenderTarget {
-                        render_target: gpu::RenderTarget {
-                            index,
-                            format: description.format.into(),
-                            samples: description.samples.into(),
-                            image: image_view.lock().image.lock().descriptor(),
-                        },
-                    });
+                self.gpu_command_buffer.record(Command::BindRenderTarget {
+                    render_target: gpu::RenderTarget {
+                        index,
+                        format: description.format.into(),
+                        samples: description.samples.into(),
+                        image: image_view.lock().image.lock().descriptor(),
+                    },
+                });
 
                 match description.load_op {
                     VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD => {
                         // No-op.
                     }
                     VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR => {
-                        self.gpu_command_buffer
-                            .record(gpu::Command::ClearRenderTarget {
-                                index,
-                                render_area,
-                                color: (*clear_value).into(),
-                            });
+                        self.gpu_command_buffer.record(Command::ClearRenderTarget {
+                            index,
+                            render_area,
+                            color: (*clear_value).into(),
+                        });
                     }
                     VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE
                     | VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_NONE_EXT => {
@@ -188,7 +189,7 @@ impl CommandBuffer {
     pub fn cmd_end_render_pass(&mut self) {
         for index in self.gpu_bound_render_target_indices.drain(..) {
             self.gpu_command_buffer
-                .record(gpu::Command::UnbindRenderTarget { index });
+                .record(Command::UnbindRenderTarget { index });
         }
     }
 
@@ -242,14 +243,13 @@ impl CommandBuffer {
         buffer: Arc<Mutex<Buffer>>,
         offset: VkDeviceSize,
     ) {
-        self.gpu_command_buffer
-            .record(gpu::Command::BindVertexBuffer {
-                vertex_buffer: gpu::VertexBuffer {
-                    binding_number: gpu::VertexBindingNumber(binding),
-                    buffer: buffer.lock().descriptor(),
-                    offset,
-                },
-            });
+        self.gpu_command_buffer.record(Command::BindVertexBuffer {
+            vertex_buffer: VertexBuffer {
+                binding_number: VertexBindingNumber(binding),
+                buffer: buffer.lock().descriptor(),
+                offset,
+            },
+        });
     }
 
     pub fn cmd_bind_index_buffer(
@@ -258,14 +258,13 @@ impl CommandBuffer {
         offset: VkDeviceSize,
         index_size: u8,
     ) {
-        self.gpu_command_buffer
-            .record(gpu::Command::BindIndexBuffer {
-                index_buffer: gpu::IndexBuffer {
-                    buffer: buffer.lock().descriptor(),
-                    offset,
-                    index_size,
-                },
-            });
+        self.gpu_command_buffer.record(Command::BindIndexBuffer {
+            index_buffer: IndexBuffer {
+                buffer: buffer.lock().descriptor(),
+                offset,
+                index_size,
+            },
+        });
     }
 
     pub fn cmd_set_viewport(&mut self, first_viewport: u32, viewports: &[VkViewport]) {
@@ -289,7 +288,7 @@ impl CommandBuffer {
         first_vertex: u32,
         first_instance: u32,
     ) {
-        self.gpu_command_buffer.record(gpu::Command::DrawPrimitive {
+        self.gpu_command_buffer.record(Command::DrawPrimitive {
             vertex_count,
             instance_count,
             first_vertex,
@@ -306,7 +305,7 @@ impl CommandBuffer {
         first_instance: u32,
     ) {
         self.gpu_command_buffer
-            .record(gpu::Command::DrawPrimitiveIndexed {
+            .record(Command::DrawPrimitiveIndexed {
                 index_count,
                 instance_count,
                 first_index,
@@ -326,30 +325,29 @@ impl CommandBuffer {
         let src_buffer = src_buffer.lock();
         let dst_image = dst_image.lock();
         for region in regions {
-            self.gpu_command_buffer
-                .record(gpu::Command::CopyBufferToImage {
-                    src_buffer: src_buffer.descriptor(),
-                    dst_image: dst_image.descriptor(),
-                    region: gpu::RegionCopyBufferImage {
-                        buffer_offset: region.bufferOffset,
-                        buffer_row_len: region.bufferRowLength,
-                        buffer_image_height: region.bufferImageHeight,
-                        image_mip_level: region.imageSubresource.mipLevel,
-                        image_base_array_level: region.imageSubresource.baseArrayLayer,
-                        image_array_level_count: region.imageSubresource.layerCount,
-                        image_offset: gpu::Offset3::<i32> {
-                            x: region.imageOffset.x,
-                            y: region.imageOffset.y,
-                            z: region.imageOffset.z,
-                        },
-                        image_extent: gpu::Extent3::<u32> {
-                            width: region.imageExtent.width,
-                            height: region.imageExtent.height,
-                            depth: region.imageExtent.depth,
-                        },
-                        image_format: dst_image.format.into(),
+            self.gpu_command_buffer.record(Command::CopyBufferToImage {
+                src_buffer: src_buffer.descriptor(),
+                dst_image: dst_image.descriptor(),
+                region: RegionCopyBufferImage {
+                    buffer_offset: region.bufferOffset,
+                    buffer_row_len: region.bufferRowLength,
+                    buffer_image_height: region.bufferImageHeight,
+                    image_mip_level: region.imageSubresource.mipLevel,
+                    image_base_array_level: region.imageSubresource.baseArrayLayer,
+                    image_array_level_count: region.imageSubresource.layerCount,
+                    image_offset: Offset3::<i32> {
+                        x: region.imageOffset.x,
+                        y: region.imageOffset.y,
+                        z: region.imageOffset.z,
                     },
-                })
+                    image_extent: Extent3::<u32> {
+                        width: region.imageExtent.width,
+                        height: region.imageExtent.height,
+                        depth: region.imageExtent.depth,
+                    },
+                    image_format: dst_image.format.into(),
+                },
+            })
         }
     }
 
@@ -364,30 +362,29 @@ impl CommandBuffer {
         let src_image = src_image.lock();
         let dst_buffer = dst_buffer.lock();
         for region in regions {
-            self.gpu_command_buffer
-                .record(gpu::Command::CopyImageToBuffer {
-                    src_image: src_image.descriptor(),
-                    dst_buffer: dst_buffer.descriptor(),
-                    region: gpu::RegionCopyBufferImage {
-                        buffer_offset: region.bufferOffset,
-                        buffer_row_len: region.bufferRowLength,
-                        buffer_image_height: region.bufferImageHeight,
-                        image_mip_level: region.imageSubresource.mipLevel,
-                        image_base_array_level: region.imageSubresource.baseArrayLayer,
-                        image_array_level_count: region.imageSubresource.layerCount,
-                        image_offset: gpu::Offset3::<i32> {
-                            x: region.imageOffset.x,
-                            y: region.imageOffset.y,
-                            z: region.imageOffset.z,
-                        },
-                        image_extent: gpu::Extent3::<u32> {
-                            width: region.imageExtent.width,
-                            height: region.imageExtent.height,
-                            depth: region.imageExtent.depth,
-                        },
-                        image_format: src_image.format.into(),
+            self.gpu_command_buffer.record(Command::CopyImageToBuffer {
+                src_image: src_image.descriptor(),
+                dst_buffer: dst_buffer.descriptor(),
+                region: RegionCopyBufferImage {
+                    buffer_offset: region.bufferOffset,
+                    buffer_row_len: region.bufferRowLength,
+                    buffer_image_height: region.bufferImageHeight,
+                    image_mip_level: region.imageSubresource.mipLevel,
+                    image_base_array_level: region.imageSubresource.baseArrayLayer,
+                    image_array_level_count: region.imageSubresource.layerCount,
+                    image_offset: Offset3::<i32> {
+                        x: region.imageOffset.x,
+                        y: region.imageOffset.y,
+                        z: region.imageOffset.z,
                     },
-                })
+                    image_extent: Extent3::<u32> {
+                        width: region.imageExtent.width,
+                        height: region.imageExtent.height,
+                        depth: region.imageExtent.depth,
+                    },
+                    image_format: src_image.format.into(),
+                },
+            })
         }
     }
 
@@ -399,16 +396,15 @@ impl CommandBuffer {
     ) {
         let _ = regions;
         for region in regions {
-            self.gpu_command_buffer
-                .record(gpu::Command::CopyBufferToBuffer {
-                    src_buffer: src_buffer.lock().descriptor(),
-                    dst_buffer: dst_buffer.lock().descriptor(),
-                    region: gpu::RegionCopyBufferBuffer {
-                        src_offset: region.srcOffset,
-                        dst_offset: region.dstOffset,
-                        size: region.size,
-                    },
-                })
+            self.gpu_command_buffer.record(Command::CopyBufferToBuffer {
+                src_buffer: src_buffer.lock().descriptor(),
+                dst_buffer: dst_buffer.lock().descriptor(),
+                region: gpu::RegionCopyBufferBuffer {
+                    src_offset: region.srcOffset,
+                    dst_offset: region.dstOffset,
+                    size: region.size,
+                },
+            })
         }
     }
 
@@ -417,10 +413,9 @@ impl CommandBuffer {
         command_buffers: impl IntoIterator<Item = Arc<Mutex<Self>>>,
     ) {
         for command_buffer in command_buffers {
-            self.gpu_command_buffer
-                .record(gpu::Command::ExecuteCommands {
-                    command_buffer: command_buffer.lock().gpu_command_buffer.clone(),
-                })
+            self.gpu_command_buffer.record(Command::ExecuteCommands {
+                command_buffer: command_buffer.lock().gpu_command_buffer.clone(),
+            })
         }
     }
 }

@@ -1,5 +1,5 @@
-use crate::shader::spirv;
-use crate::shader::spirv::Spirv;
+use crate::spirv;
+use crate::spirv::Spirv;
 use anyhow::Context;
 
 #[derive(Debug, Clone)]

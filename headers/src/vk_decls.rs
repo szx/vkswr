@@ -315,7 +315,7 @@ impl VkFormat {
     }
 }
 
-impl From<VkFormat> for gpu::Format {
+impl From<VkFormat> for common::math::Format {
     fn from(value: VkFormat) -> Self {
         match value {
             VkFormat::VK_FORMAT_UNDEFINED => unimplemented!(),
@@ -552,7 +552,7 @@ impl From<VkFormat> for gpu::Format {
     }
 }
 
-impl From<VkClearValue> for gpu::Color {
+impl From<VkClearValue> for common::math::Color {
     fn from(value: VkClearValue) -> Self {
         unsafe {
             Self::from_raw(
@@ -565,7 +565,7 @@ impl From<VkClearValue> for gpu::Color {
     }
 }
 
-impl From<VkPolygonMode> for gpu::PolygonMode {
+impl From<VkPolygonMode> for common::graphics::PolygonMode {
     fn from(value: VkPolygonMode) -> Self {
         match value {
             VkPolygonMode::VK_POLYGON_MODE_FILL => Self::Fill,
@@ -587,7 +587,7 @@ impl<T> VkFlag<T> {
     }
 }
 
-impl From<VkFlag<VkCullModeFlags>> for gpu::CullMode {
+impl From<VkFlag<VkCullModeFlags>> for common::graphics::CullMode {
     fn from(value: VkFlag<VkCullModeFlags>) -> Self {
         match value.0.into() {
             VkCullModeFlagBits::VK_CULL_MODE_NONE => Self::None,
@@ -599,7 +599,7 @@ impl From<VkFlag<VkCullModeFlags>> for gpu::CullMode {
     }
 }
 
-impl From<VkFrontFace> for gpu::FrontFace {
+impl From<VkFrontFace> for common::graphics::FrontFace {
     fn from(value: VkFrontFace) -> Self {
         match value.into() {
             VkFrontFace::VK_FRONT_FACE_COUNTER_CLOCKWISE => Self::CounterClockwise,

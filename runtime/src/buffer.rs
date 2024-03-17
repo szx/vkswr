@@ -3,6 +3,8 @@
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
 use crate::memory::MemoryAllocation;
+use common::graphics::{DescriptorBuffer, MemoryBinding};
+use gpu::MemoryHandleStore;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -14,7 +16,7 @@ pub struct Buffer {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
     size: VkDeviceSize,
-    gpu_binding: gpu::MemoryBinding,
+    gpu_binding: MemoryBinding,
 }
 
 impl Buffer {
@@ -60,9 +62,9 @@ impl Buffer {
         VkResult::VK_SUCCESS
     }
 
-    pub fn descriptor(&self) -> gpu::DescriptorBuffer {
+    pub fn descriptor(&self) -> DescriptorBuffer {
         let binding = self.gpu_binding.clone();
-        gpu::DescriptorBuffer { binding }
+        DescriptorBuffer { binding }
     }
 }
 

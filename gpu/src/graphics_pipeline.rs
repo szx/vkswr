@@ -1,14 +1,21 @@
-use crate::{
-    draw_line_bresenham, draw_points, Color, DescriptorBuffer, DescriptorImage, Extent2, Format,
-    Fragment, FragmentShaderOutput, Memory, Offset2, Position, Range2, ShaderState, Vertex,
-    VertexShaderOutput, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
-    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
-};
+use std::ops::{Index, IndexMut};
+
+use crate::{draw_line_bresenham, draw_points, Memory};
 use byteorder::ByteOrder;
+use common::{
+    consts::{
+        MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS, MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS,
+    },
+    graphics::{
+        CullMode, DescriptorImage, FrontFace, IndexBuffer, PolygonMode, VertexBuffer,
+        VertexInputRate, VertexInputState,
+    },
+    math::{Color, Extent2, Format, Fragment, Offset2, Position, Range2, Vertex},
+};
 use hashbrown::HashMap;
 
 use log::warn;
-use std::ops::{Index, IndexMut};
+use shader::glsl::{FragmentShaderOutput, ShaderState, VertexShaderOutput};
 
 #[derive(Default)]
 pub struct GraphicsPipeline {
@@ -446,66 +453,6 @@ pub struct RenderTarget {
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
 pub struct RenderTargetIndex(pub usize);
 
-// TODO: struct RenderInput for Vulkan input attachments.
-
-#[derive(Debug, Clone, Default)]
-pub struct VertexInputState {
-    pub attributes: [Option<VertexAttribute>; MAX_VERTEX_ATTRIBUTES as usize],
-    pub bindings: [Option<VertexBinding>; MAX_VERTEX_BINDINGS as usize],
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct VertexAttribute {
-    /// Shader input location.
-    pub location: u32,
-    /// Binding number used to fetch data from.
-    pub binding: VertexBindingNumber,
-    /// Describes vertex attribute data.
-    pub format: Format,
-    /// Offset within element of binding.
-    pub offset: u32,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct VertexBinding {
-    /// Binding number.
-    pub number: VertexBindingNumber,
-    /// Stride between elements.
-    pub stride: u32,
-    /// Specifies whether element is vertex of instance.
-    pub input_rate: VertexInputRate,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct VertexBindingNumber(pub u32);
-
-// TODO: impl_index_trait!()
-impl Index<VertexBindingNumber> for [Option<VertexBuffer>] {
-    type Output = Option<VertexBuffer>;
-
-    fn index(&self, index: VertexBindingNumber) -> &Self::Output {
-        let Some(value) = self.get(index.0 as usize) else {
-            unreachable!()
-        };
-        value
-    }
-}
-
-impl IndexMut<VertexBindingNumber> for [Option<VertexBuffer>] {
-    fn index_mut(&mut self, index: VertexBindingNumber) -> &mut Self::Output {
-        let Some(value) = self.get_mut(index.0 as usize) else {
-            unreachable!()
-        };
-        value
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum VertexInputRate {
-    Vertex,
-    Instance,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct InputAssemblyState {
     pub topology: PrimitiveTopology,
@@ -602,43 +549,4 @@ pub struct RasterizationState {
     pub depth_bias_clamp: f32,
     pub depth_bias_slope_factor: f32,
     pub line_width: f32,
-}
-
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
-pub enum PolygonMode {
-    #[default]
-    Fill,
-    Line,
-    Point,
-    FillRectangle,
-}
-
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
-pub enum CullMode {
-    #[default]
-    None,
-    Front,
-    Back,
-    FrontAndBack,
-}
-
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
-pub enum FrontFace {
-    #[default]
-    CounterClockwise,
-    Clockwise,
-}
-
-#[derive(Debug, Clone)]
-pub struct VertexBuffer {
-    pub binding_number: VertexBindingNumber,
-    pub buffer: DescriptorBuffer,
-    pub offset: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct IndexBuffer {
-    pub buffer: DescriptorBuffer,
-    pub offset: u64,
-    pub index_size: u8,
 }

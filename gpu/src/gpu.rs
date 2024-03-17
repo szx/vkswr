@@ -1,9 +1,13 @@
 use crate::{
-    Color, Format, GraphicsPipeline, IndexBuffer, InputAssemblyState, Memory, MemoryBinding,
-    RasterizationState, RenderArea, RenderTarget, RenderTargetIndex, ShaderState, VertexBuffer,
-    VertexInputState, ViewportState,
+    GraphicsPipeline, InputAssemblyState, Memory, RasterizationState, RenderArea, RenderTarget,
+    RenderTargetIndex, ViewportState,
+};
+use common::{
+    graphics::{DescriptorBuffer, DescriptorImage, IndexBuffer, VertexBuffer, VertexInputState},
+    math::{Color, Extent3, Format, Offset3},
 };
 use log::warn;
+use shader::glsl::ShaderState;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Default)]
@@ -332,47 +336,4 @@ pub struct RegionCopyBufferBuffer {
     pub src_offset: u64,
     pub dst_offset: u64,
     pub size: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct DescriptorBuffer {
-    pub binding: MemoryBinding,
-}
-
-#[derive(Debug, Clone)]
-pub struct DescriptorImage {
-    pub binding: MemoryBinding,
-    pub extent: Extent3<u32>,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Offset3<T> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Offset2<T> {
-    pub x: T,
-    pub y: T,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Extent3<T> {
-    pub width: T,
-    pub height: T,
-    pub depth: T,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Extent2<T> {
-    pub width: T,
-    pub height: T,
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Range2<T> {
-    pub min: T,
-    pub max: T,
 }

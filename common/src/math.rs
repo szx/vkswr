@@ -337,11 +337,43 @@ pub struct Vertex {
     pub position: Position,
     pub point_size: f32,
     pub index: u32,
-    pub clip_distances: [f32; crate::MAX_CLIP_DISTANCES as usize],
+    pub clip_distances: [f32; crate::consts::MAX_CLIP_DISTANCES as usize],
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Fragment {
     pub position: Position,
     pub color: Color,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Offset3<T> {
+    pub x: T,
+    pub y: T,
+    pub z: T,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Offset2<T> {
+    pub x: T,
+    pub y: T,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Extent3<T> {
+    pub width: T,
+    pub height: T,
+    pub depth: T,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Extent2<T> {
+    pub width: T,
+    pub height: T,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct Range2<T> {
+    pub min: T,
+    pub max: T,
 }

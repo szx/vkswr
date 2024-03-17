@@ -3,6 +3,9 @@
 use crate::context::NonDispatchable;
 use crate::logical_device::LogicalDevice;
 use crate::memory::MemoryAllocation;
+use common::graphics::{DescriptorImage, MemoryBinding};
+use common::math::Extent3;
+use gpu::MemoryHandleStore;
 use headers::vk_decls::*;
 use log::*;
 use parking_lot::Mutex;
@@ -16,7 +19,7 @@ pub struct Image {
     pub(crate) format: VkFormat,
     width: u32,
     height: u32,
-    gpu_binding: gpu::MemoryBinding,
+    gpu_binding: MemoryBinding,
 }
 
 impl Image {
@@ -87,11 +90,11 @@ impl Image {
         VkResult::VK_SUCCESS
     }
 
-    pub fn descriptor(&self) -> gpu::DescriptorImage {
+    pub fn descriptor(&self) -> DescriptorImage {
         let binding = self.gpu_binding.clone();
-        gpu::DescriptorImage {
+        DescriptorImage {
             binding,
-            extent: gpu::Extent3::<u32> {
+            extent: Extent3::<u32> {
                 width: self.width,
                 height: self.height,
                 depth: 1,
