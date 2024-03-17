@@ -133,7 +133,7 @@ impl State {
         });
         self.built_in_variables.insert(BuiltIn::Position, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::Position)),
+            self.array_variable(self.built_in_variable(BuiltIn::Position)),
             bytemuck::cast_slice(vertex.position.get_as_f32_array().as_slice()),
         );
 
@@ -144,7 +144,7 @@ impl State {
         });
         self.built_in_variables.insert(BuiltIn::PointSize, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::PointSize)),
+            self.array_variable(self.built_in_variable(BuiltIn::PointSize)),
             bytemuck::cast_slice(&[f32::to_bits(vertex.point_size)]),
         );
 
@@ -156,7 +156,7 @@ impl State {
         self.built_in_variables
             .insert(BuiltIn::VertexIndex, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::VertexIndex)),
+            self.array_variable(self.built_in_variable(BuiltIn::VertexIndex)),
             bytemuck::cast_slice(&[vertex.index]),
         );
 
@@ -169,7 +169,7 @@ impl State {
         self.built_in_variables
             .insert(BuiltIn::ClipDistance, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::ClipDistance)),
+            self.array_variable(self.built_in_variable(BuiltIn::ClipDistance)),
             bytemuck::cast_slice(vertex.clip_distances.as_slice()),
         );
 
@@ -182,7 +182,7 @@ impl State {
         self.built_in_variables
             .insert(BuiltIn::CullDistance, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::CullDistance)),
+            self.array_variable(self.built_in_variable(BuiltIn::CullDistance)),
             bytemuck::cast_slice(&[0.0f32, 0.0f32, 0.0f32, 0.0f32]),
         );
 
@@ -193,7 +193,7 @@ impl State {
         });
         self.location_variables.insert(0, variable);
         self.store_imm32(
-            *self.array_variable(self.location_variable(0)),
+            self.array_variable(self.location_variable(0)),
             bytemuck::cast_slice(vertex.position.get_as_f32_array().as_slice()),
         );
         warn!("TODO: use vertex bindings and vertex attributes?");
@@ -203,20 +203,18 @@ impl State {
         let position = Vector4::from_vertex_buffer_bytes(
             Format::R32G32B32A32Sfloat,
             bytemuck::cast_slice(
-                self.load_imm32(*self.array_variable(self.built_in_variable(BuiltIn::Position))),
+                self.load_imm32(self.array_variable(self.built_in_variable(BuiltIn::Position))),
             ),
         );
         let point_size = *bytemuck::from_bytes::<f32>(bytemuck::cast_slice(
-            self.load_imm32(*self.array_variable(self.built_in_variable(BuiltIn::PointSize))),
+            self.load_imm32(self.array_variable(self.built_in_variable(BuiltIn::PointSize))),
         ));
         let vertex_index = *bytemuck::from_bytes::<u32>(bytemuck::cast_slice(
-            self.load_imm32(*self.array_variable(self.built_in_variable(BuiltIn::VertexIndex))),
+            self.load_imm32(self.array_variable(self.built_in_variable(BuiltIn::VertexIndex))),
         ));
         let clip_distances =
             *bytemuck::from_bytes::<[f32; MAX_CLIP_DISTANCES as usize]>(bytemuck::cast_slice(
-                self.load_imm32(
-                    *self.array_variable(self.built_in_variable(BuiltIn::ClipDistance)),
-                ),
+                self.load_imm32(self.array_variable(self.built_in_variable(BuiltIn::ClipDistance))),
             ));
         VertexShaderOutput {
             position,
@@ -234,7 +232,7 @@ impl State {
         });
         self.built_in_variables.insert(BuiltIn::FragCoord, variable);
         self.store_imm32(
-            *self.array_variable(self.built_in_variable(BuiltIn::FragCoord)),
+            self.array_variable(self.built_in_variable(BuiltIn::FragCoord)),
             bytemuck::cast_slice(fragment.position.get_as_f32_array().as_slice()),
         );
 
@@ -245,7 +243,7 @@ impl State {
         });
         self.location_variables.insert(0, variable);
         self.store_imm32(
-            *self.array_variable(self.location_variable(0)),
+            self.array_variable(self.location_variable(0)),
             bytemuck::cast_slice(fragment.color.get_as_f32_array().as_slice()),
         );
         warn!("TODO: use descriptors");
@@ -255,13 +253,13 @@ impl State {
         let position = Vector4::from_vertex_buffer_bytes(
             Format::R32G32B32A32Sfloat,
             bytemuck::cast_slice(
-                self.load_imm32(*self.array_variable(self.built_in_variable(BuiltIn::FragCoord))),
+                self.load_imm32(self.array_variable(self.built_in_variable(BuiltIn::FragCoord))),
             ),
         );
         warn!("TODO: Determine color using fragment shader interface");
         let color = Vector4::from_vertex_buffer_bytes(
             Format::R32G32B32A32Sfloat,
-            bytemuck::cast_slice(self.load_imm32(*self.array_variable(self.location_variable(0)))),
+            bytemuck::cast_slice(self.load_imm32(self.array_variable(self.location_variable(0)))),
         );
         FragmentShaderOutput { position, color }
     }
@@ -308,7 +306,11 @@ impl ArrayVariable {
         self.memory_region.size / self.stride
     }
 
-    pub(crate) fn indexed(&self, index: u32) -> Self {
+    const fn is_bool(&self) -> bool {
+        self.stride == 1
+    }
+
+    fn indexed(&self, index: u32) -> Self {
         assert!(index * self.stride <= self.memory_region.size - self.stride);
         Self {
             memory_region: MemoryRegion {
@@ -410,11 +412,11 @@ impl State {
         Variable::Pointer(id)
     }
 
-    fn array_variable(&self, variable: Variable) -> &ArrayVariable {
+    fn array_variable(&self, variable: Variable) -> ArrayVariable {
         let Variable::Array(id) = variable else {
             unreachable!()
         };
-        &self.array_variables[id.0 as usize]
+        self.array_variables[id.0 as usize]
     }
 
     fn struct_variable(&self, variable: Variable) -> &StructVariable {
@@ -541,8 +543,8 @@ impl State {
     ) {
         let src_pointer = self.pointer_variable(self.il_variable(src_pointer));
 
-        let src = *self.array_variable(src_pointer.pointer.unwrap_or_else(|| unreachable!()));
-        let result = *self.array_variable(self.il_variable(result));
+        let src = self.array_variable(src_pointer.pointer.unwrap_or_else(|| unreachable!()));
+        let result = self.array_variable(self.il_variable(result));
         self.store_array(result, src);
     }
 
@@ -563,8 +565,8 @@ impl State {
             }
         };
 
-        let result = *self.array_variable(self.il_variable(result));
-        let src = *self.array_variable(src);
+        let result = self.array_variable(self.il_variable(result));
+        let src = self.array_variable(src);
         self.store_array(result, src);
     }
 
@@ -584,7 +586,7 @@ impl State {
             Variable::Array(_) => {
                 let mut index = 0;
                 for src in src {
-                    let src = *self.array_variable(src);
+                    let src = self.array_variable(src);
                     self.store_array(self.array_variable(dst).indexed(index), src);
                     index += src.len();
                 }
@@ -609,7 +611,7 @@ impl State {
             .unwrap_or_else(|| unreachable!());
 
         warn!("TODO: Match for identical object types");
-        self.store_array(*self.array_variable(dst), *self.array_variable(src));
+        self.store_array(self.array_variable(dst), self.array_variable(src));
     }
 
     pub(crate) fn il_store_imm32(&mut self, variable: &il::Variable, imm: &[u32]) {
@@ -621,6 +623,22 @@ impl State {
             self.memory[dst.address as usize + 4 * i..dst.address as usize + 4 * (i + 1)]
                 .copy_from_slice(&src.to_ne_bytes());
         }
+    }
+
+    fn il_select(
+        &mut self,
+        result: &il::Variable,
+        cond: &il::Variable,
+        obj1: &il::Variable,
+        obj2: &il::Variable,
+    ) {
+        let result = self.array_variable(self.il_variable(result));
+        let cond = self.array_variable(self.il_variable(cond));
+        let obj1 = self.array_variable(self.il_variable(obj1));
+        let obj2 = self.array_variable(self.il_variable(obj2));
+        assert!(cond.is_bool());
+        let cond = self.memory(&cond.memory_region) != &[0];
+        self.store_array(result, if cond { obj1 } else { obj2 });
     }
 }
 
@@ -656,14 +674,16 @@ impl State {
         op2: &il::Variable,
         kind: BinaryOpKind,
     ) {
-        let result = *self.array_variable(self.il_variable(result));
-        let op1 = *self.array_variable(self.il_variable(op1));
-        let op2 = *self.array_variable(self.il_variable(op2));
+        let result = self.array_variable(self.il_variable(result));
+        let op1 = self.array_variable(self.il_variable(op1));
+        let op2 = self.array_variable(self.il_variable(op2));
+        // TODO: Possible alignment error in bytemuck::cast_slice, how to do it without cloning?
+        let op1 = self.memory(&op1.memory_region).to_vec();
+        let op2 = self.memory(&op2.memory_region).to_vec();
         match kind {
             BinaryOpKind::MulVectorScalar => {
-                let vector: Vec<f32> =
-                    bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
-                let scalar = *bytemuck::from_bytes::<f32>(self.memory(&op2.memory_region));
+                let vector: Vec<f32> = bytemuck::cast_slice(&op1).to_vec();
+                let scalar = *bytemuck::from_bytes::<f32>(&op2);
                 for (i, value) in vector.iter().enumerate() {
                     let value = value * scalar;
                     self.memory_mut(&result.memory_region)
@@ -671,11 +691,20 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::AddI32I32 => todo!(),
+            BinaryOpKind::AddI32I32 => {
+                let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 + op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<i32>()..(i + 1) * std::mem::size_of::<i32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::MulI32I32 => todo!(),
             BinaryOpKind::SubF32F32 => {
-                let op1: Vec<f32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
-                let op2: Vec<f32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                let op1: Vec<f32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<f32> = bytemuck::cast_slice(&op2).to_vec();
                 for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
                     let value = op1 - op2;
                     self.memory_mut(&result.memory_region)
@@ -684,8 +713,8 @@ impl State {
                 }
             }
             BinaryOpKind::DivF32F32 => {
-                let op1: Vec<f32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
-                let op2: Vec<f32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                let op1: Vec<f32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<f32> = bytemuck::cast_slice(&op2).to_vec();
                 for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
                     let value = op1 / op2;
                     self.memory_mut(&result.memory_region)
@@ -694,8 +723,8 @@ impl State {
                 }
             }
             BinaryOpKind::DivI32I32 => {
-                let op1: Vec<i32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
-                let op2: Vec<i32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
                 for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
                     let value = op1 / op2;
                     self.memory_mut(&result.memory_region)
@@ -705,8 +734,8 @@ impl State {
             }
             BinaryOpKind::DivU32U32 => todo!(),
             BinaryOpKind::ModI32I32 => {
-                let op1: Vec<i32> = bytemuck::cast_slice(self.memory(&op1.memory_region)).to_vec();
-                let op2: Vec<i32> = bytemuck::cast_slice(self.memory(&op2.memory_region)).to_vec();
+                let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
                 for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
                     let value = op1 % op2;
                     self.memory_mut(&result.memory_region)
@@ -717,7 +746,16 @@ impl State {
             BinaryOpKind::ModU32U32 => todo!(),
             BinaryOpKind::BitAnd => todo!(),
             BinaryOpKind::BitShiftRight => todo!(),
-            BinaryOpKind::EqualI32I32 => todo!(),
+            BinaryOpKind::EqualI32I32 => {
+                let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value: u8 = if op1 == op2 { 1 } else { 0 };
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u8>()..(i + 1) * std::mem::size_of::<u8>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::LessThanU32U32 => todo!(),
         }
     }
@@ -728,8 +766,8 @@ impl State {
         op: &il::Variable,
         kind: ConvertKind,
     ) {
-        let result = *self.array_variable(self.il_variable(result));
-        let op = *self.array_variable(self.il_variable(op));
+        let result = self.array_variable(self.il_variable(result));
+        let op = self.array_variable(self.il_variable(op));
         match kind {
             ConvertKind::I32F32 => {
                 let op: Vec<i32> = bytemuck::cast_slice(self.memory(&op.memory_region)).to_vec();
@@ -844,12 +882,12 @@ impl State {
                 return true;
             }
             il::Instruction::Select {
-                id: _,
-                cond: _,
-                obj1: _,
-                obj2: _,
+                id,
+                cond,
+                obj1,
+                obj2,
             } => {
-                todo!()
+                self.il_select(id, cond, obj1, obj2);
             }
             il::Instruction::SelectionMerge { .. } => {
                 todo!()
