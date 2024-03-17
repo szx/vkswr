@@ -3,5 +3,5 @@
 #![allow(dead_code)]
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
-
+#![allow(nonstandard_style)]
 include!(concat!(env!("OUT_DIR"), "/codegen_vk_defs.rs"));

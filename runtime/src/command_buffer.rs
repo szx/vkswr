@@ -16,6 +16,8 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
+
+#[allow(dead_code)]
 pub struct CommandPool {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,
@@ -43,6 +45,7 @@ impl CommandPool {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct CommandBuffer {
     pub(crate) handle: VkDispatchableHandle,

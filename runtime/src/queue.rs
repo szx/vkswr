@@ -19,6 +19,7 @@ use std::sync::Arc;
 pub struct Queue {
     pub(crate) handle: VkDispatchableHandle,
     physical_device: Arc<Mutex<PhysicalDevice>>,
+    #[allow(dead_code)]
     flags: VkDeviceQueueCreateFlags,
 }
 

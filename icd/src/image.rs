@@ -5,8 +5,8 @@ use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::image::*;
 use runtime::logical_device::LogicalDevice;
 use runtime::memory::MemoryAllocation;
-use runtime::*;
-use std::ops::Deref;
+
+
 
 pub unsafe extern "C" fn vkCreateImageView(
     device: VkDevice,

@@ -14,6 +14,7 @@ use std::sync::Arc;
 pub struct Fence {
     pub(crate) handle: VkNonDispatchableHandle,
     pub(crate) logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     flags: VkFenceCreateFlags,
     signaled: bool,
 }

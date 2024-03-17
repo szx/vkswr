@@ -7,7 +7,7 @@ use runtime::image::ImageView;
 use runtime::logical_device::LogicalDevice;
 use runtime::physical_device::PhysicalDevice;
 use runtime::pipeline::*;
-use runtime::*;
+
 
 pub unsafe extern "C" fn vkCreatePipelineLayout(
     device: VkDevice,
@@ -295,17 +295,17 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
             .pInputAssemblyState
             .map(|x| PhysicalDevice::parse_input_assembly_state(*x.as_ref()));
         warn!("TODO: Parse rest of Vulkan pipeline states");
-        let tessellation_state = create_info.pTessellationState.map(|x| x.as_ref());
+        let _tessellation_state = create_info.pTessellationState.map(|x| x.as_ref());
         let viewport_state = create_info
             .pViewportState
             .map(|x| PhysicalDevice::parse_viewport_state(*x.as_ref()));
         let rasterization_state = create_info
             .pRasterizationState
             .map(|x| PhysicalDevice::parse_rasterization_state(*x.as_ref()));
-        let multisample_state = create_info.pMultisampleState.map(|x| x.as_ref());
-        let depth_stencil_state = create_info.pDepthStencilState.map(|x| x.as_ref());
-        let color_blend_state = create_info.pColorBlendState.map(|x| x.as_ref());
-        let dynamic_state = create_info.pDynamicState.map(|x| x.as_ref());
+        let _multisample_state = create_info.pMultisampleState.map(|x| x.as_ref());
+        let _depth_stencil_state = create_info.pDepthStencilState.map(|x| x.as_ref());
+        let _color_blend_state = create_info.pColorBlendState.map(|x| x.as_ref());
+        let _dynamic_state = create_info.pDynamicState.map(|x| x.as_ref());
         *pipeline = Pipeline::create(
             device.clone(),
             pipelineCache.clone(),

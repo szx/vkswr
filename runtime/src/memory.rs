@@ -53,7 +53,7 @@ impl MemoryAllocation {
     ) -> Result<NonNull<std::ffi::c_void>, VkResult> {
         match self.state {
             MemoryAllocationState::HostMapped => Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED),
-            MemoryAllocationState::HostUnmapped => unsafe {
+            MemoryAllocationState::HostUnmapped => {
                 self.state = MemoryAllocationState::HostMapped;
                 if offset >= self.gpu_memory_allocation.size {
                     return Err(VkResult::VK_ERROR_MEMORY_MAP_FAILED);

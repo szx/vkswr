@@ -4,7 +4,7 @@ use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::instance::Instance;
 use runtime::surface::*;
-use runtime::*;
+
 
 pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     instance: VkInstance,
@@ -37,10 +37,10 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
-    physicalDevice: VkPhysicalDevice,
-    queueFamilyIndex: u32,
-    connection: Option<NonNull<xcb_connection_t>>,
-    visual_id: xcb_visualid_t,
+    _physicalDevice: VkPhysicalDevice,
+    _queueFamilyIndex: u32,
+    _connection: Option<NonNull<xcb_connection_t>>,
+    _visual_id: xcb_visualid_t,
 ) -> VkBool32 {
     unimplemented!(
         "vkGetPhysicalDeviceXcbPresentationSupportKHR(
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn vkDestroySurfaceKHR(
     surface: VkSurfaceKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(instance) = Instance::from_handle(instance) else {
+    let Some(_instance) = Instance::from_handle(instance) else {
         unreachable!()
     };
 

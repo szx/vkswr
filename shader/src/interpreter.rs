@@ -570,6 +570,7 @@ impl State {
         self.store_array(result, src);
     }
 
+    #[allow(dead_code)]
     fn il_store(&mut self, _dst: &il::Variable, _src: &il::Variable) {
         todo!();
     }

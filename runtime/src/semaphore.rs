@@ -14,6 +14,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct Semaphore {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     flags: VkSemaphoreCreateFlags,
 }
 

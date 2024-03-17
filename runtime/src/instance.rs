@@ -16,7 +16,6 @@ use std::sync::Arc;
 pub struct Instance {
     pub(crate) handle: VkDispatchableHandle,
     physical_device: Arc<Mutex<PhysicalDevice>>,
-    driver_name: &'static str,
 }
 impl Instance {
     // TODO: Remove all create() accepting create info.
@@ -28,7 +27,6 @@ impl Instance {
         let instance = Self {
             handle: VkDispatchableHandle(None),
             physical_device,
-            driver_name: "VkSWR",
         };
         Ok(instance.register_object())
     }

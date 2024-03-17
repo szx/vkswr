@@ -46,6 +46,7 @@ impl Spirv {
 #[derive(Debug, Clone)]
 pub struct EntryPoint {
     pub(crate) entry_point: ObjectId,
+    #[allow(dead_code)]
     pub(crate) interfaces: Vec<ObjectId>,
 }
 
@@ -76,6 +77,7 @@ impl EntryPoint {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 struct Version {
     major: u8,
@@ -547,7 +549,6 @@ impl Variable {
                         decorations,
                     },
             })) => decorations,
-            Some(Self::Pointer(_)) => return false,
             None => return false,
         };
         decorations.decorate(decoration, literals);
@@ -568,6 +569,7 @@ pub enum Pointer {
 #[derive(Debug, Clone)]
 pub struct MemoryObject {
     pub(crate) type_: ObjectId,
+    #[allow(dead_code)]
     pub(crate) storage_class: StorageClass,
     pub(crate) decorations: Decorations,
 }
@@ -683,6 +685,7 @@ impl Decorations {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Function {
     pub(crate) result_type: ObjectId,

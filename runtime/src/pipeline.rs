@@ -16,6 +16,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct PipelineLayout {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -44,9 +45,11 @@ impl PipelineLayout {
 #[derive(Debug)]
 pub struct RenderPass {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub(crate) attachments: Arc<[AttachmentDescription]>,
     // TODO: dependencies: Arc<[VkSubpassDependency]>,
+    #[allow(dead_code)]
     subpasses: Arc<[SubpassDescription]>,
 }
 
@@ -98,6 +101,7 @@ pub struct SubpassDescription {
 #[derive(Debug)]
 pub struct ShaderModule {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub(crate) code: Vec<u32>,
 }
@@ -126,7 +130,9 @@ impl ShaderModule {
 #[derive(Debug)]
 pub struct PipelineCache {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     initial_data: Vec<u8>,
 }
 
@@ -154,6 +160,7 @@ impl PipelineCache {
 #[derive(Debug)]
 pub struct Pipeline {
     pub handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
 
@@ -211,6 +218,8 @@ impl Pipeline {
 }
 
 #[derive(Debug)]
+
+#[allow(dead_code)]
 pub struct Framebuffer {
     pub(crate) handle: VkNonDispatchableHandle,
     logical_device: Arc<Mutex<LogicalDevice>>,

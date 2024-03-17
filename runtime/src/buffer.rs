@@ -68,6 +68,7 @@ impl Buffer {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct BufferView {
     pub(crate) handle: VkNonDispatchableHandle,

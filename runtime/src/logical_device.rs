@@ -17,8 +17,8 @@ use std::sync::Arc;
 /// Identifier used to associate functions with a `PhysicalDevice`.
 pub struct LogicalDevice {
     pub(crate) handle: VkDispatchableHandle,
-    driver_name: &'static str,
     physical_device: Arc<Mutex<PhysicalDevice>>,
+    #[allow(dead_code)]
     enabled_features: VkPhysicalDeviceFeatures,
     queue: Arc<Mutex<Queue>>,
 }
@@ -41,7 +41,6 @@ impl LogicalDevice {
 
         let logical_device = Self {
             handle: VkDispatchableHandle(None),
-            driver_name: "VkSWR",
             physical_device: physical_device.clone(),
             enabled_features: *enabled_features.unwrap_or(&physical_device.lock().features()),
             queue,
@@ -102,7 +101,6 @@ impl Debug for LogicalDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LogicalDevice")
             .field("handle", &self.handle)
-            .field("driver_name", &self.driver_name)
             .field("physical_device", &self.physical_device)
             .field("queue", &self.queue)
             .finish()

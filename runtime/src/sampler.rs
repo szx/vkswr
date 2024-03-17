@@ -12,7 +12,9 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct Sampler {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     flags: VkSamplerCreateFlags,
 }
 

@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DescriptorSetLayout {
     pub(crate) handle: VkNonDispatchableHandle,
@@ -38,6 +39,7 @@ impl DescriptorSetLayout {
 #[derive(Debug)]
 pub struct DescriptorPool {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
@@ -63,6 +65,7 @@ impl DescriptorPool {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DescriptorSet {
     pub(crate) handle: VkNonDispatchableHandle,

@@ -22,6 +22,7 @@ pub struct FormatInfo {
 }
 
 impl Format {
+    #[allow(unreachable_code)]
     pub const fn info(&self) -> FormatInfo {
         match *self {
             Self::R8Unorm => FormatInfo {
@@ -192,6 +193,7 @@ impl Vector4 {
         value.to_ne_bytes()
     }
 
+    #[allow(dead_code)]
     fn to_unorm32_bytes(self, index: impl std::slice::SliceIndex<[u64], Output = u64>) -> [u8; 4] {
         let value = f32::from_bits(self.components[index] as u32);
         let value = (value * 4294967295.0f32).round() as u32;
@@ -231,13 +233,6 @@ impl Vector4 {
     }
 
     pub fn from_vertex_buffer_bytes(format: Format, bytes: &[u8]) -> Self {
-        struct FormatInfo {
-            bytes0: Option<Range<usize>>,
-            bytes1: Option<Range<usize>>,
-            bytes2: Option<Range<usize>>,
-            bytes3: Option<Range<usize>>,
-            is_unorm: bool,
-        }
         let (s0, s1, s2, s3) = (
             format.info().bytes0,
             format.info().bytes1,

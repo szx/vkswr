@@ -22,7 +22,9 @@ pub struct Swapchain {
     extent: Extent3<u32>,
     pub images: Vec<Arc<Mutex<Image>>>,
     pub memory_allocations: Vec<Arc<Mutex<MemoryAllocation>>>,
+    #[allow(dead_code)]
     color_space: VkColorSpaceKHR,
+    #[allow(dead_code)]
     present_mode: VkPresentModeKHR,
 }
 

@@ -4,8 +4,8 @@ use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::logical_device::LogicalDevice;
 use runtime::memory::*;
-use runtime::*;
-use std::ffi::c_void;
+
+
 
 pub unsafe extern "C" fn vkAllocateMemory(
     device: VkDevice,

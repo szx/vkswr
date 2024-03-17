@@ -106,6 +106,7 @@ impl Image {
 #[derive(Debug)]
 pub struct ImageView {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
     pub(crate) image: Arc<Mutex<Image>>,
 }

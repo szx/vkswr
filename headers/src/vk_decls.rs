@@ -3,6 +3,8 @@
 #![allow(dead_code)]
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
+#![allow(non_upper_case_globals)]
+#![allow(nonstandard_style)]
 
 use std::fmt::{Debug, Formatter};
 use std::hash::Hasher;

@@ -3,12 +3,12 @@
 use headers::vk_decls::*;
 use runtime::context::{Dispatchable, NonDispatchable};
 use runtime::fence::Fence;
-use runtime::image::Image;
+
 use runtime::logical_device::LogicalDevice;
 use runtime::queue::Queue;
 use runtime::semaphore::Semaphore;
 use runtime::swapchain::*;
-use runtime::*;
+
 
 pub unsafe extern "C" fn vkCreateSwapchainKHR(
     device: VkDevice,
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn vkDestroySwapchainKHR(
     swapchain: VkSwapchainKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
     pSwapchainImageCount: Option<NonNull<u32>>,
     pSwapchainImages: Option<NonNull<VkImage>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn vkAcquireNextImageKHR(
     fence: VkFence,
     pImageIndex: Option<NonNull<u32>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
+    let Some(_device) = LogicalDevice::from_handle(device) else {
         unreachable!()
     };
 

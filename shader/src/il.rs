@@ -643,6 +643,7 @@ impl Il {
         }
     }
 
+    #[allow(dead_code)]
     fn get_spirv_variable<'a>(spirv: &'a Spirv, id: &spirv::ObjectId) -> &'a spirv::Variable {
         match spirv.objects.get(id) {
             Some(spirv::Object::Variable(inner)) => inner,
