@@ -1,6 +1,6 @@
 use base64::Engine;
 use lazy_static::lazy_static;
-use std::cell::OnceCell;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
@@ -38,25 +38,22 @@ fn check_exported_symbols() -> common::TestResult {
 }
 
 fn run_executable(
-    executable_path: &str,
-    current_dir: Option<impl AsRef<Path>>,
-    args: impl IntoIterator<Item = &'static str>,
+    executable_path: impl AsRef<Path>,
+    current_dir: Option<&Path>,
+    args: &[OsString],
     callback: impl Fn(),
 ) -> common::TestResult {
     let icd_json_path = common::get_icd_json_path();
-    let mut out = Command::new(executable_path);
-    let out = out
+    let mut command = Command::new(executable_path.as_ref());
+    command
         .env("VK_ICD_FILENAMES", icd_json_path)
         .env("VK_LOADER_DEBUG", "error,warn,debug") // error,warn,info,debug,layer,driver
         //.env("ICD_WAIT_FOR_DEBUGGER", "true")
         .env("RUST_LOG", "trace");
-    let out = if let Some(current_dir) = current_dir {
-        out.current_dir(current_dir)
-    } else {
-        out
-    };
-    let out = out.args(args);
-    let out = out.output()?;
+    if let Some(current_dir) = current_dir {
+        command.current_dir(current_dir);
+    }
+    let out = command.args(args).output()?;
     let stdout = String::from_utf8_lossy(&out.stdout);
     println!("stdout:\n{}", stdout);
     callback();
@@ -75,55 +72,56 @@ fn run_executable(
 
 #[test]
 fn run_vulkaninfo() -> common::TestResult {
-    run_executable("vulkaninfo", None::<&str>, [], || {})
+    let vulkaninfo = test_tools::sdk_bin("vulkaninfo")
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    run_executable(vulkaninfo, None, &[], || {})
 }
 
 #[test]
 fn run_vkcube() -> common::TestResult {
-    run_executable("vkcube", None::<&str>, ["--c", "600"], || {})
+    let vkcube =
+        test_tools::sdk_bin("vkcube").map_err(|error| std::io::Error::other(error.to_string()))?;
+    let args = [OsString::from("--c"), OsString::from("600")];
+    run_executable(vkcube, None, &args, || {})
 }
 
 static IMAGE_OUTPUT_DIR: OnceLock<PathBuf> = OnceLock::new();
 
-fn run_deqp_vk(case_name: &'static str, log_images: bool) -> common::TestResult {
-    let print_deqp_vk_image = || {
-        if log_images {
-            print_deqp_vk_image(
-                case_name,
-                IMAGE_OUTPUT_DIR.get_or_init(|| {
-                    let path = std::fs::canonicalize(std::path::PathBuf::from(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/../assets/deqp-vk"
-                    )))
-                    .unwrap();
-                    std::fs::remove_dir_all(&path).unwrap();
-                    std::fs::create_dir(&path).unwrap();
-                    path
-                }),
-            );
-        }
-    };
-    run_executable(
-        "./deqp-vk",
-        Some(deqp_vk_dir()),
-        [
-            if log_images {
-                "--deqp-log-images=enable"
-            } else {
-                "--deqp-log-images=disable"
-            },
-            "--deqp-log-shader-sources=disable",
-            "--deqp-terminate-on-fail=enable",
-            "-n",
-            case_name,
-        ],
-        print_deqp_vk_image,
-    )
+fn image_output_dir() -> &'static Path {
+    IMAGE_OUTPUT_DIR.get_or_init(|| {
+        // Don't wipe the directory: it also contains the reference images used
+        // by the README. New results overwrite files with the same name.
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../assets/deqp-vk");
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    })
 }
 
-fn deqp_vk_dir() -> PathBuf {
-    assert!(std::env::var("VULKAN_CTS_PATH").is_ok());
-    std::fs::canonicalize(std::env::var("VULKAN_CTS_PATH").unwrap()).unwrap()
+fn run_deqp_vk(case_name: &'static str, log_images: bool) -> common::TestResult {
+    let deqp_vk =
+        test_tools::deqp_vk().map_err(|error| std::io::Error::other(error.to_string()))?;
+    let run_dir = assert_fs::TempDir::new()?;
+    let results_path = run_dir.join("TestResults.qpa");
+    let args = [
+        OsString::from(if log_images {
+            "--deqp-log-images=enable"
+        } else {
+            "--deqp-log-images=disable"
+        }),
+        OsString::from("--deqp-log-shader-sources=disable"),
+        OsString::from("--deqp-terminate-on-fail=enable"),
+        OsString::from("--deqp-log-filename"),
+        results_path.clone().into_os_string(),
+        OsString::from("--deqp-shadercache=disable"),
+        OsString::from("-n"),
+        OsString::from(case_name),
+    ];
+    let print_deqp_vk_image = || {
+        if log_images {
+            print_deqp_vk_image(case_name, &results_path, image_output_dir());
+        }
+    };
+    run_executable(deqp_vk, Some(run_dir.path()), &args, print_deqp_vk_image)
 }
 
 #[ignore]
@@ -132,10 +130,10 @@ fn run_deqp_vk_api_all() -> common::TestResult {
     run_deqp_vk("dEQP-VK.api.*", false)
 }
 
-fn print_deqp_vk_image(case_name: &str, image_output_dir: impl AsRef<Path>) {
-    let mut test_results_qpa_path = deqp_vk_dir();
-    test_results_qpa_path.push("TestResults.qpa");
-    let test_results_qpa = std::fs::read_to_string(test_results_qpa_path).unwrap();
+fn print_deqp_vk_image(case_name: &str, results_path: &Path, image_output_dir: &Path) {
+    let Ok(test_results_qpa) = std::fs::read_to_string(results_path) else {
+        return;
+    };
 
     lazy_static! {
         static ref RE_IMAGE: regex::Regex =
@@ -152,7 +150,7 @@ fn print_deqp_vk_image(case_name: &str, image_output_dir: impl AsRef<Path>) {
             .decode(&image)
             .unwrap();
 
-        let mut path = PathBuf::from(image_output_dir.as_ref());
+        let mut path = PathBuf::from(image_output_dir);
         let filename = format!(
             "{}_{}.{}",
             case_name,
@@ -257,7 +255,7 @@ fn run_deqp_vk_memory_mapping_suballocation_random_0() -> common::TestResult {
 #[test]
 fn run_deqp_vk_memory_pipeline_barrier_host_write_transfer_src_1024() -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_transfer_src.1024",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_transfer_src.1024",
         false,
     )
 }
@@ -271,7 +269,7 @@ fn run_deqp_vk_memory_mapping_suballocation_random_3() -> common::TestResult {
 fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buffer_stride_2(
 ) -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_2",
         false,
     )
 }
@@ -280,7 +278,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
 fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buffer_stride_4(
 ) -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_4",
         false,
     )
 }
@@ -289,7 +287,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
 fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buffer_stride_4(
 ) -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.8192_vertex_buffer_stride_2",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.8192_vertex_buffer_stride_2",
         false,
     )
 }
@@ -297,7 +295,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buff
 #[test]
 fn run_deqp_vk_memory_pipeline_barrier_host_write_index_buffer_1024() -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_index_buffer.1024",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_index_buffer.1024",
         false,
     )
 }
@@ -305,7 +303,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_index_buffer_1024() -> common:
 #[test]
 fn run_deqp_vk_memory_pipeline_barrier_host_write_uniform_buffer_1024() -> common::TestResult {
     run_deqp_vk(
-        "dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024",
+        "dEQP-VK.memory.pipeline_barrier.graphics.host_write_uniform_buffer.1024",
         true,
     )
 }

@@ -1,0 +1,16 @@
+[package]
+name = "test-tools"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace: this crate is only pulled in as a dev-dependency.
+[workspace]
+
+[dependencies]
+anyhow = "1.0.79"
+flate2 = "1.0"
+fs2 = "0.4.3"
+sha2 = "0.10"
+tar = { version = "0.4", default-features = false }
+ureq = "2.12"
+xz2 = "0.1"

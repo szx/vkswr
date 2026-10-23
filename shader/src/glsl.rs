@@ -108,7 +108,9 @@ mod tests {
         let spv_path = temp_dir.join(format!("{stage}.spv"));
         std::fs::write(&*glsl_path, glsl_code).unwrap();
 
-        let mut out = Command::new("glslangValidator");
+        let glslang_validator =
+            test_tools::sdk_bin("glslangValidator").expect("Vulkan SDK glslangValidator");
+        let mut out = Command::new(glslang_validator);
         let out = out.args([
             "-V",
             &glsl_path.to_string_lossy(),

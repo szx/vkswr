@@ -1,4 +1,5 @@
 /target
+/test_tools/target
 /.idea
 /.cargo
 Cargo.lock
