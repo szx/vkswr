@@ -1,17 +1,15 @@
 [package]
 name = "headers"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
-gpu = { path = "../gpu" }
 common = { path = "../common" }
-log = { workspace = true }
 xcb = { workspace = true }
-lazy_static = { workspace = true }
 
 [build-dependencies]
 codegen = { path = "../codegen" }

@@ -1,33 +1,56 @@
-use common::graphics::MemoryBinding;
-use hashbrown::HashMap;
-use log::trace;
+//! CPU-side storage backing GPU memory allocations.
+
+use std::collections::HashMap;
 use std::ops::Range;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-#[derive(Default)]
+use common::graphics::MemoryBinding;
+use log::trace;
+
+/// A simple bump-allocated pool of host memory.
+///
+/// TODO: Replace this with a real bitmap allocator.
 pub struct Memory {
-    // TODO: Usa bitmap allocator.
     allocations: HashMap<MemoryAllocationHandle, Vec<u8>>,
     allocation_index: AtomicU64,
 }
 
-impl Memory {
-    pub fn new() -> Self {
+impl Default for Memory {
+    fn default() -> Self {
         Self {
-            allocations: HashMap::default(),
+            allocations: HashMap::new(),
             allocation_index: AtomicU64::new(1),
         }
     }
+}
 
+impl std::fmt::Debug for Memory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Memory")
+            .field("allocation_count", &self.allocation_count())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Memory {
     pub const fn memory_size_in_bytes() -> u64 {
         10 * 1024 * 1024
     }
 
+    /// Number of live allocations, used by the debug representation.
+    pub fn allocation_count(&self) -> usize {
+        self.allocations.len()
+    }
+
     pub fn allocate_memory(&mut self, size: u64) -> MemoryAllocation {
         let handle = MemoryAllocationHandle(self.allocation_index.fetch_add(1, Ordering::Relaxed));
-        self.allocations.insert(handle, vec![0; size as usize]);
-        MemoryAllocation { handle, size }
+        let size = usize::try_from(size).expect("allocation fits in host memory");
+        self.allocations.insert(handle, vec![0; size]);
+        MemoryAllocation {
+            handle,
+            size: size as u64,
+        }
     }
 
     pub fn free_memory(&mut self, memory_allocation: MemoryAllocation) {
@@ -37,31 +60,26 @@ impl Memory {
     pub fn get_memory(&self, memory: &impl MemoryHandle) -> &[u8] {
         self.allocations
             .get(&memory.memory_handle())
-            .unwrap_or_else(|| unreachable!())
-            .as_slice()
+            .expect("memory handle refers to a live allocation")
     }
 
     pub fn get_memory_mut(&mut self, memory: &impl MemoryHandle) -> &mut [u8] {
         self.allocations
             .get_mut(&memory.memory_handle())
-            .unwrap_or_else(|| unreachable!())
-            .as_mut_slice()
+            .expect("memory handle refers to a live allocation")
     }
 
+    /// Returns mutable references to `N` distinct allocations.
     pub fn get_memory_many_mut<const N: usize>(
         &mut self,
         memories: &[&dyn MemoryHandle; N],
     ) -> [&mut Vec<u8>; N] {
-        let ks = memories
-            .iter()
-            .map(|x| x.memory_handle())
-            .collect::<Vec<_>>();
-        let ks = ks.iter().collect::<Vec<_>>();
-        self.allocations
-            .get_many_mut::<MemoryAllocationHandle, N>(
-                ks.as_slice().try_into().unwrap_or_else(|_| unreachable!()),
-            )
-            .unwrap_or_else(|| unreachable!())
+        let handles: [MemoryAllocationHandle; N] =
+            std::array::from_fn(|index| memories[index].memory_handle());
+        let allocations = self
+            .allocations
+            .get_disjoint_mut(std::array::from_fn(|index| &handles[index]));
+        allocations.map(|allocation| allocation.expect("memory handle refers to a live allocation"))
     }
 
     pub fn copy_bytes(
@@ -73,42 +91,29 @@ impl Memory {
         size: u64,
     ) {
         let [src, dst] = self.get_memory_many_mut(&[src, dst]);
-        let src = &src[src_offset as usize..(src_offset + size) as usize];
-        let dst = &mut dst[dst_offset as usize..(dst_offset + size) as usize];
+        let src_len = src.len();
+        let dst_len = dst.len();
+        let src = &src[index_range(src_offset, size, src_len)];
+        let dst = &mut dst[index_range(dst_offset, size, dst_len)];
         dst.copy_from_slice(src);
     }
 
     pub fn write_bytes(&mut self, src: &[u8], dst: &impl MemoryHandle, dst_offset: u64) {
-        let dst = self.get_memory_mut(dst);
-        let size = src.len();
-
-        if dst_offset as usize >= dst.len()
-            || (dst_offset as usize).checked_add(size).is_none()
-            || dst_offset as usize + size > dst.len()
-        {
+        let dst_len = self.get_memory(dst).len();
+        let Some(range) = checked_range(dst_offset, src.len() as u64, dst_len) else {
             trace!(
-                "attempt to write bytes into incorrect range {}..({}+{}) (dst_len={})",
-                dst_offset,
-                dst_offset,
-                size,
-                dst.len()
+                "attempt to write bytes into incorrect range {dst_offset}..({dst_offset}+{}) \
+                 (dst_len={dst_len})",
+                src.len()
             );
             return;
-        }
-
-        let dst_range = Range {
-            start: dst_offset as usize,
-            end: dst_offset as usize + size,
         };
-        let dst = &mut dst[dst_range];
-        dst.copy_from_slice(src);
+        self.get_memory_mut(dst)[range].copy_from_slice(src);
     }
 
     pub fn read_bytes(&self, src: &impl MemoryHandle, offset: u64, size: u64) -> &[u8] {
         let src = self.get_memory(src);
-        let offset = offset as usize;
-        let size = size as usize;
-        &src[offset..offset + size]
+        &src[index_range(offset, size, src.len())]
     }
 
     pub fn map_host(
@@ -120,16 +125,27 @@ impl Memory {
         let memory = self
             .allocations
             .get_mut(&memory_allocation.handle)
-            .unwrap_or_else(|| unreachable!());
-        let ptr = memory[offset as usize..(offset + size) as usize].as_mut_ptr();
-        NonNull::new(ptr as *mut std::ffi::c_void)
+            .expect("memory handle refers to a live allocation");
+        let range = index_range(offset, size, memory.len());
+        NonNull::new(memory[range].as_mut_ptr().cast())
     }
 
     pub const fn unmap_host(&self, _memory_allocation: MemoryAllocation) {
-        // No-op.
+        // No-op: host memory stays resident.
     }
 }
 
+fn index_range(offset: u64, size: u64, len: usize) -> Range<usize> {
+    checked_range(offset, size, len).expect("memory range is inside the allocation")
+}
+
+fn checked_range(offset: u64, size: u64, len: usize) -> Option<Range<usize>> {
+    let offset = usize::try_from(offset).ok()?;
+    let end = offset.checked_add(usize::try_from(size).ok()?)?;
+    (end <= len).then_some(offset..end)
+}
+
+/// A live allocation inside [`Memory`].
 #[derive(Debug, Copy, Clone)]
 pub struct MemoryAllocation {
     handle: MemoryAllocationHandle,
@@ -148,11 +164,15 @@ impl MemoryHandle for MemoryBinding {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryAllocationHandle(pub u64);
 
 pub trait MemoryHandle {
     fn memory_handle(&self) -> MemoryAllocationHandle;
+}
+
+pub trait MemoryHandleStore {
+    fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64);
 }
 
 impl MemoryHandleStore for MemoryBinding {
@@ -162,8 +182,4 @@ impl MemoryHandleStore for MemoryBinding {
         self.offset = offset;
         self.size = size;
     }
-}
-
-pub trait MemoryHandleStore {
-    fn store(&mut self, memory_allocation: MemoryAllocation, offset: u64, size: u64);
 }

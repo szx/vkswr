@@ -1,12 +1,10 @@
 //! VkImage device commands
 
 use headers::vk_decls::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::image::*;
 use runtime::logical_device::LogicalDevice;
 use runtime::memory::MemoryAllocation;
-
-
 
 pub unsafe extern "C" fn vkCreateImageView(
     device: VkDevice,
@@ -14,18 +12,14 @@ pub unsafe extern "C" fn vkCreateImageView(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pView: Option<NonNull<VkImageView>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pView) = pView else { unreachable!() };
+    let pView = pView.expect("Vulkan guarantees a non-null pointer");
 
     *pView.as_ptr() = ImageView::create(device, create_info);
 
@@ -37,9 +31,8 @@ pub unsafe extern "C" fn vkDestroyImageView(
     imageView: VkImageView,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -52,18 +45,14 @@ pub unsafe extern "C" fn vkCreateImage(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pImage: Option<NonNull<VkImage>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pImage) = pImage else { unreachable!() };
+    let pImage = pImage.expect("Vulkan guarantees a non-null pointer");
 
     *pImage.as_ptr() = Image::create(
         device,
@@ -82,9 +71,8 @@ pub unsafe extern "C" fn vkDestroyImage(
     image: VkImage,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -96,17 +84,12 @@ pub unsafe extern "C" fn vkGetImageMemoryRequirements(
     image: VkImage,
     pMemoryRequirements: Option<NonNull<VkMemoryRequirements>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(image) = Image::from_handle(image) else {
-        unreachable!()
-    };
+    let image = Image::from_handle(image).expect("Vulkan handle refers to a live object");
 
-    let Some(pMemoryRequirements) = pMemoryRequirements else {
-        unreachable!()
-    };
+    let pMemoryRequirements = pMemoryRequirements.expect("Vulkan guarantees a non-null pointer");
 
     *pMemoryRequirements.as_ptr() = image.lock().memory_requirements();
 }
@@ -117,22 +100,15 @@ pub unsafe extern "C" fn vkGetImageSubresourceLayout(
     pSubresource: Option<NonNull<VkImageSubresource>>,
     pLayout: Option<NonNull<VkSubresourceLayout>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(image) = Image::from_handle(image) else {
-        unreachable!()
-    };
+    let image = Image::from_handle(image).expect("Vulkan handle refers to a live object");
 
-    let Some(pSubresource) = pSubresource else {
-        unreachable!()
-    };
+    let pSubresource = pSubresource.expect("Vulkan guarantees a non-null pointer");
     let subresource = pSubresource.as_ref();
 
-    let Some(pLayout) = pLayout else {
-        unreachable!()
-    };
+    let pLayout = pLayout.expect("Vulkan guarantees a non-null pointer");
 
     *pLayout.as_ptr() = image.lock().subresource_layout(subresource);
 }
@@ -143,18 +119,13 @@ pub unsafe extern "C" fn vkBindImageMemory(
     memory: VkDeviceMemory,
     memoryOffset: VkDeviceSize,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(image) = Image::from_handle(image) else {
-        unreachable!()
-    };
+    let image = Image::from_handle(image).expect("Vulkan handle refers to a live object");
 
-    let Some(memory) = MemoryAllocation::from_handle(memory) else {
-        unreachable!()
-    };
+    let memory =
+        MemoryAllocation::from_handle(memory).expect("Vulkan handle refers to a live object");
 
-    let result = image.lock().bind_memory(memory, memoryOffset);
-    result
+    image.lock().bind_memory(memory, memoryOffset)
 }

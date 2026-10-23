@@ -1,10 +1,10 @@
 //! PhysicalDevice
 
-use crate::context::{Dispatchable, NonDispatchable};
+use crate::context::VulkanObject;
 use crate::pipeline::ShaderModule;
 use common::consts::{
-    MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_BINDINGS,
-    MAX_VERTEX_BINDING_STRIDE, MAX_VIEWPORTS, MAX_VIEWPORT_DIMENSIONS, VIEWPORT_BOUNDS_RANGE,
+    MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDING_STRIDE,
+    MAX_VERTEX_BINDINGS, MAX_VIEWPORT_DIMENSIONS, MAX_VIEWPORTS, VIEWPORT_BOUNDS_RANGE,
 };
 use common::graphics::{
     VertexAttribute, VertexBinding, VertexBindingNumber, VertexInputRate, VertexInputState,
@@ -16,8 +16,7 @@ use gpu::{
 };
 use headers::c_char_array;
 use headers::vk_decls::*;
-use lazy_static::lazy_static;
-use log::*;
+use log::info;
 use shader::glsl::{Shader, ShaderState};
 use std::fmt::{Debug, Formatter};
 
@@ -37,15 +36,185 @@ impl Debug for PhysicalDevice {
     }
 }
 
+/// Device-local and host-visible memory types exposed to Vulkan clients.
+const MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
+    let mut memory_types = [VkMemoryType {
+        propertyFlags: 0,
+        heapIndex: 0,
+    }; VK_MAX_MEMORY_TYPES as usize];
+    memory_types[0] = VkMemoryType {
+        propertyFlags: VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.0
+            | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.0,
+        heapIndex: 0,
+    };
+    memory_types[1] = VkMemoryType {
+        propertyFlags: VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.0,
+        heapIndex: 1,
+    };
+    memory_types
+};
+
+/// Memory heaps backing [`MEMORY_TYPES`].
+const MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
+    let mut memory_heaps = [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
+    let heap_size = gpu::Memory::memory_size_in_bytes() / 2;
+    memory_heaps[0] = VkMemoryHeap {
+        size: heap_size,
+        flags: 0,
+    };
+    memory_heaps[1] = VkMemoryHeap {
+        size: heap_size,
+        flags: VkMemoryHeapFlagBits::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT.0,
+    };
+    memory_heaps
+};
+
+// The format table below advertises a deliberately small set of features.
+// Naming the individual bits once keeps the table readable and makes each
+// combination self-documenting.
+const SAMPLED_IMAGE_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT.0;
+const STORAGE_IMAGE_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT.0;
+const STORAGE_IMAGE_ATOMIC_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT.0;
+const UNIFORM_TEXEL_BUFFER_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT.0;
+const STORAGE_TEXEL_BUFFER_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT.0;
+const STORAGE_TEXEL_BUFFER_ATOMIC_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT.0;
+const VERTEX_BUFFER_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT.0;
+const COLOR_ATTACHMENT_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT.0;
+const COLOR_ATTACHMENT_BLEND_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT.0;
+const DEPTH_STENCIL_ATTACHMENT_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT.0;
+const BLIT_SRC_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT.0;
+const BLIT_DST_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT.0;
+const FILTER_LINEAR_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT.0;
+const TRANSFER_SRC_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT.0;
+const TRANSFER_DST_BIT: VkFormatFeatureFlags =
+    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT.0;
+
+const TRANSFER: VkFormatFeatureFlags = TRANSFER_SRC_BIT | TRANSFER_DST_BIT;
+
+/// Sampled, linearly filtered, blittable, and transferable.
+const SAMPLED_BLIT_TRANSFER: VkFormatFeatureFlags =
+    SAMPLED_IMAGE_BIT | BLIT_SRC_BIT | FILTER_LINEAR_BIT | TRANSFER;
+
+/// Sampled color attachments that can also be blitted and transferred.
+const SAMPLED_COLOR_ATTACHMENT: VkFormatFeatureFlags =
+    SAMPLED_IMAGE_BIT | COLOR_ATTACHMENT_BIT | BLIT_SRC_BIT | BLIT_DST_BIT | TRANSFER;
+
+/// Blendable sampled color attachments that can be blitted and transferred.
+const SAMPLED_BLENDABLE_COLOR_ATTACHMENT: VkFormatFeatureFlags = SAMPLED_IMAGE_BIT
+    | COLOR_ATTACHMENT_BIT
+    | COLOR_ATTACHMENT_BLEND_BIT
+    | BLIT_SRC_BIT
+    | BLIT_DST_BIT
+    | FILTER_LINEAR_BIT
+    | TRANSFER;
+
+/// Sampled storage images that are also color attachments.
+const SAMPLED_STORAGE_COLOR_ATTACHMENT: VkFormatFeatureFlags = SAMPLED_IMAGE_BIT
+    | STORAGE_IMAGE_BIT
+    | COLOR_ATTACHMENT_BIT
+    | BLIT_SRC_BIT
+    | BLIT_DST_BIT
+    | TRANSFER;
+
+/// Blendable color attachments that are also sampled storage images.
+const SAMPLED_STORAGE_BLENDABLE_COLOR_ATTACHMENT: VkFormatFeatureFlags = SAMPLED_IMAGE_BIT
+    | STORAGE_IMAGE_BIT
+    | COLOR_ATTACHMENT_BIT
+    | COLOR_ATTACHMENT_BLEND_BIT
+    | BLIT_SRC_BIT
+    | BLIT_DST_BIT
+    | FILTER_LINEAR_BIT
+    | TRANSFER;
+
+/// Color attachments with atomic storage image support.
+const SAMPLED_STORAGE_ATOMIC_COLOR_ATTACHMENT: VkFormatFeatureFlags = SAMPLED_IMAGE_BIT
+    | STORAGE_IMAGE_BIT
+    | STORAGE_IMAGE_ATOMIC_BIT
+    | COLOR_ATTACHMENT_BIT
+    | BLIT_SRC_BIT
+    | BLIT_DST_BIT
+    | TRANSFER;
+
+/// Sampled storage images that can also be blitted.
+const SAMPLED_STORAGE_BLIT_TRANSFER: VkFormatFeatureFlags =
+    SAMPLED_IMAGE_BIT | STORAGE_IMAGE_BIT | BLIT_SRC_BIT | FILTER_LINEAR_BIT | TRANSFER;
+
+/// Sampled depth/stencil formats that can be blitted.
+const SAMPLED_DEPTH_STENCIL_TRANSFER: VkFormatFeatureFlags =
+    SAMPLED_IMAGE_BIT | DEPTH_STENCIL_ATTACHMENT_BIT | BLIT_SRC_BIT | TRANSFER;
+
+const UNIFORM_VERTEX_BUFFER: VkFormatFeatureFlags = UNIFORM_TEXEL_BUFFER_BIT | VERTEX_BUFFER_BIT;
+const UNIFORM_STORAGE_VERTEX_BUFFER: VkFormatFeatureFlags =
+    UNIFORM_TEXEL_BUFFER_BIT | STORAGE_TEXEL_BUFFER_BIT | VERTEX_BUFFER_BIT;
+const UNIFORM_STORAGE_ATOMIC_VERTEX_BUFFER: VkFormatFeatureFlags = UNIFORM_TEXEL_BUFFER_BIT
+    | STORAGE_TEXEL_BUFFER_BIT
+    | STORAGE_TEXEL_BUFFER_ATOMIC_BIT
+    | VERTEX_BUFFER_BIT;
+const VERTEX_BUFFER: VkFormatFeatureFlags = VERTEX_BUFFER_BIT;
+const UNIFORM_TEXEL_BUFFER: VkFormatFeatureFlags = UNIFORM_TEXEL_BUFFER_BIT;
+const NO_FORMAT_FEATURES: VkFormatFeatureFlags = 0;
+
+/// Builds the [`VkFormatProperties`] advertised for a format.
+const fn format_features(
+    optimal_tiling_features: VkFormatFeatureFlags,
+    buffer_features: VkFormatFeatureFlags,
+) -> VkFormatProperties {
+    VkFormatProperties {
+        linearTilingFeatures: NO_FORMAT_FEATURES,
+        optimalTilingFeatures: optimal_tiling_features,
+        bufferFeatures: buffer_features,
+    }
+}
+
+/// Format properties for formats that are not usable at all.
+const UNSUPPORTED_FORMAT: VkFormatProperties =
+    format_features(NO_FORMAT_FEATURES, NO_FORMAT_FEATURES);
+
+/// All device features disabled.
+///
+/// `VkPhysicalDeviceFeatures::default()` is not `const`, but
+/// [`PhysicalDevice::features`] is a `const fn`, so spell the zero value out
+/// here.
+const NO_DEVICE_FEATURES: VkPhysicalDeviceFeatures = {
+    // SAFETY: `VkPhysicalDeviceFeatures` is a `#[repr(C)]` plain-old-data
+    // struct whose fields are all `VkBool32`, for which zero is valid.
+    unsafe { std::mem::zeroed() }
+};
+
+/// Returns whether every feature requested in `$enabled` is in `$supported`.
+///
+/// This mirrors the Vulkan rule that an application may only enable a feature
+/// the physical device advertises.
+macro_rules! all_features_supported {
+    ($supported:expr, $enabled:expr, [$first:ident $(, $rest:ident)* $(,)?]) => {
+        ($enabled.$first != VK_TRUE || $supported.$first != VK_FALSE)
+            $(&& ($enabled.$rest != VK_TRUE || $supported.$rest != VK_FALSE))*
+    };
+}
+
 impl PhysicalDevice {
     pub fn create() -> VkDispatchableHandle {
         info!("new PhysicalDevice");
         let physical_device = Self {
             handle: VkDispatchableHandle(None),
             physical_device_name: "VkSWR physical device",
-            gpu: gpu::Gpu::new(),
+            gpu: gpu::Gpu::default(),
         };
-        physical_device.register_object()
+        physical_device.register()
     }
 
     pub fn extension_count() -> usize {
@@ -70,15 +239,15 @@ impl PhysicalDevice {
         );
         [
             VkExtensionProperties {
-                extensionName: *VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                extensionName: VK_KHR_SWAPCHAIN_EXTENSION_NAME,
                 specVersion: 70,
             },
             VkExtensionProperties {
-                extensionName: *VK_KHR_TOOLING_INFO_NAME,
+                extensionName: VK_KHR_TOOLING_INFO_NAME,
                 specVersion: 1,
             },
             VkExtensionProperties {
-                extensionName: *VK_KHR_DEBUG_MARKER_NAME,
+                extensionName: VK_KHR_DEBUG_MARKER_NAME,
                 specVersion: 4,
             },
         ]
@@ -92,131 +261,25 @@ impl PhysicalDevice {
         );
 
         VkPhysicalDeviceProperties {
-            apiVersion: (0 << 29) | (1 << 22) | (0 << 12) | 0, // variant + major + minor + path
+            apiVersion: 1 << 22, // Vulkan 1.0
             driverVersion: 1,
-            vendorID: 0,
-            deviceID: 0,
-            deviceType: VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_OTHER,
-            deviceName: *DEVICE_NAME,
+            deviceName: DEVICE_NAME,
             pipelineCacheUUID: [
                 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10, 0x11, 0x12, 0x13, 0x14,
                 0x15,
             ],
             limits: VkPhysicalDeviceLimits {
-                maxImageDimension1D: 0,
-                maxImageDimension2D: 0,
-                maxImageDimension3D: 0,
-                maxImageDimensionCube: 0,
-                maxImageArrayLayers: 0,
-                maxTexelBufferElements: 0,
-                maxUniformBufferRange: 0,
-                maxStorageBufferRange: 0,
-                maxPushConstantsSize: 0,
-                maxMemoryAllocationCount: 0,
-                maxSamplerAllocationCount: 0,
-                bufferImageGranularity: 0,
-                sparseAddressSpaceSize: 0,
-                maxBoundDescriptorSets: 0,
-                maxPerStageDescriptorSamplers: 0,
-                maxPerStageDescriptorUniformBuffers: 0,
-                maxPerStageDescriptorStorageBuffers: 0,
-                maxPerStageDescriptorSampledImages: 0,
-                maxPerStageDescriptorStorageImages: 0,
-                maxPerStageDescriptorInputAttachments: 0,
-                maxPerStageResources: 0,
-                maxDescriptorSetSamplers: 0,
-                maxDescriptorSetUniformBuffers: 0,
-                maxDescriptorSetUniformBuffersDynamic: 0,
-                maxDescriptorSetStorageBuffers: 0,
-                maxDescriptorSetStorageBuffersDynamic: 0,
-                maxDescriptorSetSampledImages: 0,
-                maxDescriptorSetStorageImages: 0,
-                maxDescriptorSetInputAttachments: 0,
                 maxVertexInputAttributes: MAX_VERTEX_ATTRIBUTES,
                 maxVertexInputBindings: MAX_VERTEX_BINDINGS,
                 maxVertexInputAttributeOffset: MAX_VERTEX_ATTRIBUTE_OFFSET,
                 maxVertexInputBindingStride: MAX_VERTEX_BINDING_STRIDE,
-                maxVertexOutputComponents: 0,
-                maxTessellationGenerationLevel: 0,
-                maxTessellationPatchSize: 0,
-                maxTessellationControlPerVertexInputComponents: 0,
-                maxTessellationControlPerVertexOutputComponents: 0,
-                maxTessellationControlPerPatchOutputComponents: 0,
-                maxTessellationControlTotalOutputComponents: 0,
-                maxTessellationEvaluationInputComponents: 0,
-                maxTessellationEvaluationOutputComponents: 0,
-                maxGeometryShaderInvocations: 0,
-                maxGeometryInputComponents: 0,
-                maxGeometryOutputComponents: 0,
-                maxGeometryOutputVertices: 0,
-                maxGeometryTotalOutputComponents: 0,
-                maxFragmentInputComponents: 0,
-                maxFragmentOutputAttachments: 0,
-                maxFragmentDualSrcAttachments: 0,
-                maxFragmentCombinedOutputResources: 0,
-                maxComputeSharedMemorySize: 0,
-                maxComputeWorkGroupCount: [0, 0, 0],
-                maxComputeWorkGroupInvocations: 0,
-                maxComputeWorkGroupSize: [0, 0, 0],
-                subPixelPrecisionBits: 0,
-                subTexelPrecisionBits: 0,
-                mipmapPrecisionBits: 0,
-                maxDrawIndexedIndexValue: 0,
-                maxDrawIndirectCount: 0,
-                maxSamplerLodBias: 0.0,
-                maxSamplerAnisotropy: 0.0,
                 maxViewports: MAX_VIEWPORTS,
                 maxViewportDimensions: [MAX_VIEWPORT_DIMENSIONS.0, MAX_VIEWPORT_DIMENSIONS.1],
-                viewportBoundsRange: [VIEWPORT_BOUNDS_RANGE.0, VIEWPORT_BOUNDS_RANGE.0],
-                viewportSubPixelBits: 0,
-                minMemoryMapAlignment: 0,
-                minTexelBufferOffsetAlignment: 0,
-                minUniformBufferOffsetAlignment: 0,
-                minStorageBufferOffsetAlignment: 0,
-                minTexelOffset: 0,
-                maxTexelOffset: 0,
-                minTexelGatherOffset: 0,
-                maxTexelGatherOffset: 0,
-                minInterpolationOffset: 0.0,
-                maxInterpolationOffset: 0.0,
-                subPixelInterpolationOffsetBits: 0,
-                maxFramebufferWidth: 0,
-                maxFramebufferHeight: 0,
-                maxFramebufferLayers: 0,
-                framebufferColorSampleCounts: 0,
-                framebufferDepthSampleCounts: 0,
-                framebufferStencilSampleCounts: 0,
-                framebufferNoAttachmentsSampleCounts: 0,
-                maxColorAttachments: 0,
-                sampledImageColorSampleCounts: 0,
-                sampledImageIntegerSampleCounts: 0,
-                sampledImageDepthSampleCounts: 0,
-                sampledImageStencilSampleCounts: 0,
-                storageImageSampleCounts: 0,
-                maxSampleMaskWords: 0,
-                timestampComputeAndGraphics: 0,
-                timestampPeriod: 0.0,
-                maxClipDistances: 0,
-                maxCullDistances: 0,
-                maxCombinedClipAndCullDistances: 0,
-                discreteQueuePriorities: 0,
-                pointSizeRange: [0.0, 0.0],
-                lineWidthRange: [0.0, 0.0],
-                pointSizeGranularity: 0.0,
-                lineWidthGranularity: 0.0,
-                strictLines: 0,
-                standardSampleLocations: 0,
-                optimalBufferCopyOffsetAlignment: 0,
-                optimalBufferCopyRowPitchAlignment: 0,
+                viewportBoundsRange: [VIEWPORT_BOUNDS_RANGE.0, VIEWPORT_BOUNDS_RANGE.1],
                 nonCoherentAtomSize: 1,
+                ..Default::default()
             },
-            sparseProperties: VkPhysicalDeviceSparseProperties {
-                residencyStandard2DBlockShape: 0,
-                residencyStandard2DMultisampleBlockShape: 0,
-                residencyStandard3DBlockShape: 0,
-                residencyAlignedMipSize: 0,
-                residencyNonResidentStrict: 0,
-            },
+            ..Default::default()
         }
     }
 
@@ -224,46 +287,12 @@ impl PhysicalDevice {
         []
     }
 
-    pub fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
-        lazy_static! {
-            static ref MEMORY_TYPES: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = {
-                let mut m: [VkMemoryType; VK_MAX_MEMORY_TYPES as usize] = [VkMemoryType {
-                    propertyFlags: 0,
-                    heapIndex: 0,
-                };
-                    VK_MAX_MEMORY_TYPES as usize];
-                m[0] = VkMemoryType {
-                    propertyFlags: (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                        | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-                        .into(),
-                    heapIndex: 0,
-                };
-                m[1] = VkMemoryType {
-                    propertyFlags: (VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-                        .into(),
-                    heapIndex: 1,
-                };
-                m
-            };
-            static ref MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
-                let mut m: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] =
-                    [VkMemoryHeap { size: 0, flags: 0 }; VK_MAX_MEMORY_HEAPS as usize];
-                m[0] = VkMemoryHeap {
-                    size: gpu::Memory::memory_size_in_bytes() / 2,
-                    flags: 0,
-                };
-                m[0] = VkMemoryHeap {
-                    size: gpu::Memory::memory_size_in_bytes() / 2,
-                    flags: VkMemoryHeapFlagBits::VK_MEMORY_HEAP_DEVICE_LOCAL_BIT.into(),
-                };
-                m
-            };
-        }
+    pub const fn memory_properties(&self) -> VkPhysicalDeviceMemoryProperties {
         VkPhysicalDeviceMemoryProperties {
             memoryTypeCount: 2,
-            memoryTypes: *MEMORY_TYPES,
+            memoryTypes: MEMORY_TYPES,
             memoryHeapCount: 2,
-            memoryHeaps: *MEMORY_HEAPS,
+            memoryHeaps: MEMORY_HEAPS,
         }
     }
 
@@ -277,1879 +306,404 @@ impl PhysicalDevice {
 
     pub const fn features(&self) -> VkPhysicalDeviceFeatures {
         VkPhysicalDeviceFeatures {
-            robustBufferAccess: VK_FALSE,
-            fullDrawIndexUint32: VK_FALSE,
-            imageCubeArray: VK_FALSE,
-            independentBlend: VK_FALSE,
-            geometryShader: VK_FALSE,
-            tessellationShader: VK_FALSE,
-            sampleRateShading: VK_FALSE,
-            dualSrcBlend: VK_FALSE,
-            logicOp: VK_FALSE,
-            multiDrawIndirect: VK_FALSE,
-            drawIndirectFirstInstance: VK_FALSE,
-            depthClamp: VK_FALSE,
-            depthBiasClamp: VK_FALSE,
-            fillModeNonSolid: VK_FALSE,
-            depthBounds: VK_FALSE,
-            wideLines: VK_FALSE,
-            largePoints: VK_FALSE,
-            alphaToOne: VK_FALSE,
-            multiViewport: VK_FALSE,
-            samplerAnisotropy: VK_FALSE,
             textureCompressionETC2: VK_TRUE,
             textureCompressionASTC_LDR: VK_TRUE,
             textureCompressionBC: VK_TRUE,
-            occlusionQueryPrecise: VK_FALSE,
-            pipelineStatisticsQuery: VK_FALSE,
-            vertexPipelineStoresAndAtomics: VK_FALSE,
-            fragmentStoresAndAtomics: VK_FALSE,
-            shaderTessellationAndGeometryPointSize: VK_FALSE,
-            shaderImageGatherExtended: VK_FALSE,
-            shaderStorageImageExtendedFormats: VK_FALSE,
-            shaderStorageImageMultisample: VK_FALSE,
-            shaderStorageImageReadWithoutFormat: VK_FALSE,
-            shaderStorageImageWriteWithoutFormat: VK_FALSE,
-            shaderUniformBufferArrayDynamicIndexing: VK_FALSE,
-            shaderSampledImageArrayDynamicIndexing: VK_FALSE,
-            shaderStorageBufferArrayDynamicIndexing: VK_FALSE,
-            shaderStorageImageArrayDynamicIndexing: VK_FALSE,
-            shaderClipDistance: VK_FALSE,
-            shaderCullDistance: VK_FALSE,
-            shaderFloat64: VK_FALSE,
-            shaderInt64: VK_FALSE,
-            shaderInt16: VK_FALSE,
-            shaderResourceResidency: VK_FALSE,
-            shaderResourceMinLod: VK_FALSE,
-            sparseBinding: VK_FALSE,
-            sparseResidencyBuffer: VK_FALSE,
-            sparseResidencyImage2D: VK_FALSE,
-            sparseResidencyImage3D: VK_FALSE,
-            sparseResidency2Samples: VK_FALSE,
-            sparseResidency4Samples: VK_FALSE,
-            sparseResidency8Samples: VK_FALSE,
-            sparseResidency16Samples: VK_FALSE,
-            sparseResidencyAliased: VK_FALSE,
-            variableMultisampleRate: VK_FALSE,
-            inheritedQueries: VK_FALSE,
+            ..NO_DEVICE_FEATURES
         }
     }
 
     pub const fn supports_features(&self, enabled_features: &VkPhysicalDeviceFeatures) -> bool {
         let supported_features = self.features();
-        if enabled_features.robustBufferAccess == VK_TRUE
-            && supported_features.robustBufferAccess == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.fullDrawIndexUint32 == VK_TRUE
-            && supported_features.fullDrawIndexUint32 == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.imageCubeArray == VK_TRUE
-            && supported_features.imageCubeArray == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.independentBlend == VK_TRUE
-            && supported_features.independentBlend == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.geometryShader == VK_TRUE
-            && supported_features.geometryShader == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.tessellationShader == VK_TRUE
-            && supported_features.tessellationShader == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sampleRateShading == VK_TRUE
-            && supported_features.sampleRateShading == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.dualSrcBlend == VK_TRUE && supported_features.dualSrcBlend == VK_FALSE {
-            return false;
-        }
-        if enabled_features.logicOp == VK_TRUE && supported_features.logicOp == VK_FALSE {
-            return false;
-        }
-        if enabled_features.multiDrawIndirect == VK_TRUE
-            && supported_features.multiDrawIndirect == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.drawIndirectFirstInstance == VK_TRUE
-            && supported_features.drawIndirectFirstInstance == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.depthClamp == VK_TRUE && supported_features.depthClamp == VK_FALSE {
-            return false;
-        }
-        if enabled_features.depthBiasClamp == VK_TRUE
-            && supported_features.depthBiasClamp == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.fillModeNonSolid == VK_TRUE
-            && supported_features.fillModeNonSolid == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.depthBounds == VK_TRUE && supported_features.depthBounds == VK_FALSE {
-            return false;
-        }
-        if enabled_features.wideLines == VK_TRUE && supported_features.wideLines == VK_FALSE {
-            return false;
-        }
-        if enabled_features.largePoints == VK_TRUE && supported_features.largePoints == VK_FALSE {
-            return false;
-        }
-        if enabled_features.alphaToOne == VK_TRUE && supported_features.alphaToOne == VK_FALSE {
-            return false;
-        }
-        if enabled_features.multiViewport == VK_TRUE && supported_features.multiViewport == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.samplerAnisotropy == VK_TRUE
-            && supported_features.samplerAnisotropy == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.textureCompressionETC2 == VK_TRUE
-            && supported_features.textureCompressionETC2 == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.textureCompressionASTC_LDR == VK_TRUE
-            && supported_features.textureCompressionASTC_LDR == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.textureCompressionBC == VK_TRUE
-            && supported_features.textureCompressionBC == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.occlusionQueryPrecise == VK_TRUE
-            && supported_features.occlusionQueryPrecise == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.pipelineStatisticsQuery == VK_TRUE
-            && supported_features.pipelineStatisticsQuery == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.vertexPipelineStoresAndAtomics == VK_TRUE
-            && supported_features.vertexPipelineStoresAndAtomics == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.fragmentStoresAndAtomics == VK_TRUE
-            && supported_features.fragmentStoresAndAtomics == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderTessellationAndGeometryPointSize == VK_TRUE
-            && supported_features.shaderTessellationAndGeometryPointSize == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderImageGatherExtended == VK_TRUE
-            && supported_features.shaderImageGatherExtended == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageImageExtendedFormats == VK_TRUE
-            && supported_features.shaderStorageImageExtendedFormats == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageImageMultisample == VK_TRUE
-            && supported_features.shaderStorageImageMultisample == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageImageReadWithoutFormat == VK_TRUE
-            && supported_features.shaderStorageImageReadWithoutFormat == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageImageWriteWithoutFormat == VK_TRUE
-            && supported_features.shaderStorageImageWriteWithoutFormat == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderUniformBufferArrayDynamicIndexing == VK_TRUE
-            && supported_features.shaderUniformBufferArrayDynamicIndexing == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderSampledImageArrayDynamicIndexing == VK_TRUE
-            && supported_features.shaderSampledImageArrayDynamicIndexing == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageBufferArrayDynamicIndexing == VK_TRUE
-            && supported_features.shaderStorageBufferArrayDynamicIndexing == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderStorageImageArrayDynamicIndexing == VK_TRUE
-            && supported_features.shaderStorageImageArrayDynamicIndexing == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderClipDistance == VK_TRUE
-            && supported_features.shaderClipDistance == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderCullDistance == VK_TRUE
-            && supported_features.shaderCullDistance == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderFloat64 == VK_TRUE && supported_features.shaderFloat64 == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderInt64 == VK_TRUE && supported_features.shaderInt64 == VK_FALSE {
-            return false;
-        }
-        if enabled_features.shaderInt16 == VK_TRUE && supported_features.shaderInt16 == VK_FALSE {
-            return false;
-        }
-        if enabled_features.shaderResourceResidency == VK_TRUE
-            && supported_features.shaderResourceResidency == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.shaderResourceMinLod == VK_TRUE
-            && supported_features.shaderResourceMinLod == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseBinding == VK_TRUE && supported_features.sparseBinding == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidencyBuffer == VK_TRUE
-            && supported_features.sparseResidencyBuffer == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidencyImage2D == VK_TRUE
-            && supported_features.sparseResidencyImage2D == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidencyImage3D == VK_TRUE
-            && supported_features.sparseResidencyImage3D == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidency2Samples == VK_TRUE
-            && supported_features.sparseResidency2Samples == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidency4Samples == VK_TRUE
-            && supported_features.sparseResidency4Samples == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidency8Samples == VK_TRUE
-            && supported_features.sparseResidency8Samples == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidency16Samples == VK_TRUE
-            && supported_features.sparseResidency16Samples == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.sparseResidencyAliased == VK_TRUE
-            && supported_features.sparseResidencyAliased == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.variableMultisampleRate == VK_TRUE
-            && supported_features.variableMultisampleRate == VK_FALSE
-        {
-            return false;
-        }
-        if enabled_features.inheritedQueries == VK_TRUE
-            && supported_features.inheritedQueries == VK_FALSE
-        {
-            return false;
-        }
-        true
+        all_features_supported!(
+            supported_features,
+            enabled_features,
+            [
+                robustBufferAccess,
+                fullDrawIndexUint32,
+                imageCubeArray,
+                independentBlend,
+                geometryShader,
+                tessellationShader,
+                sampleRateShading,
+                dualSrcBlend,
+                logicOp,
+                multiDrawIndirect,
+                drawIndirectFirstInstance,
+                depthClamp,
+                depthBiasClamp,
+                fillModeNonSolid,
+                depthBounds,
+                wideLines,
+                largePoints,
+                alphaToOne,
+                multiViewport,
+                samplerAnisotropy,
+                textureCompressionETC2,
+                textureCompressionASTC_LDR,
+                textureCompressionBC,
+                occlusionQueryPrecise,
+                pipelineStatisticsQuery,
+                vertexPipelineStoresAndAtomics,
+                fragmentStoresAndAtomics,
+                shaderTessellationAndGeometryPointSize,
+                shaderImageGatherExtended,
+                shaderStorageImageExtendedFormats,
+                shaderStorageImageMultisample,
+                shaderStorageImageReadWithoutFormat,
+                shaderStorageImageWriteWithoutFormat,
+                shaderUniformBufferArrayDynamicIndexing,
+                shaderSampledImageArrayDynamicIndexing,
+                shaderStorageBufferArrayDynamicIndexing,
+                shaderStorageImageArrayDynamicIndexing,
+                shaderClipDistance,
+                shaderCullDistance,
+                shaderFloat64,
+                shaderInt64,
+                shaderInt16,
+                shaderResourceResidency,
+                shaderResourceMinLod,
+                sparseBinding,
+                sparseResidencyBuffer,
+                sparseResidencyImage2D,
+                sparseResidencyImage3D,
+                sparseResidency2Samples,
+                sparseResidency4Samples,
+                sparseResidency8Samples,
+                sparseResidency16Samples,
+                sparseResidencyAliased,
+                variableMultisampleRate,
+                inheritedQueries,
+            ]
+        )
     }
 
-    pub fn format_properties(&self, format: VkFormat) -> VkFormatProperties {
-        let unsupported = VkFormatProperties {
-            linearTilingFeatures: 0,
-            optimalTilingFeatures: 0,
-            bufferFeatures: 0,
-        };
+    pub const fn format_properties(&self, format: VkFormat) -> VkFormatProperties {
         match format {
-            VkFormat::VK_FORMAT_UNDEFINED => unsupported,
-            VkFormat::VK_FORMAT_R4G4_UNORM_PACK8 => unsupported,
-            VkFormat::VK_FORMAT_R4G4B4A4_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_B4G4R4A4_UNORM_PACK16 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_R5G6B5_UNORM_PACK16 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_B5G6R5_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R5G5B5A1_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_B5G5R5A1_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_A1R5G5B5_UNORM_PACK16 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_R8_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R8_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8_SRGB => unsupported,
-            VkFormat::VK_FORMAT_R8G8_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8_SRGB => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_UNORM => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_SNORM => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_UINT => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_SINT => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8_SRGB => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_UNORM => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_SNORM => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_UINT => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_SINT => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8_SRGB => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8A8_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8B8A8_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8B8A8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8A8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R8G8B8A8_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8B8A8_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R8G8B8A8_SRGB => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_B8G8R8A8_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_B8G8R8A8_SNORM => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8A8_USCALED => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8A8_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8A8_UINT => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8A8_SINT => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8A8_SRGB => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_A8B8G8R8_UNORM_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A8B8G8R8_SNORM_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A8B8G8R8_USCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A8B8G8R8_SSCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A8B8G8R8_UINT_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A8B8G8R8_SINT_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A8B8G8R8_SRGB_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_A2R10G10B10_UNORM_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2R10G10B10_SNORM_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2R10G10B10_USCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2R10G10B10_SSCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2R10G10B10_UINT_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2R10G10B10_SINT_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2B10G10R10_UNORM_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A2B10G10R10_SNORM_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2B10G10R10_USCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2B10G10R10_SSCALED_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_A2B10G10R10_UINT_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_A2B10G10R10_SINT_PACK32 => unsupported,
-            VkFormat::VK_FORMAT_R16_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R16_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R16_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16B16_UNORM => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_SNORM => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_UINT => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_SINT => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16_SFLOAT => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16A16_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16B16A16_SNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16B16A16_USCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16A16_SSCALED => unsupported,
-            VkFormat::VK_FORMAT_R16G16B16A16_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16B16A16_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: 0,
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32A32_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32A32_SINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_DST_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_R64_UINT => unsupported,
-            VkFormat::VK_FORMAT_R64_SINT => unsupported,
-            VkFormat::VK_FORMAT_R64_SFLOAT => unsupported,
-            VkFormat::VK_FORMAT_R64G64_UINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64_SINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64_SFLOAT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64_UINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64_SINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64_SFLOAT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64A64_UINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64A64_SINT => unsupported,
-            VkFormat::VK_FORMAT_R64G64B64A64_SFLOAT => unsupported,
-            VkFormat::VK_FORMAT_B10G11R11_UFLOAT_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT,
-                ),
-            },
-            VkFormat::VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_D16_UNORM => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_X8_D24_UNORM_PACK32 => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_D32_SFLOAT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_S8_UINT => unsupported,
-            VkFormat::VK_FORMAT_D16_UNORM_S8_UINT => unsupported,
-            VkFormat::VK_FORMAT_D24_UNORM_S8_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_D32_SFLOAT_S8_UINT => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC1_RGB_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC1_RGB_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC1_RGBA_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC1_RGBA_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC2_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC2_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC3_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC3_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC4_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC4_SNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC5_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC5_SNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC6H_UFLOAT_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC6H_SFLOAT_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC7_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_BC7_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_EAC_R11_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_EAC_R11_SNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_EAC_R11G11_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_EAC_R11G11_SNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_4x4_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_4x4_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_5x4_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_5x4_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_5x5_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_5x5_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_6x5_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_6x5_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_6x6_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_6x6_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x5_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x5_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x6_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x6_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x8_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_8x8_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x5_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x5_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x6_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x6_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x8_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x8_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x10_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_10x10_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_12x10_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_12x10_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_12x12_UNORM_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_ASTC_12x12_SRGB_BLOCK => VkFormatProperties {
-                linearTilingFeatures: 0,
-                optimalTilingFeatures: VkFormatFeatureFlags::from(
-                    VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_BLIT_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_SRC_BIT
-                        | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
-                ),
-                bufferFeatures: 0,
-            },
-            VkFormat::VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG => unsupported,
-            VkFormat::VK_FORMAT_R10X6_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R10X6G10X6_UNORM_2PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R12X4_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R12X4G12X4_UNORM_2PACK16 => unsupported,
-            VkFormat::VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G8B8G8R8_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_B8G8R8G8_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G16B16G16R16_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_B16G16R16G16_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_420_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_420_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_422_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_444_UNORM => unsupported,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 => unsupported,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_444_UNORM => unsupported,
-            VkFormat::VK_FORMAT_A4R4G4B4_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_A4B4G4R4_UNORM_PACK16 => unsupported,
-            VkFormat::VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK => unsupported,
-            VkFormat::VK_FORMAT_R16G16_S10_5_NV => unsupported,
-            VkFormat(185_u32..=1000053999_u32)
-            | VkFormat(1000054008_u32..=1000155999_u32)
-            | VkFormat(1000156034_u32..=u32::MAX) => unreachable!(),
+            // Sampled, linearly filtered, blittable formats with no buffer features.
+            VkFormat::VK_FORMAT_B4G4R4A4_UNORM_PACK16
+            | VkFormat::VK_FORMAT_E5B9G9R9_UFLOAT_PACK32
+            | VkFormat::VK_FORMAT_BC1_RGB_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC1_RGB_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_BC1_RGBA_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC1_RGBA_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_BC2_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC2_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_BC3_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC3_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_BC4_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC4_SNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC5_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC5_SNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC6H_UFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_BC6H_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_BC7_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_BC7_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_EAC_R11_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_EAC_R11_SNORM_BLOCK
+            | VkFormat::VK_FORMAT_EAC_R11G11_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_EAC_R11G11_SNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_4x4_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_4x4_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x4_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x4_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x5_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x5_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x5_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x5_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x6_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x6_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x5_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x5_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x6_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x6_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x8_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x8_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x5_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x5_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x6_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x6_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x8_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x8_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x10_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x10_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x10_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x10_SRGB_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x12_UNORM_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x12_SRGB_BLOCK => {
+                format_features(SAMPLED_BLIT_TRANSFER, NO_FORMAT_FEATURES)
+            }
+
+            // Sampled, blendable color attachments with no buffer features.
+            VkFormat::VK_FORMAT_R5G6B5_UNORM_PACK16
+            | VkFormat::VK_FORMAT_A1R5G5B5_UNORM_PACK16
+            | VkFormat::VK_FORMAT_R8G8B8A8_SRGB
+            | VkFormat::VK_FORMAT_B8G8R8A8_SRGB
+            | VkFormat::VK_FORMAT_A8B8G8R8_SRGB_PACK32 => {
+                format_features(SAMPLED_BLENDABLE_COLOR_ATTACHMENT, NO_FORMAT_FEATURES)
+            }
+
+            // Sampled, blendable color attachments usable as texel and vertex buffers.
+            VkFormat::VK_FORMAT_R8_UNORM
+            | VkFormat::VK_FORMAT_R8G8_UNORM
+            | VkFormat::VK_FORMAT_B8G8R8A8_UNORM
+            | VkFormat::VK_FORMAT_A2B10G10R10_UNORM_PACK32
+            | VkFormat::VK_FORMAT_R16_SFLOAT
+            | VkFormat::VK_FORMAT_R16G16_SFLOAT => {
+                format_features(SAMPLED_BLENDABLE_COLOR_ATTACHMENT, UNIFORM_VERTEX_BUFFER)
+            }
+
+            // Sampled, linearly filtered, blittable formats usable as texel and vertex buffers.
+            VkFormat::VK_FORMAT_R8_SNORM | VkFormat::VK_FORMAT_R8G8_SNORM => {
+                format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_VERTEX_BUFFER)
+            }
+
+            // Sampled color attachments usable as texel and vertex buffers.
+            VkFormat::VK_FORMAT_R8_UINT
+            | VkFormat::VK_FORMAT_R8_SINT
+            | VkFormat::VK_FORMAT_R8G8_UINT
+            | VkFormat::VK_FORMAT_R8G8_SINT
+            | VkFormat::VK_FORMAT_R16_UINT
+            | VkFormat::VK_FORMAT_R16_SINT
+            | VkFormat::VK_FORMAT_R16G16_UINT
+            | VkFormat::VK_FORMAT_R16G16_SINT => {
+                format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_VERTEX_BUFFER)
+            }
+
+            // Sampled, blendable color attachments with storage image and texel buffer support.
+            VkFormat::VK_FORMAT_R8G8B8A8_UNORM | VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT => {
+                format_features(
+                    SAMPLED_STORAGE_BLENDABLE_COLOR_ATTACHMENT,
+                    UNIFORM_STORAGE_VERTEX_BUFFER,
+                )
+            }
+
+            // Sampled storage images usable as texel and vertex buffers.
+            VkFormat::VK_FORMAT_R8G8B8A8_SNORM => {
+                format_features(SAMPLED_STORAGE_BLIT_TRANSFER, UNIFORM_STORAGE_VERTEX_BUFFER)
+            }
+
+            // Sampled storage images usable as color attachments and texel buffers.
+            VkFormat::VK_FORMAT_R8G8B8A8_UINT
+            | VkFormat::VK_FORMAT_R8G8B8A8_SINT
+            | VkFormat::VK_FORMAT_R16G16B16A16_UINT
+            | VkFormat::VK_FORMAT_R16G16B16A16_SINT
+            | VkFormat::VK_FORMAT_R32_SFLOAT
+            | VkFormat::VK_FORMAT_R32G32_UINT
+            | VkFormat::VK_FORMAT_R32G32_SINT
+            | VkFormat::VK_FORMAT_R32G32_SFLOAT
+            | VkFormat::VK_FORMAT_R32G32B32A32_UINT
+            | VkFormat::VK_FORMAT_R32G32B32A32_SINT
+            | VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT => format_features(
+                SAMPLED_STORAGE_COLOR_ATTACHMENT,
+                UNIFORM_STORAGE_VERTEX_BUFFER,
+            ),
+
+            // Sampled, blendable color attachments with texel buffer support.
+            VkFormat::VK_FORMAT_A8B8G8R8_UNORM_PACK32 => format_features(
+                SAMPLED_BLENDABLE_COLOR_ATTACHMENT,
+                UNIFORM_STORAGE_VERTEX_BUFFER,
+            ),
+
+            // Sampled, linearly filtered, blittable formats with texel buffer support.
+            VkFormat::VK_FORMAT_A8B8G8R8_SNORM_PACK32 => {
+                format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_STORAGE_VERTEX_BUFFER)
+            }
+
+            // Sampled color attachments with texel buffer support.
+            VkFormat::VK_FORMAT_A8B8G8R8_UINT_PACK32 | VkFormat::VK_FORMAT_A8B8G8R8_SINT_PACK32 => {
+                format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_STORAGE_VERTEX_BUFFER)
+            }
+
+            // Sampled color attachments usable as uniform texel buffers.
+            VkFormat::VK_FORMAT_A2B10G10R10_UINT_PACK32 => {
+                format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_TEXEL_BUFFER)
+            }
+
+            // Vertex-buffer-only formats.
+            VkFormat::VK_FORMAT_R16_UNORM
+            | VkFormat::VK_FORMAT_R16_SNORM
+            | VkFormat::VK_FORMAT_R16G16_UNORM
+            | VkFormat::VK_FORMAT_R16G16_SNORM
+            | VkFormat::VK_FORMAT_R32G32B32_UINT
+            | VkFormat::VK_FORMAT_R32G32B32_SINT
+            | VkFormat::VK_FORMAT_R32G32B32_SFLOAT => {
+                format_features(NO_FORMAT_FEATURES, VERTEX_BUFFER)
+            }
+
+            // Uniform texel and vertex buffer formats.
+            VkFormat::VK_FORMAT_R16G16B16A16_UNORM | VkFormat::VK_FORMAT_R16G16B16A16_SNORM => {
+                format_features(NO_FORMAT_FEATURES, UNIFORM_VERTEX_BUFFER)
+            }
+
+            // Atomic storage image and color attachment formats with texel buffer support.
+            VkFormat::VK_FORMAT_R32_UINT | VkFormat::VK_FORMAT_R32_SINT => format_features(
+                SAMPLED_STORAGE_ATOMIC_COLOR_ATTACHMENT,
+                UNIFORM_STORAGE_ATOMIC_VERTEX_BUFFER,
+            ),
+
+            // Sampled, linearly filtered, blittable formats usable as uniform texel buffers.
+            VkFormat::VK_FORMAT_B10G11R11_UFLOAT_PACK32 => {
+                format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_TEXEL_BUFFER)
+            }
+
+            // Sampled depth/stencil formats that can be blitted.
+            VkFormat::VK_FORMAT_D16_UNORM => {
+                format_features(SAMPLED_DEPTH_STENCIL_TRANSFER, NO_FORMAT_FEATURES)
+            }
+
+            // Depth/stencil attachment formats.
+            VkFormat::VK_FORMAT_X8_D24_UNORM_PACK32
+            | VkFormat::VK_FORMAT_D32_SFLOAT
+            | VkFormat::VK_FORMAT_D24_UNORM_S8_UINT
+            | VkFormat::VK_FORMAT_D32_SFLOAT_S8_UINT => {
+                format_features(DEPTH_STENCIL_ATTACHMENT_BIT, NO_FORMAT_FEATURES)
+            }
+
+            // Formats without any advertised tiling or buffer features.
+            VkFormat::VK_FORMAT_UNDEFINED
+            | VkFormat::VK_FORMAT_R4G4_UNORM_PACK8
+            | VkFormat::VK_FORMAT_R4G4B4A4_UNORM_PACK16
+            | VkFormat::VK_FORMAT_B5G6R5_UNORM_PACK16
+            | VkFormat::VK_FORMAT_R5G5B5A1_UNORM_PACK16
+            | VkFormat::VK_FORMAT_B5G5R5A1_UNORM_PACK16
+            | VkFormat::VK_FORMAT_R8_USCALED
+            | VkFormat::VK_FORMAT_R8_SSCALED
+            | VkFormat::VK_FORMAT_R8_SRGB
+            | VkFormat::VK_FORMAT_R8G8_USCALED
+            | VkFormat::VK_FORMAT_R8G8_SSCALED
+            | VkFormat::VK_FORMAT_R8G8_SRGB
+            | VkFormat::VK_FORMAT_R8G8B8_UNORM
+            | VkFormat::VK_FORMAT_R8G8B8_SNORM
+            | VkFormat::VK_FORMAT_R8G8B8_USCALED
+            | VkFormat::VK_FORMAT_R8G8B8_SSCALED
+            | VkFormat::VK_FORMAT_R8G8B8_UINT
+            | VkFormat::VK_FORMAT_R8G8B8_SINT
+            | VkFormat::VK_FORMAT_R8G8B8_SRGB
+            | VkFormat::VK_FORMAT_B8G8R8_UNORM
+            | VkFormat::VK_FORMAT_B8G8R8_SNORM
+            | VkFormat::VK_FORMAT_B8G8R8_USCALED
+            | VkFormat::VK_FORMAT_B8G8R8_SSCALED
+            | VkFormat::VK_FORMAT_B8G8R8_UINT
+            | VkFormat::VK_FORMAT_B8G8R8_SINT
+            | VkFormat::VK_FORMAT_B8G8R8_SRGB
+            | VkFormat::VK_FORMAT_R8G8B8A8_USCALED
+            | VkFormat::VK_FORMAT_R8G8B8A8_SSCALED
+            | VkFormat::VK_FORMAT_B8G8R8A8_SNORM
+            | VkFormat::VK_FORMAT_B8G8R8A8_USCALED
+            | VkFormat::VK_FORMAT_B8G8R8A8_SSCALED
+            | VkFormat::VK_FORMAT_B8G8R8A8_UINT
+            | VkFormat::VK_FORMAT_B8G8R8A8_SINT
+            | VkFormat::VK_FORMAT_A8B8G8R8_USCALED_PACK32
+            | VkFormat::VK_FORMAT_A8B8G8R8_SSCALED_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_UNORM_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_SNORM_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_USCALED_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_SSCALED_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_UINT_PACK32
+            | VkFormat::VK_FORMAT_A2R10G10B10_SINT_PACK32
+            | VkFormat::VK_FORMAT_A2B10G10R10_SNORM_PACK32
+            | VkFormat::VK_FORMAT_A2B10G10R10_USCALED_PACK32
+            | VkFormat::VK_FORMAT_A2B10G10R10_SSCALED_PACK32
+            | VkFormat::VK_FORMAT_A2B10G10R10_SINT_PACK32
+            | VkFormat::VK_FORMAT_R16_USCALED
+            | VkFormat::VK_FORMAT_R16_SSCALED
+            | VkFormat::VK_FORMAT_R16G16_USCALED
+            | VkFormat::VK_FORMAT_R16G16_SSCALED
+            | VkFormat::VK_FORMAT_R16G16B16_UNORM
+            | VkFormat::VK_FORMAT_R16G16B16_SNORM
+            | VkFormat::VK_FORMAT_R16G16B16_USCALED
+            | VkFormat::VK_FORMAT_R16G16B16_SSCALED
+            | VkFormat::VK_FORMAT_R16G16B16_UINT
+            | VkFormat::VK_FORMAT_R16G16B16_SINT
+            | VkFormat::VK_FORMAT_R16G16B16_SFLOAT
+            | VkFormat::VK_FORMAT_R16G16B16A16_USCALED
+            | VkFormat::VK_FORMAT_R16G16B16A16_SSCALED
+            | VkFormat::VK_FORMAT_R64_UINT
+            | VkFormat::VK_FORMAT_R64_SINT
+            | VkFormat::VK_FORMAT_R64_SFLOAT
+            | VkFormat::VK_FORMAT_R64G64_UINT
+            | VkFormat::VK_FORMAT_R64G64_SINT
+            | VkFormat::VK_FORMAT_R64G64_SFLOAT
+            | VkFormat::VK_FORMAT_R64G64B64_UINT
+            | VkFormat::VK_FORMAT_R64G64B64_SINT
+            | VkFormat::VK_FORMAT_R64G64B64_SFLOAT
+            | VkFormat::VK_FORMAT_R64G64B64A64_UINT
+            | VkFormat::VK_FORMAT_R64G64B64A64_SINT
+            | VkFormat::VK_FORMAT_R64G64B64A64_SFLOAT
+            | VkFormat::VK_FORMAT_S8_UINT
+            | VkFormat::VK_FORMAT_D16_UNORM_S8_UINT
+            | VkFormat::VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG
+            | VkFormat::VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG
+            | VkFormat::VK_FORMAT_R10X6_UNORM_PACK16
+            | VkFormat::VK_FORMAT_R10X6G10X6_UNORM_2PACK16
+            | VkFormat::VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_R12X4_UNORM_PACK16
+            | VkFormat::VK_FORMAT_R12X4G12X4_UNORM_2PACK16
+            | VkFormat::VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_G8B8G8R8_422_UNORM
+            | VkFormat::VK_FORMAT_B8G8R8G8_422_UNORM
+            | VkFormat::VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16
+            | VkFormat::VK_FORMAT_G16B16G16R16_422_UNORM
+            | VkFormat::VK_FORMAT_B16G16R16G16_422_UNORM
+            | VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM
+            | VkFormat::VK_FORMAT_G8_B8R8_2PLANE_420_UNORM
+            | VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM
+            | VkFormat::VK_FORMAT_G16_B16R16_2PLANE_420_UNORM
+            | VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM
+            | VkFormat::VK_FORMAT_G8_B8R8_2PLANE_422_UNORM
+            | VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM
+            | VkFormat::VK_FORMAT_G16_B16R16_2PLANE_422_UNORM
+            | VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM
+            | VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
+            | VkFormat::VK_FORMAT_G8_B8R8_2PLANE_444_UNORM
+            | VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16
+            | VkFormat::VK_FORMAT_G16_B16R16_2PLANE_444_UNORM
+            | VkFormat::VK_FORMAT_A4R4G4B4_UNORM_PACK16
+            | VkFormat::VK_FORMAT_A4B4G4R4_UNORM_PACK16
+            | VkFormat::VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK
+            | VkFormat::VK_FORMAT_R16G16_S10_5_NV => UNSUPPORTED_FORMAT,
+            // Formats added to Vulkan after this crate's registry snapshot.
+            _ => UNSUPPORTED_FORMAT,
         }
     }
 
@@ -2165,25 +719,23 @@ impl PhysicalDevice {
             VkImageTiling::VK_IMAGE_TILING_OPTIMAL => properties.optimalTilingFeatures,
             _ => return false,
         };
-        let color_or_depth = (VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-            | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
-            .0;
+        let color_or_depth = COLOR_ATTACHMENT_BIT | DEPTH_STENCIL_ATTACHMENT_BIT;
         let checks = [
             (
                 VkImageUsageFlagBits::VK_IMAGE_USAGE_SAMPLED_BIT.0,
-                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT.0,
+                SAMPLED_IMAGE_BIT,
             ),
             (
                 VkImageUsageFlagBits::VK_IMAGE_USAGE_STORAGE_BIT.0,
-                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT.0,
+                STORAGE_IMAGE_BIT,
             ),
             (
                 VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.0,
-                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT.0,
+                COLOR_ATTACHMENT_BIT,
             ),
             (
                 VkImageUsageFlagBits::VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.0,
-                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT.0,
+                DEPTH_STENCIL_ATTACHMENT_BIT,
             ),
             (
                 VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT.0,
@@ -2216,13 +768,11 @@ impl PhysicalDevice {
                 height: 1,
                 depth: 1,
             },
-            VkImageType::VK_IMAGE_TYPE_2D if is_cube_compatible => {
-                VkExtent3D {
-                    width: 16384,  // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (5).
-                    height: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (6).
-                    depth: 1,
-                }
-            }
+            VkImageType::VK_IMAGE_TYPE_2D if is_cube_compatible => VkExtent3D {
+                width: 16384,  // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (5).
+                height: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (6).
+                depth: 1,
+            },
             VkImageType::VK_IMAGE_TYPE_2D => VkExtent3D {
                 width: 16384,  // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimension2D (3).
                 height: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimension2D (4).
@@ -2233,267 +783,18 @@ impl PhysicalDevice {
                 height: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimension3D (8).
                 depth: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimension3D (9).
             },
-            VkImageType(3_u32..=u32::MAX) => unreachable!(),
+            _ => return None,
         };
 
         match format {
-            VkFormat::VK_FORMAT_UNDEFINED => None,
-            VkFormat::VK_FORMAT_R4G4_UNORM_PACK8 => None,
-            VkFormat::VK_FORMAT_R4G4B4A4_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_B4G4R4A4_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_R5G6B5_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_B5G6R5_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_R5G5B5A1_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_B5G5R5A1_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_A1R5G5B5_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_R8_UNORM => None,
-            VkFormat::VK_FORMAT_R8_SNORM => None,
-            VkFormat::VK_FORMAT_R8_USCALED => None,
-            VkFormat::VK_FORMAT_R8_SSCALED => None,
-            VkFormat::VK_FORMAT_R8_UINT => None,
-            VkFormat::VK_FORMAT_R8_SINT => None,
-            VkFormat::VK_FORMAT_R8_SRGB => None,
-            VkFormat::VK_FORMAT_R8G8_UNORM => None,
-            VkFormat::VK_FORMAT_R8G8_SNORM => None,
-            VkFormat::VK_FORMAT_R8G8_USCALED => None,
-            VkFormat::VK_FORMAT_R8G8_SSCALED => None,
-            VkFormat::VK_FORMAT_R8G8_UINT => None,
-            VkFormat::VK_FORMAT_R8G8_SINT => None,
-            VkFormat::VK_FORMAT_R8G8_SRGB => None,
-            VkFormat::VK_FORMAT_R8G8B8_UNORM => None,
-            VkFormat::VK_FORMAT_R8G8B8_SNORM => None,
-            VkFormat::VK_FORMAT_R8G8B8_USCALED => None,
-            VkFormat::VK_FORMAT_R8G8B8_SSCALED => None,
-            VkFormat::VK_FORMAT_R8G8B8_UINT => None,
-            VkFormat::VK_FORMAT_R8G8B8_SINT => None,
-            VkFormat::VK_FORMAT_R8G8B8_SRGB => None,
-            VkFormat::VK_FORMAT_B8G8R8_UNORM => None,
-            VkFormat::VK_FORMAT_B8G8R8_SNORM => None,
-            VkFormat::VK_FORMAT_B8G8R8_USCALED => None,
-            VkFormat::VK_FORMAT_B8G8R8_SSCALED => None,
-            VkFormat::VK_FORMAT_B8G8R8_UINT => None,
-            VkFormat::VK_FORMAT_B8G8R8_SINT => None,
-            VkFormat::VK_FORMAT_B8G8R8_SRGB => None,
             VkFormat::VK_FORMAT_R8G8B8A8_UNORM => Some(VkImageFormatProperties {
                 maxExtent: max_extent,
                 maxMipLevels: 1,
                 maxArrayLayers: 1, // TODO: VkPhysicalDeviceLimits::maxImageArrayLayers
                 sampleCounts: VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT.into(),
-                maxResourceSize: 2_u64.pow(31), // TODO: VK_ERROR_OUT_OF_DEVICE_MEMORY
+                maxResourceSize: 1_u64 << 31, // TODO: VK_ERROR_OUT_OF_DEVICE_MEMORY
             }),
-            VkFormat::VK_FORMAT_R8G8B8A8_SNORM => None,
-            VkFormat::VK_FORMAT_R8G8B8A8_USCALED => None,
-            VkFormat::VK_FORMAT_R8G8B8A8_SSCALED => None,
-            VkFormat::VK_FORMAT_R8G8B8A8_UINT => None,
-            VkFormat::VK_FORMAT_R8G8B8A8_SINT => None,
-            VkFormat::VK_FORMAT_R8G8B8A8_SRGB => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_UNORM => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_SNORM => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_USCALED => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_SSCALED => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_UINT => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_SINT => None,
-            VkFormat::VK_FORMAT_B8G8R8A8_SRGB => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_UNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_SNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_USCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_SSCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_UINT_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_SINT_PACK32 => None,
-            VkFormat::VK_FORMAT_A8B8G8R8_SRGB_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_UNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_SNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_USCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_SSCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_UINT_PACK32 => None,
-            VkFormat::VK_FORMAT_A2R10G10B10_SINT_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_UNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_SNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_USCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_SSCALED_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_UINT_PACK32 => None,
-            VkFormat::VK_FORMAT_A2B10G10R10_SINT_PACK32 => None,
-            VkFormat::VK_FORMAT_R16_UNORM => None,
-            VkFormat::VK_FORMAT_R16_SNORM => None,
-            VkFormat::VK_FORMAT_R16_USCALED => None,
-            VkFormat::VK_FORMAT_R16_SSCALED => None,
-            VkFormat::VK_FORMAT_R16_UINT => None,
-            VkFormat::VK_FORMAT_R16_SINT => None,
-            VkFormat::VK_FORMAT_R16_SFLOAT => None,
-            VkFormat::VK_FORMAT_R16G16_UNORM => None,
-            VkFormat::VK_FORMAT_R16G16_SNORM => None,
-            VkFormat::VK_FORMAT_R16G16_USCALED => None,
-            VkFormat::VK_FORMAT_R16G16_SSCALED => None,
-            VkFormat::VK_FORMAT_R16G16_UINT => None,
-            VkFormat::VK_FORMAT_R16G16_SINT => None,
-            VkFormat::VK_FORMAT_R16G16_SFLOAT => None,
-            VkFormat::VK_FORMAT_R16G16B16_UNORM => None,
-            VkFormat::VK_FORMAT_R16G16B16_SNORM => None,
-            VkFormat::VK_FORMAT_R16G16B16_USCALED => None,
-            VkFormat::VK_FORMAT_R16G16B16_SSCALED => None,
-            VkFormat::VK_FORMAT_R16G16B16_UINT => None,
-            VkFormat::VK_FORMAT_R16G16B16_SINT => None,
-            VkFormat::VK_FORMAT_R16G16B16_SFLOAT => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_UNORM => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_SNORM => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_USCALED => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_SSCALED => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_UINT => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_SINT => None,
-            VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT => None,
-            VkFormat::VK_FORMAT_R32_UINT => None,
-            VkFormat::VK_FORMAT_R32_SINT => None,
-            VkFormat::VK_FORMAT_R32_SFLOAT => None,
-            VkFormat::VK_FORMAT_R32G32_UINT => None,
-            VkFormat::VK_FORMAT_R32G32_SINT => None,
-            VkFormat::VK_FORMAT_R32G32_SFLOAT => None,
-            VkFormat::VK_FORMAT_R32G32B32_UINT => None,
-            VkFormat::VK_FORMAT_R32G32B32_SINT => None,
-            VkFormat::VK_FORMAT_R32G32B32_SFLOAT => None,
-            VkFormat::VK_FORMAT_R32G32B32A32_UINT => None,
-            VkFormat::VK_FORMAT_R32G32B32A32_SINT => None,
-            VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT => None,
-            VkFormat::VK_FORMAT_R64_UINT => None,
-            VkFormat::VK_FORMAT_R64_SINT => None,
-            VkFormat::VK_FORMAT_R64_SFLOAT => None,
-            VkFormat::VK_FORMAT_R64G64_UINT => None,
-            VkFormat::VK_FORMAT_R64G64_SINT => None,
-            VkFormat::VK_FORMAT_R64G64_SFLOAT => None,
-            VkFormat::VK_FORMAT_R64G64B64_UINT => None,
-            VkFormat::VK_FORMAT_R64G64B64_SINT => None,
-            VkFormat::VK_FORMAT_R64G64B64_SFLOAT => None,
-            VkFormat::VK_FORMAT_R64G64B64A64_UINT => None,
-            VkFormat::VK_FORMAT_R64G64B64A64_SINT => None,
-            VkFormat::VK_FORMAT_R64G64B64A64_SFLOAT => None,
-            VkFormat::VK_FORMAT_B10G11R11_UFLOAT_PACK32 => None,
-            VkFormat::VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 => None,
-            VkFormat::VK_FORMAT_D16_UNORM => None,
-            VkFormat::VK_FORMAT_X8_D24_UNORM_PACK32 => None,
-            VkFormat::VK_FORMAT_D32_SFLOAT => None,
-            VkFormat::VK_FORMAT_S8_UINT => None,
-            VkFormat::VK_FORMAT_D16_UNORM_S8_UINT => None,
-            VkFormat::VK_FORMAT_D24_UNORM_S8_UINT => None,
-            VkFormat::VK_FORMAT_D32_SFLOAT_S8_UINT => None,
-            VkFormat::VK_FORMAT_BC1_RGB_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC1_RGB_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_BC1_RGBA_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC1_RGBA_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_BC2_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC2_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_BC3_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC3_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_BC4_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC4_SNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC5_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC5_SNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC6H_UFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_BC6H_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_BC7_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_BC7_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_EAC_R11_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_EAC_R11_SNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_EAC_R11G11_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_EAC_R11G11_SNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_4x4_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_4x4_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x4_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x4_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x5_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x5_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x5_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x5_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x6_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x6_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x5_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x5_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x6_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x6_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x8_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x8_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x5_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x5_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x6_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x6_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x8_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x8_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x10_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x10_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x10_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x10_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x12_UNORM_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x12_SRGB_BLOCK => None,
-            VkFormat::VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG => None,
-            VkFormat::VK_FORMAT_R10X6_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_R10X6G10X6_UNORM_2PACK16 => None,
-            VkFormat::VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_R12X4_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_R12X4G12X4_UNORM_2PACK16 => None,
-            VkFormat::VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_G8B8G8R8_422_UNORM => None,
-            VkFormat::VK_FORMAT_B8G8R8G8_422_UNORM => None,
-            VkFormat::VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16 => None,
-            VkFormat::VK_FORMAT_G16B16G16R16_422_UNORM => None,
-            VkFormat::VK_FORMAT_B16G16R16G16_422_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_420_UNORM => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM => None,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_420_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_422_UNORM => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM => None,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_422_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM => None,
-            VkFormat::VK_FORMAT_G8_B8R8_2PLANE_444_UNORM => None,
-            VkFormat::VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 => None,
-            VkFormat::VK_FORMAT_G16_B16R16_2PLANE_444_UNORM => None,
-            VkFormat::VK_FORMAT_A4R4G4B4_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_A4B4G4R4_UNORM_PACK16 => None,
-            VkFormat::VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK => None,
-            VkFormat::VK_FORMAT_R16G16_S10_5_NV => None,
-            VkFormat(185_u32..=1000053999_u32)
-            | VkFormat(1000054008_u32..=1000155999_u32)
-            | VkFormat(1000156034_u32..=u32::MAX) => unreachable!(),
+            _ => None,
         }
     }
 
@@ -2501,19 +802,13 @@ impl PhysicalDevice {
         // SPEC: If an implementation exposes any queue family that supports graphics operations,
         // at least one queue family of at least one physical device exposed by the implementation
         // must support both graphics and compute operations.
-        let graphics_queue_family_properties = VkQueueFamilyProperties {
+        [VkQueueFamilyProperties {
             queueFlags: (VkQueueFlagBits::VK_QUEUE_GRAPHICS_BIT
                 | VkQueueFlagBits::VK_QUEUE_COMPUTE_BIT)
                 .into(),
             queueCount: 1,
-            timestampValidBits: 0,
-            minImageTransferGranularity: VkExtent3D {
-                width: 0,
-                height: 0,
-                depth: 0,
-            },
-        };
-        [graphics_queue_family_properties]
+            ..Default::default()
+        }]
     }
 
     pub const fn surface_support(&self, queue_family_index: u32, _surface: VkSurfaceKHR) -> bool {
@@ -2542,12 +837,8 @@ impl PhysicalDevice {
             minImageCount: 1,
             maxImageCount: 2,
             currentExtent: VkExtent2D {
-                width: 0xFFFFFFFF,
-                height: 0xFFFFFFFF,
-            },
-            minImageExtent: VkExtent2D {
-                width: 0,
-                height: 0,
+                width: u32::MAX,
+                height: u32::MAX,
             },
             maxImageExtent: VkExtent2D {
                 width: 16384, // TODO: Replace with maxImageDimension2D (1).
@@ -2560,39 +851,49 @@ impl PhysicalDevice {
             supportedCompositeAlpha: VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
                 .into(),
             supportedUsageFlags: VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.into(),
+            ..Default::default()
         }
     }
 }
 
 impl PhysicalDevice {
+    /// Converts a Vulkan vertex input state into the renderer's representation.
+    ///
+    /// # Safety
+    ///
+    /// The pointers in `vertex_input_state` must be valid for their respective
+    /// counts, as required by the Vulkan specification.
     pub unsafe fn parse_vertex_input_state(
         vertex_input_state: VkPipelineVertexInputStateCreateInfo,
     ) -> VertexInputState {
         let vk_attributes =
             vertex_input_state
                 .pVertexAttributeDescriptions
-                .map_or(&[] as &[_], |x| {
-                    std::slice::from_raw_parts(
-                        x.as_ptr(),
-                        vertex_input_state.vertexAttributeDescriptionCount as usize,
-                    )
+                .map_or(&[] as &[_], |descriptions| {
+                    let count = usize::try_from(vertex_input_state.vertexAttributeDescriptionCount)
+                        .expect("vertex attribute description count fits in usize");
+                    // SAFETY: The caller guarantees that `pVertexAttributeDescriptions`
+                    // points to `vertexAttributeDescriptionCount` valid descriptions.
+                    unsafe { std::slice::from_raw_parts(descriptions.as_ptr(), count) }
                 });
-        let vk_bindings = vertex_input_state
-            .pVertexBindingDescriptions
-            .map_or(&[] as &[_], |x| {
-                std::slice::from_raw_parts(
-                    x.as_ptr(),
-                    vertex_input_state.vertexBindingDescriptionCount as usize,
-                )
-            });
+        let vk_bindings =
+            vertex_input_state
+                .pVertexBindingDescriptions
+                .map_or(&[] as &[_], |descriptions| {
+                    let count = usize::try_from(vertex_input_state.vertexBindingDescriptionCount)
+                        .expect("vertex binding description count fits in usize");
+                    // SAFETY: The caller guarantees that `pVertexBindingDescriptions`
+                    // points to `vertexBindingDescriptionCount` valid descriptions.
+                    unsafe { std::slice::from_raw_parts(descriptions.as_ptr(), count) }
+                });
         let mut vertex_input_state = VertexInputState::default();
         for vk_attribute in vk_attributes {
-            let Some(attribute) = vertex_input_state
+            let location = usize::try_from(vk_attribute.location)
+                .expect("vertex attribute location fits in usize");
+            let attribute = vertex_input_state
                 .attributes
-                .get_mut(vk_attribute.location as usize)
-            else {
-                unreachable!()
-            };
+                .get_mut(location)
+                .expect("vertex attribute location is within MAX_VERTEX_ATTRIBUTES");
             *attribute = Some(VertexAttribute {
                 location: vk_attribute.location,
                 binding: VertexBindingNumber(vk_attribute.binding),
@@ -2601,12 +902,12 @@ impl PhysicalDevice {
             });
         }
         for vk_binding in vk_bindings {
-            let Some(binding) = vertex_input_state
+            let binding_number =
+                usize::try_from(vk_binding.binding).expect("vertex binding number fits in usize");
+            let binding = vertex_input_state
                 .bindings
-                .get_mut(vk_binding.binding as usize)
-            else {
-                unreachable!()
-            };
+                .get_mut(binding_number)
+                .expect("vertex binding number is within MAX_VERTEX_BINDINGS");
             *binding = Some(VertexBinding {
                 number: VertexBindingNumber(vk_binding.binding),
                 stride: vk_binding.stride,
@@ -2620,7 +921,7 @@ impl PhysicalDevice {
         match vertex_input_rate {
             VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX => VertexInputRate::Vertex,
             VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE => VertexInputRate::Instance,
-            _ => unreachable!(),
+            _ => panic!("unsupported vertex input rate: {vertex_input_rate:?}"),
         }
     }
 
@@ -2660,25 +961,40 @@ impl PhysicalDevice {
                 PrimitiveTopology::TriangleStripWithAdjacency
             }
             VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_PATCH_LIST => PrimitiveTopology::PatchList,
-            _ => unreachable!(),
+            _ => panic!("unsupported primitive topology: {topology:?}"),
         }
     }
 
+    /// Converts a Vulkan viewport state into the renderer's representation.
+    ///
+    /// # Safety
+    ///
+    /// The pointers in `viewport_state` must be valid for their respective
+    /// counts, as required by the Vulkan specification.
     pub unsafe fn parse_viewport_state(
         viewport_state: VkPipelineViewportStateCreateInfo,
     ) -> ViewportState {
-        let vk_viewports = viewport_state.pViewports.map_or(&[] as &[_], |x| {
-            std::slice::from_raw_parts(x.as_ptr(), viewport_state.viewportCount as usize)
+        let vk_viewports = viewport_state.pViewports.map_or(&[] as &[_], |viewports| {
+            let count = usize::try_from(viewport_state.viewportCount)
+                .expect("viewport count fits in usize");
+            // SAFETY: The caller guarantees that `pViewports` points to
+            // `viewportCount` valid viewports.
+            unsafe { std::slice::from_raw_parts(viewports.as_ptr(), count) }
         });
-        let vk_scissors = viewport_state.pScissors.map_or(&[] as &[_], |x| {
-            std::slice::from_raw_parts(x.as_ptr(), viewport_state.scissorCount as usize)
+        let vk_scissors = viewport_state.pScissors.map_or(&[] as &[_], |scissors| {
+            let count =
+                usize::try_from(viewport_state.scissorCount).expect("scissor count fits in usize");
+            // SAFETY: The caller guarantees that `pScissors` points to
+            // `scissorCount` valid scissors.
+            unsafe { std::slice::from_raw_parts(scissors.as_ptr(), count) }
         });
 
         let mut viewport_state = ViewportState::default();
-        for (i, vk_viewport) in vk_viewports.iter().enumerate() {
-            let Some(viewport) = viewport_state.viewports.get_mut(i) else {
-                unreachable!()
-            };
+        for (index, vk_viewport) in vk_viewports.iter().enumerate() {
+            let viewport = viewport_state
+                .viewports
+                .get_mut(index)
+                .expect("viewport index is within MAX_VIEWPORTS");
             *viewport = Some(Viewport {
                 offset: Offset2 {
                     x: vk_viewport.x,
@@ -2694,10 +1010,11 @@ impl PhysicalDevice {
                 },
             });
         }
-        for (i, vk_scissor) in vk_scissors.iter().enumerate() {
-            let Some(scissor) = viewport_state.scissors.get_mut(i) else {
-                unreachable!()
-            };
+        for (index, vk_scissor) in vk_scissors.iter().enumerate() {
+            let scissor = viewport_state
+                .scissors
+                .get_mut(index)
+                .expect("scissor index is within MAX_VIEWPORTS");
             *scissor = Some(Scissor {
                 render_area: RenderArea {
                     extent: Extent2 {
@@ -2721,7 +1038,7 @@ impl PhysicalDevice {
             depth_clamp_enable: rasterization_state.depthClampEnable != 0,
             rasterizer_discard_enable: rasterization_state.rasterizerDiscardEnable != 0,
             polygon_mode: rasterization_state.polygonMode.into(),
-            cull_mode: VkFlag::new(rasterization_state.cullMode).into(),
+            cull_mode: VkCullModeFlagBits::from(rasterization_state.cullMode).into(),
             front_face: rasterization_state.frontFace.into(),
             depth_bias_enable: rasterization_state.depthBiasEnable != 0,
             depth_bias_constant_factor: rasterization_state.depthBiasConstantFactor,
@@ -2736,15 +1053,26 @@ impl PhysicalDevice {
     ) -> Result<ShaderState, VkResult> {
         let mut shader_state = ShaderState::default();
         for shader_stage in shader_stages {
-            assert_eq!(shader_stage.flags, 0);
-            let name = shader_stage.pName.unwrap_or_else(|| unreachable!());
-            let name = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+            assert_eq!(
+                shader_stage.flags, 0,
+                "shader stage flags are not supported"
+            );
+            let name = shader_stage
+                .pName
+                .expect("shader stage must have an entry point name");
+            // SAFETY: Vulkan requires `pName` to point to a null-terminated
+            // string that remains valid for the duration of the call.
+            let name = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) };
+            let name = name
                 .to_str()
-                .unwrap_or_else(|_| unreachable!())
-                .to_string();
-            assert_eq!(shader_stage.pSpecializationInfo, None);
-            let module =
-                ShaderModule::from_handle(shader_stage.module).unwrap_or_else(|| unreachable!());
+                .map_err(|_| VkResult::VK_ERROR_INVALID_SHADER_NV)?
+                .to_owned();
+            assert!(
+                shader_stage.pSpecializationInfo.is_none(),
+                "specialization info is not supported"
+            );
+            let module = ShaderModule::from_handle(shader_stage.module)
+                .expect("shader module handle is registered");
             let code = module.lock().code.clone();
 
             let shader =
@@ -2757,7 +1085,7 @@ impl PhysicalDevice {
                 VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT => {
                     shader_state.fragment_shader = Some(shader);
                 }
-                _ => unimplemented!(),
+                stage => panic!("unsupported shader stage: {stage:?}"),
             }
         }
         Ok(shader_state)

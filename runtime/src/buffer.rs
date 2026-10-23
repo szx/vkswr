@@ -1,14 +1,13 @@
-//! Buffer
+//! Timeline-less GPU buffer objects.
 
-use crate::context::NonDispatchable;
+use crate::context::VulkanObject;
 use crate::logical_device::LogicalDevice;
 use crate::memory::MemoryAllocation;
 use common::graphics::{DescriptorBuffer, MemoryBinding};
 use gpu::MemoryHandleStore;
 use headers::vk_decls::*;
-use log::*;
+use log::info;
 use parking_lot::Mutex;
-use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -23,22 +22,17 @@ impl Buffer {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         size: VkDeviceSize,
-        flags: VkBufferUsageFlags,
-        usage: VkBufferCreateFlags,
+        _usage: VkBufferUsageFlags,
+        _flags: VkBufferCreateFlags,
     ) -> VkNonDispatchableHandle {
         info!("new Buffer");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = usage;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             size,
-            gpu_binding: Default::default(),
-        };
-        object.register_object()
+            gpu_binding: MemoryBinding::default(),
+        }
+        .register()
     }
 
     pub fn memory_requirements(&self) -> VkMemoryRequirements {
@@ -60,19 +54,24 @@ impl Buffer {
     }
 
     pub fn descriptor(&self) -> DescriptorBuffer {
-        let binding = self.gpu_binding.clone();
-        DescriptorBuffer { binding }
+        DescriptorBuffer {
+            binding: self.gpu_binding.clone(),
+        }
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct BufferView {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     buffer: Arc<Mutex<Buffer>>,
+    #[allow(dead_code)]
     format: VkFormat,
+    #[allow(dead_code)]
     size: VkDeviceSize,
+    #[allow(dead_code)]
     offset: VkDeviceSize,
 }
 
@@ -85,16 +84,14 @@ impl BufferView {
         offset: VkDeviceSize,
     ) -> VkNonDispatchableHandle {
         info!("new BufferView");
-        let handle = VK_NULL_HANDLE;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             buffer,
             format,
             size,
             offset,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }

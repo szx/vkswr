@@ -3,11 +3,10 @@
 use headers::vk_decls::*;
 use runtime::buffer::Buffer;
 use runtime::command_buffer::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::image::Image;
 use runtime::logical_device::LogicalDevice;
 use runtime::pipeline::{Framebuffer, Pipeline, PipelineLayout, RenderPass};
-
 
 pub unsafe extern "C" fn vkCreateCommandPool(
     device: VkDevice,
@@ -15,20 +14,14 @@ pub unsafe extern "C" fn vkCreateCommandPool(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pCommandPool: Option<NonNull<VkCommandPool>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pCommandPool) = pCommandPool else {
-        unreachable!()
-    };
+    let pCommandPool = pCommandPool.expect("Vulkan guarantees a non-null pointer");
 
     *pCommandPool.as_ptr() = CommandPool::create(device, create_info);
 
@@ -40,9 +33,8 @@ pub unsafe extern "C" fn vkDestroyCommandPool(
     commandPool: VkCommandPool,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -54,18 +46,13 @@ pub unsafe extern "C" fn vkAllocateCommandBuffers(
     pAllocateInfo: Option<NonNull<VkCommandBufferAllocateInfo>>,
     pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pAllocateInfo) = pAllocateInfo else {
-        unreachable!()
-    };
+    let pAllocateInfo = pAllocateInfo.expect("Vulkan guarantees a non-null pointer");
     let allocate_info = pAllocateInfo.as_ref();
 
-    let Some(pCommandBuffers) = pCommandBuffers else {
-        unreachable!()
-    };
+    let pCommandBuffers = pCommandBuffers.expect("Vulkan guarantees a non-null pointer");
 
     let command_buffer_count = allocate_info.commandBufferCount as usize;
     let command_buffers = vec![CommandBuffer::create(allocate_info); command_buffer_count].to_vec();
@@ -84,13 +71,11 @@ pub unsafe extern "C" fn vkFreeCommandBuffers(
     commandBufferCount: u32,
     pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(_commandPool) = CommandPool::from_handle(commandPool) else {
-        unreachable!()
-    };
+    let _commandPool =
+        CommandPool::from_handle(commandPool).expect("Vulkan handle refers to a live object");
 
     pCommandBuffers
         .map_or(&[] as &[_], |x| {
@@ -104,13 +89,10 @@ pub unsafe extern "C" fn vkBeginCommandBuffer(
     commandBuffer: VkCommandBuffer,
     pBeginInfo: Option<NonNull<VkCommandBufferBeginInfo>>,
 ) -> VkResult {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(pBeginInfo) = pBeginInfo else {
-        unreachable!()
-    };
+    let pBeginInfo = pBeginInfo.expect("Vulkan guarantees a non-null pointer");
     let _ = pBeginInfo.as_ref();
 
     commandBuffer.lock().begin();
@@ -119,9 +101,8 @@ pub unsafe extern "C" fn vkBeginCommandBuffer(
 }
 
 pub unsafe extern "C" fn vkEndCommandBuffer(commandBuffer: VkCommandBuffer) -> VkResult {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     commandBuffer.lock().end();
 
@@ -140,9 +121,8 @@ pub unsafe extern "C" fn vkCmdPipelineBarrier(
     imageMemoryBarrierCount: u32,
     pImageMemoryBarriers: Option<NonNull<VkImageMemoryBarrier>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     let _ = srcStageMask;
     let _ = dstStageMask;
@@ -162,20 +142,15 @@ pub unsafe extern "C" fn vkCmdBeginRenderPass(
     pRenderPassBegin: Option<NonNull<VkRenderPassBeginInfo>>,
     contents: VkSubpassContents,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(pRenderPassBegin) = pRenderPassBegin else {
-        unreachable!()
-    };
+    let pRenderPassBegin = pRenderPassBegin.expect("Vulkan guarantees a non-null pointer");
     let render_pass_begin = pRenderPassBegin.as_ref();
-    let Some(render_pass) = RenderPass::from_handle(render_pass_begin.renderPass) else {
-        unreachable!()
-    };
-    let Some(framebuffer) = Framebuffer::from_handle(render_pass_begin.framebuffer) else {
-        unreachable!()
-    };
+    let render_pass = RenderPass::from_handle(render_pass_begin.renderPass)
+        .expect("Vulkan handle refers to a live object");
+    let framebuffer = Framebuffer::from_handle(render_pass_begin.framebuffer)
+        .expect("Vulkan handle refers to a live object");
     let clear_values = render_pass_begin.pClearValues.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), render_pass_begin.clearValueCount as usize)
     });
@@ -190,9 +165,8 @@ pub unsafe extern "C" fn vkCmdBeginRenderPass(
 }
 
 pub unsafe extern "C" fn vkCmdEndRenderPass(commandBuffer: VkCommandBuffer) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     commandBuffer.lock().cmd_end_render_pass();
 }
@@ -202,13 +176,10 @@ pub unsafe extern "C" fn vkCmdBindPipeline(
     pipelineBindPoint: VkPipelineBindPoint,
     pipeline: VkPipeline,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(pipeline) = Pipeline::from_handle(pipeline) else {
-        unreachable!()
-    };
+    let pipeline = Pipeline::from_handle(pipeline).expect("Vulkan handle refers to a live object");
 
     commandBuffer
         .lock()
@@ -225,13 +196,11 @@ pub unsafe extern "C" fn vkCmdBindDescriptorSets(
     dynamicOffsetCount: u32,
     pDynamicOffsets: Option<NonNull<u32>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(pipeline_layout) = PipelineLayout::from_handle(layout) else {
-        unreachable!()
-    };
+    let pipeline_layout =
+        PipelineLayout::from_handle(layout).expect("Vulkan handle refers to a live object");
 
     let descriptor_sets = pDescriptorSets.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), descriptorSetCount as usize)
@@ -258,13 +227,11 @@ pub unsafe extern "C" fn vkCmdPushConstants(
     size: u32,
     pValues: Option<NonNull<std::ffi::c_void>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(pipeline_layout) = PipelineLayout::from_handle(layout) else {
-        unreachable!()
-    };
+    let pipeline_layout =
+        PipelineLayout::from_handle(layout).expect("Vulkan handle refers to a live object");
 
     let values = pValues.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr() as *mut u8, size as usize)
@@ -282,9 +249,8 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers(
     pBuffers: Option<NonNull<VkBuffer>>,
     pOffsets: Option<NonNull<VkDeviceSize>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     let buffers = pBuffers.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), bindingCount as usize)
@@ -295,14 +261,10 @@ pub unsafe extern "C" fn vkCmdBindVertexBuffers(
     });
 
     let mut command_buffer = commandBuffer.lock();
-    for (binding, &buffer, &offset) in itertools::izip!(
-        (firstBinding..firstBinding + bindingCount),
-        buffers,
-        offsets
-    ) {
-        let Some(buffer) = Buffer::from_handle(buffer) else {
-            unreachable!()
-        };
+    for (binding, &buffer, &offset) in
+        itertools::izip!(firstBinding..firstBinding + bindingCount, buffers, offsets)
+    {
+        let buffer = Buffer::from_handle(buffer).expect("Vulkan handle refers to a live object");
         command_buffer.cmd_bind_vertex_buffer(binding, buffer, offset);
     }
 }
@@ -313,13 +275,10 @@ pub unsafe extern "C" fn vkCmdBindIndexBuffer(
     offset: VkDeviceSize,
     indexType: VkIndexType,
 ) {
-    let Some(command_buffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let command_buffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(buffer) = Buffer::from_handle(buffer) else {
-        unreachable!()
-    };
+    let buffer = Buffer::from_handle(buffer).expect("Vulkan handle refers to a live object");
 
     let index_size = indexType.size_in_bytes();
 
@@ -334,9 +293,8 @@ pub unsafe extern "C" fn vkCmdSetViewport(
     viewportCount: u32,
     pViewports: Option<NonNull<VkViewport>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     let viewports = pViewports.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), viewportCount as usize)
@@ -353,9 +311,8 @@ pub unsafe extern "C" fn vkCmdSetScissor(
     scissorCount: u32,
     pScissors: Option<NonNull<VkRect2D>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     let scissors = pScissors.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), scissorCount as usize)
@@ -373,9 +330,8 @@ pub unsafe extern "C" fn vkCmdDraw(
     firstVertex: u32,
     firstInstance: u32,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     commandBuffer
         .lock()
@@ -390,9 +346,8 @@ pub unsafe extern "C" fn vkCmdDrawIndexed(
     vertexOffset: i32,
     firstInstance: u32,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     commandBuffer.lock().cmd_draw_indexed(
         indexCount,
@@ -411,17 +366,12 @@ pub unsafe extern "C" fn vkCmdCopyBufferToImage(
     regionCount: u32,
     pRegions: Option<NonNull<VkBufferImageCopy>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(srcBuffer) = Buffer::from_handle(srcBuffer) else {
-        unreachable!()
-    };
+    let srcBuffer = Buffer::from_handle(srcBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(dstImage) = Image::from_handle(dstImage) else {
-        unreachable!()
-    };
+    let dstImage = Image::from_handle(dstImage).expect("Vulkan handle refers to a live object");
 
     let regions = pRegions.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
@@ -440,17 +390,12 @@ pub unsafe extern "C" fn vkCmdCopyImageToBuffer(
     regionCount: u32,
     pRegions: Option<NonNull<VkBufferImageCopy>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(srcImage) = Image::from_handle(srcImage) else {
-        unreachable!()
-    };
+    let srcImage = Image::from_handle(srcImage).expect("Vulkan handle refers to a live object");
 
-    let Some(dstBuffer) = Buffer::from_handle(dstBuffer) else {
-        unreachable!()
-    };
+    let dstBuffer = Buffer::from_handle(dstBuffer).expect("Vulkan handle refers to a live object");
 
     let regions = pRegions.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
@@ -468,17 +413,12 @@ pub unsafe extern "C" fn vkCmdCopyBuffer(
     regionCount: u32,
     pRegions: Option<NonNull<VkBufferCopy>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(srcBuffer) = Buffer::from_handle(srcBuffer) else {
-        unreachable!()
-    };
+    let srcBuffer = Buffer::from_handle(srcBuffer).expect("Vulkan handle refers to a live object");
 
-    let Some(dstBuffer) = Buffer::from_handle(dstBuffer) else {
-        unreachable!()
-    };
+    let dstBuffer = Buffer::from_handle(dstBuffer).expect("Vulkan handle refers to a live object");
 
     let regions = pRegions.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), regionCount as usize)
@@ -494,9 +434,8 @@ pub unsafe extern "C" fn vkCmdExecuteCommands(
     commandBufferCount: u32,
     pCommandBuffers: Option<NonNull<VkCommandBuffer>>,
 ) {
-    let Some(commandBuffer) = CommandBuffer::from_handle(commandBuffer) else {
-        unreachable!()
-    };
+    let commandBuffer =
+        CommandBuffer::from_handle(commandBuffer).expect("Vulkan handle refers to a live object");
 
     let command_buffers = pCommandBuffers
         .map_or(&[] as &[_], |x| {

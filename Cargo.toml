@@ -2,39 +2,45 @@
 resolver = "2"
 
 members = [
-    "icd",
-    "test_suite",
     "codegen",
-    "runtime",
-    "gpu",
-    "shader",
     "common",
+    "gpu",
+    "headers",
+    "icd",
+    "runtime",
+    "shader",
+    "test_suite",
 ]
 # Test-only helper: kept out of the workspace so ordinary builds don't pull in
 # HTTP/archive dependencies.
 exclude = ["test_tools"]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
 [workspace.dependencies]
-thiserror = "1.0.40"
-lazy_static = "1.4.0"
-log = "0.4.18"
-env_logger = "0.10.0"
-parking_lot = "0.12.1"
-xcb = "1.2.1"
-itertools = "0.11.0"
-rustversion = "1.0.14"
-assert_fs = "1.0.13"
-anyhow = "1.0.79"
-bytemuck = "1.14.0"
-hashbrown = "0.14.3"
+thiserror = "2.0"
+log = "0.4.34"
+env_logger = "0.11"
+parking_lot = "0.12"
+xcb = "1.7"
+itertools = "0.15"
+rustversion = "1.0"
+assert_fs = "1.1"
+anyhow = "1.0"
+bytemuck = "1.25"
+hashbrown = "0.17"
 
 [workspace.lints.rust]
 unsafe_code = "allow"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(wait_for_debugger)'] }
 
 [workspace.lints.clippy]
 unwrap_used = "forbid"
-nursery = "deny"
-correctness = "deny"
-style = "deny"
-cognitive-complexity = "allow"
+nursery = { level = "deny", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+cognitive_complexity = "allow"
 missing_safety_doc = "allow"

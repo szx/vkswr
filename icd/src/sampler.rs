@@ -1,7 +1,7 @@
 //! VkSampler device commands
 
 use headers::vk_decls::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::logical_device::LogicalDevice;
 use runtime::sampler::*;
 
@@ -11,20 +11,14 @@ pub unsafe extern "C" fn vkCreateSampler(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSampler: Option<NonNull<VkSampler>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pSampler) = pSampler else {
-        unreachable!()
-    };
+    let pSampler = pSampler.expect("Vulkan guarantees a non-null pointer");
 
     *pSampler.as_ptr() = Sampler::create(device, create_info.flags);
 
@@ -36,9 +30,8 @@ pub unsafe extern "C" fn vkDestroySampler(
     sampler: VkSampler,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 

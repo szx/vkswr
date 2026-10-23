@@ -1,21 +1,19 @@
-//! Fence
+//! Fence synchronization primitive.
 
-use crate::context::NonDispatchable;
+use crate::context::VulkanObject;
 use crate::logical_device::LogicalDevice;
-
 use headers::vk_decls::*;
-use log::*;
+use log::{info, trace};
 use parking_lot::Mutex;
-use std::fmt::Debug;
 use std::sync::Arc;
 
-/// Synchronization primitive that can be used to insert a dependency from a queue to the host.
+/// Synchronization primitive that inserts a dependency from a queue to the host.
 #[derive(Debug)]
 pub struct Fence {
     pub(crate) handle: VkNonDispatchableHandle,
-    pub(crate) logical_device: Arc<Mutex<LogicalDevice>>,
+    /// Keeps the owning device alive for at least as long as the fence.
     #[allow(dead_code)]
-    flags: VkFenceCreateFlags,
+    pub(crate) logical_device: Arc<Mutex<LogicalDevice>>,
     signaled: bool,
 }
 
@@ -25,18 +23,15 @@ impl Fence {
         create_info: &VkFenceCreateInfo,
     ) -> VkNonDispatchableHandle {
         info!("new Fence");
-        let handle = VK_NULL_HANDLE;
-        let flags = create_info.flags;
-        let signaled = (Into::<VkFenceCreateFlagBits>::into(flags)
-            & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT)
+        let signaled = VkFenceCreateFlagBits::from(create_info.flags)
+            & VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT
             != 0;
-        let fence = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-            flags,
             signaled,
-        };
-        fence.register_object()
+        }
+        .register()
     }
 
     pub fn signal(&mut self) {

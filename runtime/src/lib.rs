@@ -1,3 +1,8 @@
+//! Safe Vulkan object model used by the VkSWR installable client driver.
+//!
+//! Raw Vulkan handles are registered in [`context::Context`] and resolved back
+//! to reference-counted objects; each module mirrors one Vulkan object type.
+
 pub mod buffer;
 pub mod command_buffer;
 pub mod context;

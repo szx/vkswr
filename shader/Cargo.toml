@@ -1,19 +1,19 @@
 [package]
 name = "shader"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
 common = { path = "../common" }
-anyhow = { workspace = true }
+thiserror = { workspace = true }
 log = { workspace = true }
 hashbrown = { workspace = true }
 bytemuck = { workspace = true }
-itertools = { workspace = true }
-rspirv = "0.11.0"
+rspirv = "0.13"
 
 [dev-dependencies]
 assert_fs = { workspace = true }

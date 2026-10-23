@@ -2,10 +2,9 @@
 
 use headers::vk_decls::*;
 use log::warn;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::descriptor::*;
 use runtime::logical_device::LogicalDevice;
-
 
 pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
     device: VkDevice,
@@ -13,24 +12,16 @@ pub unsafe extern "C" fn vkCreateDescriptorSetLayout(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSetLayout: Option<NonNull<VkDescriptorSetLayout>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
-    let Some(bindings) = create_info.pBindings else {
-        unreachable!()
-    };
+    let bindings = create_info.pBindings.expect("value is present");
     let bindings = std::slice::from_raw_parts(bindings.as_ptr(), create_info.bindingCount as usize);
 
     let _ = pAllocator;
 
-    let Some(pSetLayout) = pSetLayout else {
-        unreachable!()
-    };
+    let pSetLayout = pSetLayout.expect("Vulkan guarantees a non-null pointer");
 
     *pSetLayout.as_ptr() = DescriptorSetLayout::create(device, create_info.flags, bindings);
 
@@ -42,9 +33,8 @@ pub unsafe extern "C" fn vkDestroyDescriptorSetLayout(
     descriptorSetLayout: VkDescriptorSetLayout,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -57,25 +47,19 @@ pub unsafe extern "C" fn vkCreateDescriptorPool(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pDescriptorPool: Option<NonNull<VkDescriptorPool>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
-    let Some(pool_sizes) = create_info.pPoolSizes else {
-        unreachable!()
-    };
+    let pool_sizes = create_info
+        .pPoolSizes
+        .expect("Vulkan guarantees a non-null pointer");
     let pool_sizes =
         std::slice::from_raw_parts(pool_sizes.as_ptr(), create_info.poolSizeCount as usize);
 
     let _ = pAllocator;
 
-    let Some(pDescriptorPool) = pDescriptorPool else {
-        unreachable!()
-    };
+    let pDescriptorPool = pDescriptorPool.expect("Vulkan guarantees a non-null pointer");
 
     *pDescriptorPool.as_ptr() =
         DescriptorPool::create(device, create_info.flags, create_info.maxSets, pool_sizes);
@@ -88,9 +72,8 @@ pub unsafe extern "C" fn vkDestroyDescriptorPool(
     descriptorPool: VkDescriptorPool,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -102,34 +85,28 @@ pub unsafe extern "C" fn vkAllocateDescriptorSets(
     pAllocateInfo: Option<NonNull<VkDescriptorSetAllocateInfo>>,
     pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pAllocateInfo) = pAllocateInfo else {
-        unreachable!()
-    };
+    let pAllocateInfo = pAllocateInfo.expect("Vulkan guarantees a non-null pointer");
     let allocate_info = pAllocateInfo.as_ref();
-    let Some(descriptorPool) = DescriptorPool::from_handle(allocate_info.descriptorPool) else {
-        unreachable!()
-    };
-    let Some(pSetLayouts) = allocate_info.pSetLayouts else {
-        unreachable!()
-    };
+    let descriptorPool = DescriptorPool::from_handle(allocate_info.descriptorPool)
+        .expect("Vulkan handle refers to a live object");
+    let pSetLayouts = allocate_info
+        .pSetLayouts
+        .expect("Vulkan guarantees a non-null pointer");
     let set_layouts = std::slice::from_raw_parts(
         pSetLayouts.as_ptr(),
         allocate_info.descriptorSetCount as usize,
     );
-    let Some(pDescriptorSets) = pDescriptorSets else {
-        unreachable!()
-    };
+    let pDescriptorSets = pDescriptorSets.expect("Vulkan guarantees a non-null pointer");
     let descriptor_sets = std::slice::from_raw_parts_mut(
         pDescriptorSets.as_ptr(),
         allocate_info.descriptorSetCount as usize,
     );
 
     for (set_layout, descriptor_set) in std::iter::zip(set_layouts, descriptor_sets) {
-        *descriptor_set = DescriptorSet::create(device.clone(), descriptorPool.clone(), set_layout);
+        *descriptor_set =
+            DescriptorSet::create(device.clone(), descriptorPool.clone(), *set_layout);
     }
 
     VkResult::VK_SUCCESS
@@ -141,17 +118,13 @@ pub unsafe extern "C" fn vkFreeDescriptorSets(
     descriptorSetCount: u32,
     pDescriptorSets: Option<NonNull<VkDescriptorSet>>,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(_descriptorPool) = DescriptorPool::from_handle(descriptorPool) else {
-        unreachable!()
-    };
+    let _descriptorPool =
+        DescriptorPool::from_handle(descriptorPool).expect("Vulkan handle refers to a live object");
 
-    let Some(pDescriptorSets) = pDescriptorSets else {
-        unreachable!()
-    };
+    let pDescriptorSets = pDescriptorSets.expect("Vulkan guarantees a non-null pointer");
     let descriptor_sets =
         std::slice::from_raw_parts(pDescriptorSets.as_ptr(), descriptorSetCount as usize);
 
@@ -170,9 +143,8 @@ pub unsafe extern "C" fn vkUpdateDescriptorSets(
     descriptorCopyCount: u32,
     pDescriptorCopies: Option<NonNull<VkCopyDescriptorSet>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let descriptor_writes = pDescriptorWrites
         .map(|x| std::slice::from_raw_parts(x.as_ptr(), descriptorWriteCount as usize));

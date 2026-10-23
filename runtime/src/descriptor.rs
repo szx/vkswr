@@ -1,38 +1,31 @@
-//! Descriptors
+//! Descriptor set layouts, pools, and sets.
 
-use crate::context::NonDispatchable;
+use crate::context::VulkanObject;
 use crate::logical_device::LogicalDevice;
-
 use headers::vk_decls::*;
-use log::*;
+use log::info;
 use parking_lot::Mutex;
-use std::fmt::Debug;
 use std::sync::Arc;
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DescriptorSetLayout {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
 }
 
 impl DescriptorSetLayout {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
-        bindings: &[VkDescriptorSetLayoutBinding],
+        _flags: VkDescriptorSetLayoutCreateFlags,
+        _bindings: &[VkDescriptorSetLayoutBinding],
     ) -> VkNonDispatchableHandle {
-        info!("new DescriptorSetLayouts");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = bindings;
-
-        let object = Self {
-            handle,
+        info!("new DescriptorSetLayout");
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }
 
@@ -46,30 +39,25 @@ pub struct DescriptorPool {
 impl DescriptorPool {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
-        max_sets: u32,
-        pool_sizes: &[VkDescriptorPoolSize],
+        _flags: VkDescriptorPoolCreateFlags,
+        _max_sets: u32,
+        _pool_sizes: &[VkDescriptorPoolSize],
     ) -> VkNonDispatchableHandle {
         info!("new DescriptorPool");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = max_sets;
-        let _ = pool_sizes;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DescriptorSet {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     descriptor_pool: Arc<Mutex<DescriptorPool>>,
 }
 
@@ -77,18 +65,14 @@ impl DescriptorSet {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         descriptor_pool: Arc<Mutex<DescriptorPool>>,
-        set_layout: &VkDescriptorSetLayout,
+        _set_layout: VkDescriptorSetLayout,
     ) -> VkNonDispatchableHandle {
         info!("new DescriptorSet");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = set_layout;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             descriptor_pool,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }

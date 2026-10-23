@@ -1,28 +1,36 @@
+use crate::error::Error;
 use crate::interpreter::Interpreter;
 use common::consts::MAX_CLIP_DISTANCES;
 use common::graphics::VertexInputState;
 use common::math::{Color, Fragment, Position, Vertex};
 
+/// The shaders currently bound to a graphics pipeline.
 #[derive(Debug, Clone, Default)]
 pub struct ShaderState {
     pub vertex_shader: Option<Shader>,
     pub fragment_shader: Option<Shader>,
 }
 
+/// A compiled shader that can be executed by the software rasterizer.
 #[derive(Debug, Clone)]
 pub struct Shader {
     pub(crate) interpreter: Interpreter,
 }
 
 impl Shader {
-    pub fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
+    /// Compiles a SPIR-V module.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `code` is not a supported SPIR-V module.
+    pub fn new(name: &str, code: Vec<u32>) -> Result<Self, Error> {
         Ok(Self {
             interpreter: Interpreter::new(name, code)?,
         })
     }
-}
 
-impl Shader {
+    /// Runs the vertex shader for every input vertex.
+    #[must_use]
     pub fn execute_vertex_shader(
         &self,
         vertex_input_state: &VertexInputState,
@@ -31,8 +39,15 @@ impl Shader {
         self.interpreter
             .execute_vertex_shader(vertex_input_state, vertices)
     }
+
+    /// Runs the fragment shader for every input fragment.
+    #[must_use]
+    pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
+        self.interpreter.execute_fragment_shader(fragments)
+    }
 }
 
+/// The outputs written by a vertex shader invocation.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VertexShaderOutput {
     // gl_Position
@@ -53,7 +68,7 @@ impl Default for VertexShaderOutput {
             position: Position::from_sfloat32_raw(0.0, 0.0, 0.0, 0.0),
             point_size: 1.0,
             vertex_index: 0,
-            clip_distances: [0.0f32, 0.0f32, 0.0f32, 0.0f32],
+            clip_distances: [0.0; MAX_CLIP_DISTANCES as usize],
         }
     }
 }
@@ -69,12 +84,7 @@ impl From<Vertex> for VertexShaderOutput {
     }
 }
 
-impl Shader {
-    pub fn execute_fragment_shader(&self, fragments: Vec<Fragment>) -> Vec<FragmentShaderOutput> {
-        self.interpreter.execute_fragment_shader(fragments)
-    }
-}
-
+/// The outputs written by a fragment shader invocation.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct FragmentShaderOutput {
     pub position: Position,
@@ -103,34 +113,62 @@ mod tests {
     use std::process::Command;
 
     fn compile_glsl(stage: &str, glsl_code: &str) -> Vec<u32> {
-        let temp_dir = assert_fs::TempDir::new().unwrap();
+        let temp_dir = assert_fs::TempDir::new().expect("create temporary directory");
         let glsl_path = temp_dir.join(format!("shader.{stage}"));
         let spv_path = temp_dir.join(format!("{stage}.spv"));
-        std::fs::write(&*glsl_path, glsl_code).unwrap();
+        std::fs::write(&glsl_path, glsl_code).expect("write GLSL source");
 
         let glslang_validator =
             test_tools::sdk_bin("glslangValidator").expect("Vulkan SDK glslangValidator");
-        let mut out = Command::new(glslang_validator);
-        let out = out.args([
-            "-V",
-            &glsl_path.to_string_lossy(),
-            "-o",
-            &spv_path.to_string_lossy(),
-        ]);
-        let out = out.current_dir(&temp_dir);
-        let out = out.output().unwrap();
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        println!("stdout:\n{}", stdout);
+        let output = Command::new(glslang_validator)
+            .args([
+                "-V",
+                &glsl_path.to_string_lossy(),
+                "-o",
+                &spv_path.to_string_lossy(),
+            ])
+            .current_dir(&temp_dir)
+            .output()
+            .expect("run glslangValidator");
+        println!("stdout:\n{}", String::from_utf8_lossy(&output.stdout));
         assert!(
-            out.status.success(),
-            "Didn't pass: stderr:\n{}",
-            String::from_utf8_lossy(&out.stderr),
+            output.status.success(),
+            "glslangValidator failed:\n{}",
+            String::from_utf8_lossy(&output.stderr),
         );
 
-        let spv = std::fs::read(spv_path).unwrap();
+        let spv = std::fs::read(spv_path).expect("read compiled SPIR-V");
         spv.chunks_exact(4)
-            .map(|x| u32::from_ne_bytes(x.try_into().unwrap()))
-            .collect::<Vec<_>>()
+            .map(|bytes| u32::from_ne_bytes(bytes.try_into().expect("SPIR-V word is four bytes")))
+            .collect()
+    }
+
+    fn vertex_input_state() -> VertexInputState {
+        let mut state = VertexInputState {
+            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
+            bindings: [None; MAX_VERTEX_BINDINGS as usize],
+        };
+        state.attributes[0] = Some(VertexAttribute {
+            location: 0,
+            binding: VertexBindingNumber(0),
+            format: Format::R8G8Unorm,
+            offset: 0,
+        });
+        state.bindings[0] = Some(VertexBinding {
+            number: VertexBindingNumber(0),
+            stride: 0,
+            input_rate: VertexInputRate::Vertex,
+        });
+        state
+    }
+
+    fn vertex(clip_distances: [f32; MAX_CLIP_DISTANCES as usize]) -> Vertex {
+        Vertex {
+            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
+            point_size: 1.0,
+            index: 1,
+            clip_distances,
+        }
     }
 
     #[test]
@@ -146,39 +184,17 @@ mod tests {
             }
             "#,
         );
-        let shader = Shader::new("main", spv).unwrap();
-        let mut vertex_input_state = VertexInputState {
-            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
-            bindings: [None; MAX_VERTEX_BINDINGS as usize],
-        };
-        vertex_input_state.attributes[0] = Some(VertexAttribute {
-            location: 0,
-            binding: VertexBindingNumber(0),
-            format: Format::R8G8Unorm,
-            offset: 0,
-        });
-        vertex_input_state.bindings[0] = Some(VertexBinding {
-            number: VertexBindingNumber(0),
-            stride: 0,
-            input_rate: VertexInputRate::Vertex,
-        });
-        let inputs = vec![Vertex {
-            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
-            point_size: 1.0f32,
-            index: 1,
-            clip_distances: [0.8f32, 0.4f32, 0.2f32, 0.1f32],
-        }];
+        let shader = Shader::new("main", spv).expect("shader should compile");
+        let inputs = vec![vertex([0.8, 0.4, 0.2, 0.1])];
         let expected = inputs
             .iter()
-            .map(|&x| VertexShaderOutput {
+            .map(|&input| VertexShaderOutput {
                 position: Position::from_sfloat32_raw(1.0, 2.0, 3.0, 4.0),
-                clip_distances: [0.5f32, 0.4f32, 0.9f32, 0.1f32],
-                ..x.into()
+                clip_distances: [0.5, 0.4, 0.9, 0.1],
+                ..input.into()
             })
             .collect::<Vec<_>>();
-        let outputs = shader
-            .interpreter
-            .execute_vertex_shader(&vertex_input_state, inputs);
+        let outputs = shader.execute_vertex_shader(&vertex_input_state(), inputs);
         assert_eq!(outputs, expected);
     }
 
@@ -193,38 +209,16 @@ mod tests {
             }
             "#,
         );
-        let shader = Shader::new("main", spv).unwrap();
-        let mut vertex_input_state = VertexInputState {
-            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
-            bindings: [None; MAX_VERTEX_BINDINGS as usize],
-        };
-        vertex_input_state.attributes[0] = Some(VertexAttribute {
-            location: 0,
-            binding: VertexBindingNumber(0),
-            format: Format::R8G8Unorm,
-            offset: 0,
-        });
-        vertex_input_state.bindings[0] = Some(VertexBinding {
-            number: VertexBindingNumber(0),
-            stride: 0,
-            input_rate: VertexInputRate::Vertex,
-        });
-        let inputs = vec![Vertex {
-            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
-            point_size: 1.0f32,
-            index: 1,
-            clip_distances: [0.8f32, 0.4f32, 0.2f32, 0.1f32],
-        }];
+        let shader = Shader::new("main", spv).expect("shader should compile");
+        let inputs = vec![vertex([0.8, 0.4, 0.2, 0.1])];
         let expected = inputs
             .iter()
-            .map(|&x| VertexShaderOutput {
+            .map(|&input| VertexShaderOutput {
                 position: Position::from_sfloat32_raw(1.0, 2.0, 3.0, 4.0),
-                ..x.into()
+                ..input.into()
             })
             .collect::<Vec<_>>();
-        let outputs = shader
-            .interpreter
-            .execute_vertex_shader(&vertex_input_state, inputs);
+        let outputs = shader.execute_vertex_shader(&vertex_input_state(), inputs);
         assert_eq!(outputs, expected);
     }
 
@@ -238,32 +232,13 @@ mod tests {
             }
             "#,
         );
-        let shader = Shader::new("main", spv).unwrap();
-        let mut vertex_input_state = VertexInputState {
-            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
-            bindings: [None; MAX_VERTEX_BINDINGS as usize],
-        };
-        vertex_input_state.attributes[0] = Some(VertexAttribute {
-            location: 0,
-            binding: VertexBindingNumber(0),
-            format: Format::R8G8Unorm,
-            offset: 0,
-        });
-        vertex_input_state.bindings[0] = Some(VertexBinding {
-            number: VertexBindingNumber(0),
-            stride: 0,
-            input_rate: VertexInputRate::Vertex,
-        });
-        let inputs = vec![Vertex {
-            position: Position::from_raw(10, 20, 30, 40).to_unorm8(),
-            point_size: 1.0f32,
-            index: 1,
-            clip_distances: [0.0f32, 0.0f32, 0.0f32, 0.0f32],
-        }];
-        let expected = inputs.iter().map(|&x| x.into()).collect::<Vec<_>>();
-        let outputs = shader
-            .interpreter
-            .execute_vertex_shader(&vertex_input_state, inputs);
+        let shader = Shader::new("main", spv).expect("shader should compile");
+        let inputs = vec![vertex([0.0; MAX_CLIP_DISTANCES as usize])];
+        let expected = inputs
+            .iter()
+            .map(|&input| input.into())
+            .collect::<Vec<VertexShaderOutput>>();
+        let outputs = shader.execute_vertex_shader(&vertex_input_state(), inputs);
         assert_eq!(outputs, expected);
     }
 
@@ -287,48 +262,32 @@ mod tests {
 
         let shader = Shader::new("main", code).expect("shader should compile");
 
-        let mut vertex_input_state = VertexInputState {
-            attributes: [None; MAX_VERTEX_ATTRIBUTES as usize],
-            bindings: [None; MAX_VERTEX_BINDINGS as usize],
-        };
-        vertex_input_state.attributes[0] = Some(VertexAttribute {
-            location: 0,
-            binding: VertexBindingNumber(0),
-            format: Format::R8G8Unorm,
-            offset: 0,
-        });
-        vertex_input_state.bindings[0] = Some(VertexBinding {
-            number: VertexBindingNumber(0),
-            stride: 0,
-            input_rate: VertexInputRate::Vertex,
-        });
-
         // TODO: Test associating vertex input state to vertex input interface.
 
         // R8G8 vec2
         let inputs = vec![
             Vertex {
                 position: Position::from_raw(101, 228, 0, 0).to_unorm8(),
-                point_size: 1.0f32,
+                point_size: 1.0,
                 index: 0,
                 clip_distances: Default::default(),
             },
             Vertex {
                 position: Position::from_raw(161, 201, 0, 0).to_unorm8(),
-                point_size: 1.0f32,
+                point_size: 1.0,
                 index: 0,
                 clip_distances: Default::default(),
             },
             Vertex {
                 position: Position::from_raw(243, 120, 0, 0).to_unorm8(),
-                point_size: 1.0f32,
+                point_size: 1.0,
                 index: 0,
                 clip_distances: Default::default(),
             },
         ];
 
         // gl_Position vec4, gl_PointSize float
-        let references = vec![
+        let references = [
             (
                 Position::from_raw(3193216600, 1061787170, 0, 1065353216),
                 1.0f32,
@@ -343,20 +302,24 @@ mod tests {
             ),
         ];
 
-        let outputs = shader.execute_vertex_shader(&vertex_input_state, inputs);
+        let outputs = shader.execute_vertex_shader(&vertex_input_state(), inputs);
 
-        let eps = 0.00001f32; // TODO: Use ULP (units in the last place) as defined in Vulkan spec?
-        for (output, (position, point_size)) in outputs.iter().zip(references) {
+        // TODO: Use ULP (units in the last place) as defined in Vulkan spec?
+        let eps = 0.000_01_f32;
+        for (output, (reference, point_size)) in outputs.iter().zip(references) {
             // TODO: Refactor Vector4: operation overloading.
+            let actual = output.position.get_as_sfloat32(0);
+            let expected = reference.get_as_sfloat32(0);
+            assert!((actual - expected).abs() < eps, "{actual} != {expected}");
             assert!(
-                (output.position.get_as_sfloat32(0) - position.get_as_sfloat32(0)).abs() < eps,
-                "{} != {}",
-                output.position.get_as_sfloat32(0),
-                position.get_as_sfloat32(0)
+                (output.position.get_as_sfloat32(1) - reference.get_as_sfloat32(1)).abs() < eps
             );
-            assert!((output.position.get_as_sfloat32(1) - position.get_as_sfloat32(1)).abs() < eps);
-            assert!((output.position.get_as_sfloat32(2) - position.get_as_sfloat32(2)).abs() < eps);
-            assert!((output.position.get_as_sfloat32(3) - position.get_as_sfloat32(3)).abs() < eps);
+            assert!(
+                (output.position.get_as_sfloat32(2) - reference.get_as_sfloat32(2)).abs() < eps
+            );
+            assert!(
+                (output.position.get_as_sfloat32(3) - reference.get_as_sfloat32(3)).abs() < eps
+            );
             assert_eq!(output.point_size, point_size);
         }
     }

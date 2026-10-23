@@ -1,20 +1,16 @@
-//! LogicalDevice
+//! Logical device: an application's connection to a physical device.
 
-use crate::context::Dispatchable;
+use crate::context::VulkanObject;
 use crate::fence::Fence;
-
 use crate::physical_device::PhysicalDevice;
 use crate::queue::Queue;
-
 use headers::vk_decls::*;
-
-use log::*;
+use log::{info, warn};
 use parking_lot::{Mutex, MutexGuard};
-use std::fmt::{Debug, Formatter};
-
 use std::sync::Arc;
 
 /// Identifier used to associate functions with a `PhysicalDevice`.
+#[derive(Debug)]
 pub struct LogicalDevice {
     pub(crate) handle: VkDispatchableHandle,
     physical_device: Arc<Mutex<PhysicalDevice>>,
@@ -31,42 +27,38 @@ impl LogicalDevice {
     ) -> Result<VkDispatchableHandle, VkResult> {
         info!("new LogicalDevice");
 
-        if enabled_features.is_some_and(|x| !physical_device.lock().supports_features(x)) {
-            Err(VkResult::VK_ERROR_FEATURE_NOT_PRESENT)?;
+        if enabled_features
+            .is_some_and(|features| !physical_device.lock().supports_features(features))
+        {
+            return Err(VkResult::VK_ERROR_FEATURE_NOT_PRESENT);
         }
 
-        let queue = Queue::create(physical_device.clone(), queue_create_info);
-        let queue = Queue::from_handle(queue)
-            .map_or_else(|| Err(VkResult::VK_ERROR_INITIALIZATION_FAILED), Ok)?;
+        let queue = Queue::create(Arc::clone(&physical_device), queue_create_info);
+        let queue = Queue::from_handle(queue).ok_or(VkResult::VK_ERROR_INITIALIZATION_FAILED)?;
 
-        let logical_device = Self {
+        let enabled_features = enabled_features
+            .copied()
+            .unwrap_or_else(|| physical_device.lock().features());
+
+        Ok(Self {
             handle: VkDispatchableHandle(None),
-            physical_device: physical_device.clone(),
-            enabled_features: *enabled_features.unwrap_or(&physical_device.lock().features()),
+            physical_device,
+            enabled_features,
             queue,
-        };
-        Ok(logical_device.register_object())
+        }
+        .register())
     }
 
     pub fn physical_device(&self) -> MutexGuard<'_, PhysicalDevice> {
         self.physical_device.lock()
     }
-}
 
-impl LogicalDevice {
-    pub fn queue(&self, queue_family_index: u32, queue_index: u32) -> Arc<Mutex<Queue>> {
-        let _ = queue_family_index;
-        let _ = queue_index;
-        self.queue.clone()
+    pub fn queue(&self, _queue_family_index: u32, _queue_index: u32) -> Arc<Mutex<Queue>> {
+        Arc::clone(&self.queue)
     }
 
-    pub fn wait_for_fences(&self, fences: Vec<Arc<Mutex<Fence>>>, wait_all: bool, timeout: u64) {
-        let _ = wait_all;
-        let _ = timeout;
-        for fence in fences {
-            if fence.lock().logical_device.data_ptr() as *const _ != self as *const _ {
-                continue;
-            }
+    pub fn wait_for_fences(&self, fences: Vec<Arc<Mutex<Fence>>>, _wait_all: bool, _timeout: u64) {
+        for _fence in fences {
             warn!("TODO: Wait for one or more fences to become signaled");
         }
     }
@@ -84,7 +76,7 @@ impl LogicalDevice {
     }
 
     pub const fn flush_memory_ranges(&self, _memory_ranges: &[VkMappedMemoryRange]) -> VkResult {
-        // No-op.
+        // No-op for host-coherent memory.
         VkResult::VK_SUCCESS
     }
 
@@ -92,17 +84,7 @@ impl LogicalDevice {
         &self,
         _memory_ranges: &[VkMappedMemoryRange],
     ) -> VkResult {
-        // No-op.
+        // No-op for host-coherent memory.
         VkResult::VK_SUCCESS
-    }
-}
-
-impl Debug for LogicalDevice {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LogicalDevice")
-            .field("handle", &self.handle)
-            .field("physical_device", &self.physical_device)
-            .field("queue", &self.queue)
-            .finish()
     }
 }

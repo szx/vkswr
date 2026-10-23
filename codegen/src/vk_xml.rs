@@ -1,13 +1,22 @@
-use lazy_static::lazy_static;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, Writer};
+use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::io::BufRead;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use thiserror::Error;
+
+/// Declares a lazily compiled regular expression.
+macro_rules! regex {
+    ($name:ident, $pattern:literal) => {
+        static $name: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new($pattern).expect("valid regular expression"));
+    };
+}
 
 #[derive(Debug, Default)]
 pub struct VkXml {
@@ -16,8 +25,8 @@ pub struct VkXml {
     pub typedefs: HashSet<VkTypedef>,
     pub type_attributes: HashSet<VkTypeAttributes>,
     pub type_externs: HashSet<VkTypeExtern>,
-    pub commands: HashSet<VkCommand>,
     pub extensions: HashSet<VkExtension>,
+    pub commands: HashSet<VkCommand>,
 }
 
 impl VkXml {
@@ -48,29 +57,29 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
     let mut vk_xml: VkXml = VkXml::default();
 
     let mut reader = Reader::from_str(str);
-    reader.trim_text(true);
-    reader.expand_empty_elements(true);
+    reader.config_mut().trim_text(true);
+    reader.config_mut().expand_empty_elements = true;
     let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
             Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
             Ok(Event::Eof) => break,
             Ok(Event::Start(e)) => match e.name().as_ref() {
-                b"enums" => {
+                "enums" => {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
                     if let Ok(e) = quick_xml::de::from_str::<VkXmlEnumsSerde>(str) {
                         vk_xml.enums.push(e.fix());
                     }
                 }
-                b"type" => {
+                "type" => {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
-                    if let Ok(mut x) = quick_xml::de::from_str::<VkStructSerde>(str) {
-                        if let Some(x) = x.fix(str) {
-                            vk_xml.structs.insert(x);
-                            continue;
-                        }
+                    if let Ok(x) = quick_xml::de::from_str::<VkStructSerde>(str)
+                        && let Some(x) = x.fix(str)
+                    {
+                        vk_xml.structs.insert(x);
+                        continue;
                     }
                     if let Ok(x) = quick_xml::de::from_str::<VkTypedefSerde>(str) {
                         if let Some(x) = x.fix() {
@@ -105,17 +114,14 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                     }
                     unreachable!("{:?}", str);
                 }
-                b"command" => {
+                "command" => {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
-                    if let Ok(x) = quick_xml::de::from_str::<VkCommandSerde>(str) {
-                        if let Some(x) = x.fix(str) {
-                            vk_xml.commands.insert(x);
-                        }
-                        continue;
+                    if let Some(command) = parse_command(str) {
+                        vk_xml.commands.insert(command);
                     }
                 }
-                b"extension" | b"feature" => {
+                "extension" | "feature" => {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
                     if let Ok(x) = quick_xml::de::from_str::<VkExtensionSerde>(str) {
@@ -150,7 +156,7 @@ fn read_to_end_into_buffer<R: BufRead>(
     loop {
         temp_buf.clear();
         let event = reader.read_event_into(&mut temp_buf)?;
-        w.write_event(&event)?;
+        w.write_event(event.clone())?;
 
         match event {
             Event::Start(e) if e.name() == tag_name => depth += 1,
@@ -213,8 +219,8 @@ impl VkXmlEnumsSerde {
                 name: self.name.clone(),
                 members: self
                     .enumerators
-                    .as_ref()
-                    .unwrap_or(&vec![])
+                    .as_deref()
+                    .unwrap_or_default()
                     .iter()
                     .map(|x| x.fix(self.name.clone()))
                     .collect(),
@@ -334,7 +340,7 @@ struct VkStructSerde {
 }
 
 impl VkStructSerde {
-    fn fix(&mut self, str: &str) -> Option<VkStruct> {
+    fn fix(&self, str: &str) -> Option<VkStruct> {
         let members = Self::parse_members(str, self.category.as_ref() == "union");
         let name = self.name.clone();
         match self.category.as_ref() {
@@ -352,16 +358,11 @@ impl VkStructSerde {
     }
 
     fn parse_members(str: &str, is_union: bool) -> Vec<VkStructMember> {
-        lazy_static! {
-            static ref RE_MEMBER: regex::Regex =
-                regex::Regex::new(r"<member[^>]*>(.*?)</member[^>]*>").expect("regex");
-            static ref RE_NAME: regex::Regex =
-                regex::Regex::new(r"<name[^>]*>(.*?)</name[^>]*>").expect("regex");
-            static ref RE_COMMENT: regex::Regex =
-                regex::Regex::new(r"<comment[^>]*>(.*?)</comment[^>]*>").expect("regex");
-            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
-            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
-        }
+        regex!(RE_MEMBER, r"<member[^>]*>(.*?)</member[^>]*>");
+        regex!(RE_NAME, r"<name[^>]*>(.*?)</name[^>]*>");
+        regex!(RE_COMMENT, r"<comment[^>]*>(.*?)</comment[^>]*>");
+        regex!(RE_ALL_TAGS, r"</?[^>]*>");
+        regex!(RE_ALL_SPACES, r"\s\s+");
         let mut members = vec![];
         for cap in RE_MEMBER.captures_iter(str) {
             let str = &cap[0];
@@ -425,9 +426,7 @@ struct VkStructMemberSerde {
 
 impl VkStructMemberSerde {
     fn bitfield_width(&self) -> Option<u32> {
-        lazy_static! {
-            static ref RE_BITFIELD: regex::Regex = regex::Regex::new(r":\s*(\d+)").expect("regex");
-        }
+        regex!(RE_BITFIELD, r":\s*(\d+)");
         RE_BITFIELD
             .captures(&self.type_)?
             .get(1)?
@@ -437,9 +436,7 @@ impl VkStructMemberSerde {
     }
 
     fn without_bitfield(&self) -> String {
-        lazy_static! {
-            static ref RE_BITFIELD: regex::Regex = regex::Regex::new(r":\s*\d+").expect("regex");
-        }
+        regex!(RE_BITFIELD, r":\s*\d+");
         RE_BITFIELD.replace(&self.type_, "").trim().to_string()
     }
 
@@ -589,113 +586,6 @@ pub enum VkTypeExtern {
 
 // ---
 
-#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
-pub struct VkCommandSerde {
-    #[serde(rename = "@queues")]
-    queues: Option<Arc<str>>,
-
-    #[serde(rename = "@renderpass")]
-    renderpass: Option<Arc<str>>,
-
-    #[serde(rename = "@cmdbufferlevel")]
-    cmdbufferlevel: Option<Arc<str>>,
-
-    #[serde(rename = "@tasks")]
-    tasks: Option<Arc<str>>,
-
-    #[serde(rename = "@successcodes")]
-    successcodes: Option<Arc<str>>,
-
-    #[serde(rename = "@errorcodes")]
-    errorcodes: Option<Arc<str>>,
-}
-
-impl VkCommandSerde {
-    #[must_use]
-    pub fn fix(&self, str: &str) -> Option<VkCommand> {
-        VkCommand::parse(str)
-    }
-}
-
-#[derive(Eq, Hash, PartialEq, Debug)]
-pub enum VkCommand {
-    Command {
-        type_: Option<VkFFIType>,
-        name: Arc<str>,
-        members: Vec<VkFuncDeclMember>,
-    },
-}
-
-impl VkCommand {
-    fn parse(str: &str) -> Option<Self> {
-        lazy_static! {
-            static ref RE_PROTO: regex::Regex =
-                regex::Regex::new(r"<proto[^>]*>(.*?)<\/proto[^>]*>").expect("regex");
-            static ref RE_NAME: regex::Regex =
-                regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").expect("regex");
-            static ref RE_PARAM: regex::Regex =
-                regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").expect("regex");
-            static ref RE_IMPLICITEXTERNSYNCPARAMS: regex::Regex = regex::Regex::new(
-                r"(?s)<implicitexternsyncparams[^>]*>(.*?)<\/implicitexternsyncparams[^>]*>"
-            )
-            .expect("regex");
-            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
-            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
-            static ref RE_MEMBER: regex::Regex =
-                regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").expect("regex");
-        }
-
-        let Some(cap) = RE_PROTO.captures(str.as_ref()) else {
-            return None;
-        };
-        let proto = cap.get(1).expect("capture").as_str();
-
-        let Some(cap) = RE_NAME.captures(proto) else {
-            return None;
-        };
-        let name = cap.get(1).expect("capture").as_str().into();
-
-        let proto = RE_NAME.replace_all(proto, " ");
-        let proto = RE_ALL_TAGS.replace_all(proto.as_ref(), " ");
-        let proto = RE_ALL_SPACES.replace_all(proto.as_ref(), " ");
-        let type_ = proto.trim();
-        let type_ = if type_ == "void" {
-            None
-        } else {
-            Some(VkFFIType::new(type_))
-        };
-
-        let mut members: Vec<VkFuncDeclMember> = vec![];
-        let str = RE_IMPLICITEXTERNSYNCPARAMS.replace_all(str.as_ref(), " ");
-        for cap in RE_PARAM.captures_iter(str.as_ref()) {
-            if cap[0].contains("vulkansc") {
-                continue;
-            }
-
-            let Some(cap_name) = RE_NAME.captures(&cap[0]) else {
-                unreachable!("{:?}", &cap[0])
-            };
-            let mut name = cap_name.get(1).expect("capture").as_str().into();
-            if name == "type" {
-                name = "type_".into();
-            }
-
-            let type_ = RE_NAME.replace_all(&cap[0], " ");
-            let type_ = RE_ALL_TAGS.replace_all(type_.as_ref(), " ");
-            let type_ = RE_ALL_SPACES.replace_all(type_.as_ref(), " ");
-            let type_ = VkFFIType::new(type_.as_ref());
-
-            members.push(VkFuncDeclMember::Member { name, type_ });
-        }
-
-        Some(Self::Command {
-            type_,
-            name,
-            members,
-        })
-    }
-}
-
 // ---
 
 #[derive(Eq, Hash, PartialEq, Debug)]
@@ -709,22 +599,17 @@ impl VkFuncDeclMember {
             return Self::parse_proto_members(str);
         }
 
-        lazy_static! {
-            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
-            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
-            static ref RE_TYPE_NAME_MEMBERS: regex::Regex = regex::Regex::new(
-                r"typedef\s(.*?)\s\(VKAPI_PTR\s\*\s(.*?)\s\)\((?:\s|void)(.*?)\);"
-            )
-            .expect("regex");
-            static ref RE_MEMBER: regex::Regex =
-                regex::Regex::new(r"\s?(.*?)\s(\w*?)[,)]").expect("regex");
-        }
+        regex!(RE_ALL_TAGS, r"</?[^>]*>");
+        regex!(RE_ALL_SPACES, r"\s\s+");
+        regex!(
+            RE_TYPE_NAME_MEMBERS,
+            r"typedef\s(.*?)\s\(VKAPI_PTR\s\*\s(.*?)\s\)\((?:\s|void)(.*?)\);"
+        );
+        regex!(RE_MEMBER, r"\s?(.*?)\s(\w*?)[,)]");
 
         let str = RE_ALL_TAGS.replace_all(str, " ");
         let str = RE_ALL_SPACES.replace_all(&str, " ");
-        let Some(cap) = RE_TYPE_NAME_MEMBERS.captures(str.as_ref()) else {
-            return None;
-        };
+        let cap = RE_TYPE_NAME_MEMBERS.captures(str.as_ref())?;
 
         let type_ = cap.get(1).expect("capture").as_str();
         let type_ = if type_ == "void" {
@@ -751,16 +636,11 @@ impl VkFuncDeclMember {
     }
 
     fn parse_proto_members(str: &str) -> Option<VkTypeExtern> {
-        lazy_static! {
-            static ref RE_PROTO: regex::Regex =
-                regex::Regex::new(r"<proto[^>]*>(.*?)<\/proto[^>]*>").expect("regex");
-            static ref RE_NAME: regex::Regex =
-                regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").expect("regex");
-            static ref RE_PARAM: regex::Regex =
-                regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").expect("regex");
-            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
-            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
-        }
+        regex!(RE_PROTO, r"<proto[^>]*>(.*?)<\/proto[^>]*>");
+        regex!(RE_NAME, r"<name[^>]*>(.*?)<\/name[^>]*>");
+        regex!(RE_PARAM, r"<param[^>]*>(.*?)<\/param[^>]*>");
+        regex!(RE_ALL_TAGS, r"</?[^>]*>");
+        regex!(RE_ALL_SPACES, r"\s\s+");
 
         let proto = RE_PROTO.captures(str)?.get(1)?.as_str();
         let name = RE_NAME.captures(proto)?.get(1)?.as_str().into();
@@ -813,15 +693,11 @@ pub struct VkFFIType(pub String);
 
 impl VkFFIType {
     fn new(str: &str) -> Self {
-        lazy_static! {
-            static ref RE_STRUCT: regex::Regex = regex::Regex::new(r"struct\s").expect("regex");
-            static ref RE_CONST_PTR: regex::Regex =
-                regex::Regex::new(r"const\s(.*?)\s\*").expect("regex");
-            static ref RE_MUT_PTR: regex::Regex = regex::Regex::new(r"(.*?)\s?\*").expect("regex");
-            static ref RE_FIXED_ARRAY: regex::Regex =
-                regex::Regex::new(r"(.*?)\s\[(.*?)\]").expect("regex");
-            static ref RE_CONST: regex::Regex = regex::Regex::new(r"const\s").expect("regex");
-        }
+        regex!(RE_STRUCT, r"struct\s");
+        regex!(RE_CONST_PTR, r"const\s(.*?)\s\*");
+        regex!(RE_MUT_PTR, r"(.*?)\s?\*");
+        regex!(RE_FIXED_ARRAY, r"(.*?)\s\[(.*?)\]");
+        regex!(RE_CONST, r"const\s");
 
         let mut type_: String = str.to_string();
         type_ = RE_STRUCT.replace_all(&type_, "").into();
@@ -848,7 +724,16 @@ impl VkFFIType {
             type_.replace_range(.., ffi);
         }
         if let Some(array_index) = array_index {
-            type_ = format!("[{type_}; {array_index} as usize]");
+            // Numeric dimensions are already valid array lengths; named
+            // constants are generated as `u32` and need an explicit cast.
+            if array_index
+                .chars()
+                .all(|character| character.is_ascii_digit())
+            {
+                type_ = format!("[{type_}; {array_index}]");
+            } else {
+                type_ = format!("[{type_}; {array_index} as usize]");
+            }
         }
         if is_const_ptr || is_mut_ptr {
             type_ = format!("Option<NonNull<{type_}>>");
@@ -959,6 +844,9 @@ pub struct VkExtensionSerde {
     #[serde(rename = "@apitype")]
     apitype: Option<Arc<str>>,
 
+    #[serde(rename = "@api")]
+    api: Option<Arc<str>>,
+
     #[serde(rename = "require")]
     require: Vec<VkExtensionRequireSerde>,
 }
@@ -967,6 +855,15 @@ pub struct VkExtensionSerde {
 pub struct VkExtensionRequireSerde {
     #[serde(rename = "enum")]
     enum_members: Option<Vec<VkExtensionEnumMemberSerde>>,
+
+    #[serde(rename = "command")]
+    commands: Option<Vec<VkExtensionCommandSerde>>,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkExtensionCommandSerde {
+    #[serde(rename = "@name")]
+    name: Arc<str>,
 }
 
 impl VkExtensionSerde {
@@ -980,6 +877,7 @@ impl VkExtensionSerde {
             // core enum members but their `number` is a version such as `1.4`,
             // not an extension number, so no `*_NUMBER` constant is generated.
             internal: self.apitype.as_deref() == Some("internal"),
+            api: self.api.clone(),
             enum_members: self
                 .require
                 .iter()
@@ -991,6 +889,12 @@ impl VkExtensionSerde {
                 })
                 .flatten()
                 .collect(),
+            commands: self
+                .require
+                .iter()
+                .flat_map(|require| require.commands.iter().flatten())
+                .map(|command| Arc::clone(&command.name))
+                .collect(),
         })
     }
 }
@@ -1000,7 +904,50 @@ pub struct VkExtension {
     pub name: Arc<str>,
     pub number: Arc<str>,
     pub internal: bool,
+    /// `api` attribute for core features; `None` for extensions.
+    pub api: Option<Arc<str>>,
     pub enum_members: Vec<VkExtensionEnumMember>,
+    /// Commands added by the feature or extension.
+    pub commands: Vec<Arc<str>>,
+}
+
+/// A Vulkan command declaration from the registry.
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub struct VkCommand {
+    pub name: Arc<str>,
+    /// Canonical command this entry aliases, if any.
+    pub alias: Option<Arc<str>>,
+    /// Type of the first parameter, used to derive the dispatch level.
+    pub first_parameter_type: Option<Arc<str>>,
+}
+
+fn parse_command(str: &str) -> Option<VkCommand> {
+    regex!(RE_COMMAND_ALIAS, r#"<command[^>]*\balias="(vk\w+)""#);
+    regex!(RE_COMMAND_NAME, r#"<command[^>]*\bname="(vk\w+)""#);
+    regex!(RE_PROTO_NAME, r"<proto[^>]*>.*?<name>(vk\w+)</name>");
+    regex!(
+        RE_FIRST_PARAM_TYPE,
+        r"<param[^>]*>.*?<type[^>]*>([^<]*)</type>"
+    );
+
+    if let Some(alias) = RE_COMMAND_ALIAS.captures(str) {
+        let name = RE_COMMAND_NAME.captures(str)?;
+        return Some(VkCommand {
+            name: Arc::from(&name[1]),
+            alias: Some(Arc::from(&alias[1])),
+            first_parameter_type: None,
+        });
+    }
+
+    let name = RE_PROTO_NAME.captures(str)?;
+    let first_parameter_type = RE_FIRST_PARAM_TYPE
+        .captures(str)
+        .map(|capture| Arc::from(capture[1].trim()));
+    Some(VkCommand {
+        name: Arc::from(&name[1]),
+        alias: None,
+        first_parameter_type,
+    })
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
@@ -1132,11 +1079,6 @@ mod tests {
         let vk_xml = VkXml::from(vk_xml_path).expect("vk_xml");
         assert!(!vk_xml.enums.is_empty());
 
-        let _expected_api_constants = vec![
-            "VK_QUEUE_FAMILY_IGNORED",
-            "VK_SHADER_UNUSED_KHR",
-            "VK_SHADER_UNUSED_NV",
-        ];
         let mut expected_enums = vec![
             "VkOpticalFlowPerformanceLevelNV",
             "VkValidationCacheHeaderVersionEXT",

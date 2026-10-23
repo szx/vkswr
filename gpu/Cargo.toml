@@ -1,7 +1,8 @@
 [package]
 name = "gpu"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
@@ -9,14 +10,7 @@ crate-type = ["lib"]
 [dependencies]
 common = { path = "../common" }
 shader = { path = "../shader" }
-itertools = { workspace = true }
-hashbrown = { workspace = true }
 log = { workspace = true }
-byteorder = "1.4.3"
-anyhow = { workspace = true }
-
-[dev-dependencies]
-assert_fs = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 //! VK_KHR_swapchain extension device commands
 
 use headers::vk_decls::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::fence::Fence;
 
 use runtime::logical_device::LogicalDevice;
@@ -9,27 +9,20 @@ use runtime::queue::Queue;
 use runtime::semaphore::Semaphore;
 use runtime::swapchain::*;
 
-
 pub unsafe extern "C" fn vkCreateSwapchainKHR(
     device: VkDevice,
     pCreateInfo: Option<NonNull<VkSwapchainCreateInfoKHR>>,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSwapchain: Option<NonNull<VkSwapchainKHR>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pSwapchain) = pSwapchain else {
-        unreachable!()
-    };
+    let pSwapchain = pSwapchain.expect("Vulkan guarantees a non-null pointer");
 
     *pSwapchain.as_ptr() = Swapchain::create(device, create_info);
 
@@ -41,9 +34,8 @@ pub unsafe extern "C" fn vkDestroySwapchainKHR(
     swapchain: VkSwapchainKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -56,17 +48,13 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
     pSwapchainImageCount: Option<NonNull<u32>>,
     pSwapchainImages: Option<NonNull<VkImage>>,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(swapchain) = Swapchain::from_handle(swapchain) else {
-        unreachable!()
-    };
+    let swapchain =
+        Swapchain::from_handle(swapchain).expect("Vulkan handle refers to a live object");
 
-    let Some(pSwapchainImageCount) = pSwapchainImageCount else {
-        unreachable!()
-    };
+    let pSwapchainImageCount = pSwapchainImageCount.expect("Vulkan guarantees a non-null pointer");
 
     pSwapchainImages.map_or_else(
         || {
@@ -78,7 +66,7 @@ pub unsafe extern "C" fn vkGetSwapchainImagesKHR(
                 .lock()
                 .images
                 .iter()
-                .map(|x| x.lock().get_handle())
+                .map(|x| x.lock().handle())
                 .collect::<Vec<_>>();
             std::ptr::copy_nonoverlapping(
                 images.as_ptr(),
@@ -98,21 +86,17 @@ pub unsafe extern "C" fn vkAcquireNextImageKHR(
     fence: VkFence,
     pImageIndex: Option<NonNull<u32>>,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(swapchain) = Swapchain::from_handle(swapchain) else {
-        unreachable!()
-    };
+    let swapchain =
+        Swapchain::from_handle(swapchain).expect("Vulkan handle refers to a live object");
 
     let semaphore = Semaphore::from_handle(semaphore);
 
     let fence = Fence::from_handle(fence);
 
-    let Some(pImageIndex) = pImageIndex else {
-        unreachable!()
-    };
+    let pImageIndex = pImageIndex.expect("Vulkan guarantees a non-null pointer");
 
     *pImageIndex.as_ptr() = swapchain
         .lock()
@@ -125,13 +109,9 @@ pub unsafe extern "C" fn vkQueuePresentKHR(
     queue: VkQueue,
     pPresentInfo: Option<NonNull<VkPresentInfoKHR>>,
 ) -> VkResult {
-    let Some(queue) = Queue::from_handle(queue) else {
-        unreachable!()
-    };
+    let queue = Queue::from_handle(queue).expect("Vulkan handle refers to a live object");
 
-    let Some(pPresentInfo) = pPresentInfo else {
-        unreachable!()
-    };
+    let pPresentInfo = pPresentInfo.expect("Vulkan guarantees a non-null pointer");
     let present_info = pPresentInfo.as_ref();
     let wait_semaphores = present_info
         .pWaitSemaphores

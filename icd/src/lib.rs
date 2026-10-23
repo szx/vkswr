@@ -1,5 +1,18 @@
+//! Vulkan installable client driver (ICD) entry points.
+//!
+//! The ICD exposes C entry points to the Vulkan loader. Application input is
+//! therefore trusted only after basic validation, and handles are resolved
+//! through the runtime object registry.
+
 #![allow(non_snake_case)]
+// Entry point names come from the Vulkan registry.
+// Every entry point is by definition an unsafe FFI boundary; keeping the
+// pointer operations visually explicit in each function would add noise
+// without adding safety. Individual non-obvious operations still carry
+// SAFETY comments.
+#![allow(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(wait_for_debugger, feature(core_intrinsics))]
+#![cfg_attr(wait_for_debugger, allow(internal_features))]
 
 mod buffer;
 mod command_buffer;
@@ -12,133 +25,100 @@ mod sampler;
 mod surface;
 mod swapchain;
 
+use std::ffi::CStr;
+use std::ptr::NonNull;
+
 use headers::vk_decls::*;
-use impls::*;
+
+/// Converts a typed entry point to the loader's opaque function pointer type.
+macro_rules! entry_point {
+    ($function:path) => {{
+        // SAFETY: Vulkan entry points are `extern "C"` functions. The loader
+        // only invokes the returned pointer using the signature declared for
+        // the same registry command.
+        unsafe { std::mem::transmute::<*const (), PFN_vkVoidFunction>($function as *const ()) }
+    }};
+}
+
+/// Resolves a Vulkan command name against a table of ICD entry points.
+macro_rules! dispatch {
+    ($name:expr, { $($command:literal => $function:path),* $(,)? }) => {
+        match $name {
+            $($command => crate::entry_point!($function),)*
+            _ => None,
+        }
+    };
+}
+
+pub(crate) use dispatch;
+pub(crate) use entry_point;
 
 #[cfg(wait_for_debugger)]
-use parking_lot::Mutex;
-
-#[cfg(wait_for_debugger)]
-static WAIT_FOR_DEBUGGER: Mutex<bool> = Mutex::new(true);
+static WAIT_FOR_DEBUGGER: parking_lot::Mutex<bool> = parking_lot::Mutex::new(true);
 
 #[cfg(wait_for_debugger)]
 fn wait_for_debugger() {
     let mut debug = WAIT_FOR_DEBUGGER.lock();
-    if *debug {
-        env_logger::init();
-        if std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
-            *debug = false;
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_secs(10));
-        unsafe {
-            std::intrinsics::breakpoint();
-        }
-        *debug = false;
+    if !*debug {
+        return;
     }
+    env_logger::init();
+    if std::env::var("ICD_WAIT_FOR_DEBUGGER").is_err() {
+        *debug = false;
+        return;
+    }
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::intrinsics::breakpoint();
+    *debug = false;
 }
 
 #[cfg(not(wait_for_debugger))]
 fn wait_for_debugger() {}
 
-/* Exported functions */
-
+/// Returns the address of an ICD entry point.
+///
 /// # Safety
 ///
-/// Use of null `pName` in an undefined behavior.
-#[no_mangle]
+/// `pName` must be either null or point to a NUL-terminated string.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     _instance: VkInstance,
     pName: *const std::ffi::c_char,
 ) -> PFN_vkVoidFunction {
-    let Ok(pName) = std::ffi::CStr::from_ptr(pName).to_str() else {
+    if pName.is_null() {
+        return None;
+    }
+    // SAFETY: The loader passes a NUL-terminated command name.
+    let Ok(pName) = (unsafe { CStr::from_ptr(pName) }).to_str() else {
         return None;
     };
     wait_for_debugger();
-    match pName {
-        "vkCreateInstance" => unsafe { std::mem::transmute(vkCreateInstance as *const ()) },
-        "vkEnumerateInstanceExtensionProperties" => unsafe {
-            std::mem::transmute(vkEnumerateInstanceExtensionProperties as *const ())
-        },
-        /* Vulkan Core 1.0 instance commands required by loader_icd_init_entries(). */
-        "vkDestroyInstance" => unsafe { std::mem::transmute(vkDestroyInstance as *const ()) },
-        "vkEnumeratePhysicalDevices" => unsafe {
-            std::mem::transmute(vkEnumeratePhysicalDevices as *const ())
-        },
-        "vkGetPhysicalDeviceFeatures" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceFeatures as *const ())
-        },
-        "vkGetPhysicalDeviceFormatProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceFormatProperties as *const ())
-        },
-        "vkGetPhysicalDeviceImageFormatProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceImageFormatProperties as *const ())
-        },
-        "vkGetPhysicalDeviceProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceProperties as *const ())
-        },
-        "vkGetPhysicalDeviceQueueFamilyProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceQueueFamilyProperties as *const ())
-        },
-        "vkGetPhysicalDeviceMemoryProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceMemoryProperties as *const ())
-        },
-        "vkGetDeviceProcAddr" => unsafe { std::mem::transmute(vkGetDeviceProcAddr as *const ()) },
-        "vkCreateDevice" => unsafe { std::mem::transmute(vkCreateDevice as *const ()) },
-        "vkEnumerateDeviceExtensionProperties" => unsafe {
-            std::mem::transmute(vkEnumerateDeviceExtensionProperties as *const ())
-        },
-        "vkGetPhysicalDeviceSparseImageFormatProperties" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceSparseImageFormatProperties as *const ())
-        },
-        /* VK_KHR_surface extension instance commands */
-        "vkDestroySurfaceKHR" => unsafe {
-            std::mem::transmute(surface::vkDestroySurfaceKHR as *const ())
-        },
-        "vkGetPhysicalDeviceSurfaceSupportKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceSurfaceSupportKHR as *const ())
-        },
-        "vkGetPhysicalDeviceSurfaceCapabilitiesKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceSurfaceCapabilitiesKHR as *const ())
-        },
-        "vkGetPhysicalDeviceSurfaceFormatsKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceSurfaceFormatsKHR as *const ())
-        },
-        "vkGetPhysicalDeviceSurfacePresentModesKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDeviceSurfacePresentModesKHR as *const ())
-        },
-        /* VK_KHR_xcb_surface extension instance commands */
-        "vkCreateXcbSurfaceKHR" => unsafe {
-            std::mem::transmute(surface::vkCreateXcbSurfaceKHR as *const ())
-        },
-        "vkGetPhysicalDeviceXcbPresentationSupportKHR" => unsafe {
-            std::mem::transmute(surface::vkGetPhysicalDeviceXcbPresentationSupportKHR as *const ())
-        },
-
-        /* VK_KHR_swapchain extension instance commands */
-        "vkGetPhysicalDevicePresentRectanglesKHR" => unsafe {
-            std::mem::transmute(vkGetPhysicalDevicePresentRectanglesKHR as *const ())
-        },
-        &_ => None,
-    }
+    impls::instance_command(pName)
 }
 
+/// Negotiates the ICD interface version understood by the loader.
+///
 /// # Safety
 ///
-/// Use of null `pName` in an undefined behavior.
-#[no_mangle]
+/// `pSupportedVersion` must be null or point to a writable `u32`.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn vk_icdNegotiateLoaderICDInterfaceVersion(
     pSupportedVersion: Option<NonNull<std::ffi::c_uint>>,
 ) -> VkResult {
     let Some(pSupportedVersion) = pSupportedVersion else {
         return VkResult::VK_ERROR_INCOMPATIBLE_DRIVER;
     };
-    let supported_version = 3;
-    let demanded_version = *pSupportedVersion.as_ptr();
-    if demanded_version < supported_version {
+    const SUPPORTED_VERSION: u32 = 3;
+    // SAFETY: The loader provides a writable `u32` as documented by the ICD
+    // interface contract.
+    let demanded_version = unsafe { *pSupportedVersion.as_ptr() };
+    if demanded_version < SUPPORTED_VERSION {
         VkResult::VK_ERROR_INCOMPATIBLE_DRIVER
     } else {
-        *pSupportedVersion.as_ptr() = std::cmp::min(demanded_version, supported_version);
+        // SAFETY: Same pointer and validity argument as the read above.
+        unsafe {
+            *pSupportedVersion.as_ptr() = demanded_version.min(SUPPORTED_VERSION);
+        }
         VkResult::VK_SUCCESS
     }
 }

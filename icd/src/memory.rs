@@ -1,11 +1,9 @@
 //! VkDeviceMemory device commands
 
 use headers::vk_decls::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::logical_device::LogicalDevice;
 use runtime::memory::*;
-
-
 
 pub unsafe extern "C" fn vkAllocateMemory(
     device: VkDevice,
@@ -13,20 +11,14 @@ pub unsafe extern "C" fn vkAllocateMemory(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pMemory: Option<NonNull<VkDeviceMemory>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pAllocateInfo) = pAllocateInfo else {
-        unreachable!()
-    };
+    let pAllocateInfo = pAllocateInfo.expect("Vulkan guarantees a non-null pointer");
     let allocate_info = pAllocateInfo.as_ref();
 
     let _ = pAllocator;
 
-    let Some(pMemory) = pMemory else {
-        unreachable!()
-    };
+    let pMemory = pMemory.expect("Vulkan guarantees a non-null pointer");
 
     *pMemory.as_ptr() = MemoryAllocation::create(
         device,
@@ -42,9 +34,8 @@ pub unsafe extern "C" fn vkFreeMemory(
     memory: VkDeviceMemory,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -59,15 +50,13 @@ pub unsafe extern "C" fn vkMapMemory(
     _flags: VkMemoryMapFlags,
     ppData: Option<NonNull<NonNull<std::ffi::c_void>>>,
 ) -> VkResult {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(memory) = MemoryAllocation::from_handle(memory) else {
-        unreachable!()
-    };
+    let memory =
+        MemoryAllocation::from_handle(memory).expect("Vulkan handle refers to a live object");
 
-    let Some(pData) = ppData else { unreachable!() };
+    let pData = ppData.expect("Vulkan guarantees a non-null pointer");
 
     let mapped_memory = memory.lock().map_host(offset, size);
     match mapped_memory {
@@ -80,13 +69,11 @@ pub unsafe extern "C" fn vkMapMemory(
 }
 
 pub unsafe extern "C" fn vkUnmapMemory(device: VkDevice, memory: VkDeviceMemory) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(memory) = MemoryAllocation::from_handle(memory) else {
-        unreachable!()
-    };
+    let memory =
+        MemoryAllocation::from_handle(memory).expect("Vulkan handle refers to a live object");
 
     memory.lock().unmap_host();
 }
@@ -96,16 +83,13 @@ pub unsafe extern "C" fn vkFlushMappedMemoryRanges(
     memoryRangeCount: u32,
     pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let memory_ranges = pMemoryRanges.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), memoryRangeCount as usize)
     });
 
-    let result = device.lock().flush_memory_ranges(memory_ranges);
-    result
+    device.lock().flush_memory_ranges(memory_ranges)
 }
 
 pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
@@ -113,14 +97,11 @@ pub unsafe extern "C" fn vkInvalidateMappedMemoryRanges(
     memoryRangeCount: u32,
     pMemoryRanges: Option<NonNull<VkMappedMemoryRange>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let memory_ranges = pMemoryRanges.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), memoryRangeCount as usize)
     });
 
-    let result = device.lock().invalidate_memory_ranges(memory_ranges);
-    result
+    device.lock().invalidate_memory_ranges(memory_ranges)
 }

@@ -1,31 +1,32 @@
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
-#![allow(dead_code)]
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(non_upper_case_globals)]
-#![allow(nonstandard_style)]
+#![allow(clippy::use_self)] // Generated structs repeat their own name in field types.
 
 use std::fmt::{Debug, Formatter};
-use std::hash::Hasher;
-use std::marker::PhantomData;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
-use xcb;
 
-/// ICD has to return pointer to struct with the first field being VkLoaderData.
+/// A dispatchable Vulkan handle.
+///
+/// The Vulkan loader requires the first field of the pointed-to data to be
+/// `VkLoaderData`; see <https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderDriverInterface.md>.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct VkDispatchableHandle(pub Option<NonNull<VkDispatchableHandleInner>>);
 
-impl std::hash::Hash for VkDispatchableHandle {
+impl Hash for VkDispatchableHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0.map_or(0, |x| unsafe { x.as_ref() }.key));
-        state.finish();
+        // Handles are opaque identities; the address is a stable, cheap key.
+        self.0
+            .map_or(0, |handle| handle.as_ptr() as usize)
+            .hash(state);
     }
 }
 
+// SAFETY: A handle is an opaque identifier. The pointed-to inner value is
+// immutable for as long as the handle exists and is only used to return the
+// loader magic and a debug key.
 unsafe impl Send for VkDispatchableHandle {}
+// SAFETY: See the `Send` implementation above.
 unsafe impl Sync for VkDispatchableHandle {}
 
 #[repr(C)]
@@ -42,6 +43,7 @@ impl Debug for VkDispatchableHandleInner {
     }
 }
 
+/// First field of a dispatchable handle, written by the Vulkan loader.
 #[repr(C)]
 pub union VkLoaderData {
     pub loader_magic: usize,
@@ -49,35 +51,23 @@ pub union VkLoaderData {
 }
 
 impl VkLoaderData {
-    pub const LOADER_MAGIC: usize = 0x01CDC0DE;
+    pub const LOADER_MAGIC: usize = 0x01CD_C0DE;
 }
 
+/// A non-dispatchable Vulkan handle.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct VkNonDispatchableHandle(pub Option<NonZeroU64>);
+
 pub const VK_NULL_HANDLE: VkNonDispatchableHandle = VkNonDispatchableHandle(None);
 
 pub type xcb_connection_t = xcb::ffi::xcb_connection_t;
 pub type xcb_window_t = u32;
 
-// TODO: Smarter handling of unsupported FFI types.
+/// Placeholder for FFI types that the generated bindings do not model yet.
 pub(crate) type VkUnsupportedType = *const std::ffi::c_void;
 
 include!(concat!(env!("OUT_DIR"), "/codegen_vk_decls.rs"));
-
-#[macro_export]
-macro_rules! c_char_array {
-    ($const_name:ident, $len_name:ident, $str:literal) => {
-        lazy_static! {
-            static ref $const_name: [std::ffi::c_char; $len_name as usize] = {
-                let mut s: [u8; $len_name as usize] = [0; $len_name as usize];
-                let str = $str;
-                s[..str.len()].copy_from_slice(str.as_bytes());
-                unsafe { std::mem::transmute(s) }
-            };
-        }
-    };
-}
 
 impl VkFormat {
     pub const fn bytes_per_pixel(&self) -> u8 {
@@ -557,14 +547,15 @@ impl From<VkFormat> for common::math::Format {
 
 impl From<VkClearValue> for common::math::Color {
     fn from(value: VkClearValue) -> Self {
-        unsafe {
-            Self::from_raw(
-                value.color.uint32[0] as u64,
-                value.color.uint32[1] as u64,
-                value.color.uint32[2] as u64,
-                value.color.uint32[3] as u64,
-            )
-        }
+        // SAFETY: `color` is a union of 32-bit arrays and the `uint32` variant
+        // is valid for every clear value.
+        let color = unsafe { value.color.uint32 };
+        Self::from_raw(
+            u64::from(color[0]),
+            u64::from(color[1]),
+            u64::from(color[2]),
+            u64::from(color[3]),
+        )
     }
 }
 
@@ -580,31 +571,21 @@ impl From<VkPolygonMode> for common::graphics::PolygonMode {
     }
 }
 
-pub struct VkFlag<T>(pub u32, PhantomData<T>);
-impl<T> VkFlag<T> {
-    pub fn new(value: impl Into<u32>) -> Self {
-        Self {
-            0: value.into(),
-            1: PhantomData,
-        }
-    }
-}
-
-impl From<VkFlag<VkCullModeFlags>> for common::graphics::CullMode {
-    fn from(value: VkFlag<VkCullModeFlags>) -> Self {
-        match value.0.into() {
+impl From<VkCullModeFlagBits> for common::graphics::CullMode {
+    fn from(value: VkCullModeFlagBits) -> Self {
+        match value {
             VkCullModeFlagBits::VK_CULL_MODE_NONE => Self::None,
             VkCullModeFlagBits::VK_CULL_MODE_FRONT_BIT => Self::Front,
             VkCullModeFlagBits::VK_CULL_MODE_BACK_BIT => Self::Back,
             VkCullModeFlagBits::VK_CULL_MODE_FRONT_AND_BACK => Self::FrontAndBack,
-            _ => unreachable!(),
+            _ => unreachable!("unknown VkCullModeFlagBits value: {value:?}"),
         }
     }
 }
 
 impl From<VkFrontFace> for common::graphics::FrontFace {
     fn from(value: VkFrontFace) -> Self {
-        match value.into() {
+        match value {
             VkFrontFace::VK_FRONT_FACE_COUNTER_CLOCKWISE => Self::CounterClockwise,
             VkFrontFace::VK_FRONT_FACE_CLOCKWISE => Self::Clockwise,
             _ => unreachable!(),
@@ -613,8 +594,8 @@ impl From<VkFrontFace> for common::graphics::FrontFace {
 }
 
 impl VkIndexType {
-    pub fn size_in_bytes(&self) -> u8 {
-        match *self {
+    pub const fn size_in_bytes(self) -> u8 {
+        match self {
             Self::VK_INDEX_TYPE_NONE_KHR => 0,
             Self::VK_INDEX_TYPE_UINT8_EXT => 1,
             Self::VK_INDEX_TYPE_UINT16 => 2,

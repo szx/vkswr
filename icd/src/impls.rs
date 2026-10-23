@@ -1,6 +1,16 @@
-/* Runtime crate function wrappers. */
+//! Vulkan entry point implementations.
+//!
+//! Each function translates the raw Vulkan parameter types into the safe
+//! runtime object model and back. The `non_snake_case` names mirror the
+//! Vulkan specification.
+
 #![allow(non_snake_case)]
-#![allow(unused)]
+// Unimplemented commands keep their Vulkan-mandated signatures even though
+// they do not consume every parameter yet.
+#![allow(unused_variables)]
+// The ICD implements a superset of the commands it currently advertises
+// through its dispatch tables (for example Vulkan 1.1 additions).
+#![allow(dead_code)]
 
 use crate::buffer::*;
 use crate::command_buffer::*;
@@ -9,28 +19,26 @@ use crate::image::*;
 use crate::memory::*;
 use crate::pipeline::*;
 use crate::sampler::*;
+use crate::surface::*;
 use crate::swapchain::*;
 use headers::vk_decls::*;
-use headers::vk_defs::*;
 use runtime::command_buffer::CommandBuffer;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::fence::Fence;
 use runtime::instance::Instance;
 use runtime::logical_device::LogicalDevice;
 use runtime::physical_device::PhysicalDevice;
 use runtime::queue::Queue;
 use runtime::semaphore::Semaphore;
-use runtime::*;
-use std::sync::{Arc, Weak};
+
+include!(concat!(env!("OUT_DIR"), "/dispatch_tables.rs"));
 
 pub unsafe extern "C" fn vkCreateInstance(
     pCreateInfo: Option<NonNull<VkInstanceCreateInfo>>,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pInstance: Option<NonNull<VkInstance>>,
 ) -> VkResult {
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     assert_eq!(
         create_info.sType,
@@ -39,9 +47,7 @@ pub unsafe extern "C" fn vkCreateInstance(
 
     let _ = pAllocator;
 
-    let Some(mut pInstance) = pInstance else {
-        unreachable!()
-    };
+    let pInstance = pInstance.expect("Vulkan guarantees a non-null pointer");
 
     *pInstance.as_ptr() = match Instance::create() {
         Ok(inner) => inner,
@@ -56,13 +62,9 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
     pPhysicalDeviceCount: Option<NonNull<u32>>,
     pPhysicalDevices: Option<NonNull<VkPhysicalDevice>>,
 ) -> VkResult {
-    let Some(instance) = Instance::from_handle(instance) else {
-        unreachable!()
-    };
+    let instance = Instance::from_handle(instance).expect("Vulkan handle refers to a live object");
 
-    let Some(pPhysicalDeviceCount) = pPhysicalDeviceCount else {
-        unreachable!()
-    };
+    let pPhysicalDeviceCount = pPhysicalDeviceCount.expect("Vulkan guarantees a non-null pointer");
 
     pPhysicalDevices.map_or_else(
         || {
@@ -70,7 +72,7 @@ pub unsafe extern "C" fn vkEnumeratePhysicalDevices(
             VkResult::VK_SUCCESS
         },
         |pPhysicalDevices| {
-            *pPhysicalDevices.as_ptr() = instance.lock().physical_device().lock().get_handle();
+            *pPhysicalDevices.as_ptr() = instance.lock().physical_device().lock().handle();
             VkResult::VK_SUCCESS
         },
     )
@@ -80,13 +82,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceProperties(
     physicalDevice: VkPhysicalDevice,
     pProperties: Option<NonNull<VkPhysicalDeviceProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pProperties) = pProperties else {
-        unreachable!()
-    };
+    let pProperties = pProperties.expect("Vulkan guarantees a non-null pointer");
 
     // SPEC: "Returns properties of a physical device"
     *pProperties.as_ptr() = physicalDevice.lock().properties();
@@ -97,24 +96,18 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceToolProperties(
     pToolCount: Option<NonNull<u32>>,
     pToolProperties: Option<NonNull<VkPhysicalDeviceToolProperties>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    if pToolProperties.is_none() {
-        if let Some(pToolCount) = pToolCount {
-            *pToolCount.as_ptr() = physicalDevice.lock().tool_properties().len() as u32;
-        }
-    } else {
-        let Some(pToolProperties) = pToolProperties else {
-            unreachable!()
-        };
+    if let Some(pToolProperties) = pToolProperties {
         let tool_properties = physicalDevice.lock().tool_properties();
         std::ptr::copy_nonoverlapping(
             tool_properties.as_ptr(),
             pToolProperties.as_ptr(),
             tool_properties.len(),
         );
+    } else if let Some(pToolCount) = pToolCount {
+        *pToolCount.as_ptr() = physicalDevice.lock().tool_properties().len() as u32;
     }
 
     VkResult::VK_SUCCESS
@@ -124,13 +117,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMemoryProperties(
     physicalDevice: VkPhysicalDevice,
     pMemoryProperties: Option<NonNull<VkPhysicalDeviceMemoryProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pMemoryProperties) = pMemoryProperties else {
-        unreachable!()
-    };
+    let pMemoryProperties = pMemoryProperties.expect("Vulkan guarantees a non-null pointer");
 
     // SPEC: "Reports memory information for the specified physical device"
     *pMemoryProperties.as_ptr() = physicalDevice.lock().memory_properties();
@@ -140,13 +130,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFeatures(
     physicalDevice: VkPhysicalDevice,
     pFeatures: Option<NonNull<VkPhysicalDeviceFeatures>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pFeatures) = pFeatures else {
-        unreachable!()
-    };
+    let pFeatures = pFeatures.expect("Vulkan guarantees a non-null pointer");
 
     // SPEC: "Reports capabilities of a physical device"
     *pFeatures.as_ptr() = physicalDevice.lock().features();
@@ -157,27 +144,22 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceQueueFamilyProperties(
     pQueueFamilyPropertyCount: Option<NonNull<u32>>,
     pQueueFamilyProperties: Option<NonNull<VkQueueFamilyProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pQueueFamilyPropertyCount) = pQueueFamilyPropertyCount else {
-        unreachable!()
-    };
+    let pQueueFamilyPropertyCount =
+        pQueueFamilyPropertyCount.expect("Vulkan guarantees a non-null pointer");
 
     // SPEC: "Reports properties of the queues of the specified physical device"
-    if pQueueFamilyProperties.is_none() {
-        *pQueueFamilyPropertyCount.as_ptr() =
-            physicalDevice.lock().queue_family_properties().len() as u32;
-    } else {
-        let Some(pQueueFamilyProperties) = pQueueFamilyProperties else {
-            unreachable!()
-        };
+    if let Some(pQueueFamilyProperties) = pQueueFamilyProperties {
         let queue_family_properties = physicalDevice.lock().queue_family_properties();
         pQueueFamilyProperties.as_ptr().copy_from(
             queue_family_properties.as_ptr(),
             queue_family_properties.len(),
         );
+    } else {
+        *pQueueFamilyPropertyCount.as_ptr() =
+            physicalDevice.lock().queue_family_properties().len() as u32;
     }
 }
 
@@ -187,15 +169,7 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
     assert_eq!(pLayerName, None);
-    if pProperties.is_none() {
-        if let Some(pPropertyCount) = pPropertyCount {
-            *pPropertyCount.as_ptr() = Instance::extension_count() as u32;
-        }
-    } else {
-        let Some(pProperties) = pProperties else {
-            unreachable!()
-        };
-
+    if let Some(pProperties) = pProperties {
         pLayerName.map_or_else(
             || {
                 let properties = Instance::extension_properties();
@@ -206,12 +180,14 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
                 );
             },
             |pLayerName| {
-                let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else {
-                    unreachable!()
-                };
-                todo!("layerName: {layerName}");
+                let layer_name = std::ffi::CStr::from_ptr(pLayerName.as_ptr())
+                    .to_str()
+                    .expect("valid UTF-8 string");
+                todo!("layer extensions for {layer_name}");
             },
         );
+    } else if let Some(pPropertyCount) = pPropertyCount {
+        *pPropertyCount.as_ptr() = Instance::extension_count() as u32;
     }
     VkResult::VK_SUCCESS
 }
@@ -222,36 +198,21 @@ pub unsafe extern "C" fn vkEnumerateDeviceExtensionProperties(
     pPropertyCount: Option<NonNull<u32>>,
     pProperties: Option<NonNull<VkExtensionProperties>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let _physical_device =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pPropertyCount) = pPropertyCount else {
-        unreachable!()
-    };
+    let pPropertyCount = pPropertyCount.expect("Vulkan guarantees a non-null pointer");
 
-    if pLayerName.is_none() {
-        if pProperties.is_none() {
-            *pPropertyCount.as_ptr() = PhysicalDevice::extension_count() as u32;
-        } else {
-            let Some(pProperties) = pProperties else {
-                unreachable!()
-            };
-            let properties = PhysicalDevice::extension_properties();
-            std::ptr::copy_nonoverlapping(
-                properties.as_ptr(),
-                pProperties.as_ptr(),
-                properties.len(),
-            );
-        }
+    if let Some(pLayerName) = pLayerName {
+        let layer_name = std::ffi::CStr::from_ptr(pLayerName.as_ptr())
+            .to_str()
+            .expect("valid UTF-8 string");
+        todo!("device extensions for {layer_name}");
+    } else if let Some(pProperties) = pProperties {
+        let properties = PhysicalDevice::extension_properties();
+        std::ptr::copy_nonoverlapping(properties.as_ptr(), pProperties.as_ptr(), properties.len());
     } else {
-        let Some(pLayerName) = pLayerName else {
-            unreachable!()
-        };
-        let Ok(layerName) = std::ffi::CStr::from_ptr(pLayerName.as_ptr()).to_str() else {
-            unreachable!()
-        };
-        todo!("the device extensions provided by {layerName} layer are returned")
+        *pPropertyCount.as_ptr() = PhysicalDevice::extension_count() as u32;
     }
     VkResult::VK_SUCCESS
 }
@@ -262,25 +223,18 @@ pub unsafe extern "C" fn vkCreateDevice(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pDevice: Option<NonNull<VkDevice>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     assert_eq!(
         create_info.sType,
         VkStructureType::VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
     );
-    let queue_create_info = create_info.pQueueCreateInfos;
-
     let _ = pAllocator;
 
-    let Some(pDevice) = pDevice else {
-        unreachable!()
-    };
+    let pDevice = pDevice.expect("Vulkan guarantees a non-null pointer");
 
     let Some(queue_create_info) = create_info.pQueueCreateInfos else {
         return VkResult::VK_ERROR_INITIALIZATION_FAILED;
@@ -301,258 +255,19 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
     device: VkDevice,
     pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
+    // Validity of the device is required by the specification; the object
+    // itself is not needed to look up an entry point.
+    let _device = LogicalDevice::from_handle(device).expect("device handle is live");
+    let pName = pName?;
+    // SAFETY: The loader passes a NUL-terminated command name.
+    let Ok(pName) = (unsafe { std::ffi::CStr::from_ptr(pName.as_ptr()) }).to_str() else {
+        return None;
     };
 
-    let Some(pName) = pName else { unreachable!() };
-    let Ok(pName) = std::ffi::CStr::from_ptr(pName.as_ptr()).to_str() else {
-        unreachable!()
-    };
-
-    // SPEC: The overhead of the internal dispatch for VkDevice objects can be avoided by obtaining
-    // device-specific function pointers for any commands that use a device or device-child object
-    // as their dispatchable object.
-
-    match pName {
-        /* Vulkan Core 1.0 device commands. */
-        "vkDestroyDevice" => unsafe { std::mem::transmute(vkDestroyDevice as *const ()) },
-        "vkGetDeviceQueue" => unsafe { std::mem::transmute(vkGetDeviceQueue as *const ()) },
-        "vkQueueSubmit" => unsafe { std::mem::transmute(vkQueueSubmit as *const ()) },
-        "vkQueueWaitIdle" => unsafe { std::mem::transmute(vkQueueWaitIdle as *const ()) },
-        "vkDeviceWaitIdle" => unsafe { std::mem::transmute(vkDeviceWaitIdle as *const ()) },
-        "vkAllocateMemory" => unsafe { std::mem::transmute(vkAllocateMemory as *const ()) },
-        "vkFreeMemory" => unsafe { std::mem::transmute(vkFreeMemory as *const ()) },
-        "vkMapMemory" => unsafe { std::mem::transmute(vkMapMemory as *const ()) },
-        "vkUnmapMemory" => unsafe { std::mem::transmute(vkUnmapMemory as *const ()) },
-        "vkFlushMappedMemoryRanges" => unsafe {
-            std::mem::transmute(vkFlushMappedMemoryRanges as *const ())
-        },
-        "vkInvalidateMappedMemoryRanges" => unsafe {
-            std::mem::transmute(vkInvalidateMappedMemoryRanges as *const ())
-        },
-        "vkGetDeviceMemoryCommitment" => unsafe {
-            std::mem::transmute(vkGetDeviceMemoryCommitment as *const ())
-        },
-        "vkBindBufferMemory" => unsafe { std::mem::transmute(vkBindBufferMemory as *const ()) },
-        "vkBindImageMemory" => unsafe { std::mem::transmute(vkBindImageMemory as *const ()) },
-        "vkGetBufferMemoryRequirements" => unsafe {
-            std::mem::transmute(vkGetBufferMemoryRequirements as *const ())
-        },
-        "vkGetImageMemoryRequirements" => unsafe {
-            std::mem::transmute(vkGetImageMemoryRequirements as *const ())
-        },
-        "vkGetImageSparseMemoryRequirements" => unsafe {
-            std::mem::transmute(vkGetImageSparseMemoryRequirements as *const ())
-        },
-        "vkQueueBindSparse" => unsafe { std::mem::transmute(vkQueueBindSparse as *const ()) },
-        "vkCreateFence" => unsafe { std::mem::transmute(vkCreateFence as *const ()) },
-        "vkDestroyFence" => unsafe { std::mem::transmute(vkDestroyFence as *const ()) },
-        "vkResetFences" => unsafe { std::mem::transmute(vkResetFences as *const ()) },
-        "vkGetFenceStatus" => unsafe { std::mem::transmute(vkGetFenceStatus as *const ()) },
-        "vkWaitForFences" => unsafe { std::mem::transmute(vkWaitForFences as *const ()) },
-        "vkCreateSemaphore" => unsafe { std::mem::transmute(vkCreateSemaphore as *const ()) },
-        "vkDestroySemaphore" => unsafe { std::mem::transmute(vkDestroySemaphore as *const ()) },
-        "vkCreateEvent" => unsafe { std::mem::transmute(vkCreateEvent as *const ()) },
-        "vkDestroyEvent" => unsafe { std::mem::transmute(vkDestroyEvent as *const ()) },
-        "vkGetEventStatus" => unsafe { std::mem::transmute(vkGetEventStatus as *const ()) },
-        "vkSetEvent" => unsafe { std::mem::transmute(vkSetEvent as *const ()) },
-        "vkResetEvent" => unsafe { std::mem::transmute(vkResetEvent as *const ()) },
-        "vkCreateQueryPool" => unsafe { std::mem::transmute(vkCreateQueryPool as *const ()) },
-        "vkDestroyQueryPool" => unsafe { std::mem::transmute(vkDestroyQueryPool as *const ()) },
-        "vkGetQueryPoolResults" => unsafe {
-            std::mem::transmute(vkGetQueryPoolResults as *const ())
-        },
-        "vkCreateBuffer" => unsafe { std::mem::transmute(vkCreateBuffer as *const ()) },
-        "vkDestroyBuffer" => unsafe { std::mem::transmute(vkDestroyBuffer as *const ()) },
-        "vkCreateBufferView" => unsafe { std::mem::transmute(vkCreateBufferView as *const ()) },
-        "vkDestroyBufferView" => unsafe { std::mem::transmute(vkDestroyBufferView as *const ()) },
-        "vkCreateImage" => unsafe { std::mem::transmute(vkCreateImage as *const ()) },
-        "vkDestroyImage" => unsafe { std::mem::transmute(vkDestroyImage as *const ()) },
-        "vkGetImageSubresourceLayout" => unsafe {
-            std::mem::transmute(vkGetImageSubresourceLayout as *const ())
-        },
-        "vkCreateImageView" => unsafe { std::mem::transmute(vkCreateImageView as *const ()) },
-        "vkDestroyImageView" => unsafe { std::mem::transmute(vkDestroyImageView as *const ()) },
-        "vkCreateShaderModule" => unsafe { std::mem::transmute(vkCreateShaderModule as *const ()) },
-        "vkDestroyShaderModule" => unsafe {
-            std::mem::transmute(vkDestroyShaderModule as *const ())
-        },
-        "vkCreatePipelineCache" => unsafe {
-            std::mem::transmute(vkCreatePipelineCache as *const ())
-        },
-        "vkDestroyPipelineCache" => unsafe {
-            std::mem::transmute(vkDestroyPipelineCache as *const ())
-        },
-        "vkGetPipelineCacheData" => unsafe {
-            std::mem::transmute(vkGetPipelineCacheData as *const ())
-        },
-        "vkMergePipelineCaches" => unsafe {
-            std::mem::transmute(vkMergePipelineCaches as *const ())
-        },
-        "vkCreateGraphicsPipelines" => unsafe {
-            std::mem::transmute(vkCreateGraphicsPipelines as *const ())
-        },
-        "vkCreateComputePipelines" => unsafe {
-            std::mem::transmute(vkCreateComputePipelines as *const ())
-        },
-        "vkDestroyPipeline" => unsafe { std::mem::transmute(vkDestroyPipeline as *const ()) },
-        "vkCreatePipelineLayout" => unsafe {
-            std::mem::transmute(vkCreatePipelineLayout as *const ())
-        },
-        "vkDestroyPipelineLayout" => unsafe {
-            std::mem::transmute(vkDestroyPipelineLayout as *const ())
-        },
-        "vkCreateSampler" => unsafe { std::mem::transmute(vkCreateSampler as *const ()) },
-        "vkDestroySampler" => unsafe { std::mem::transmute(vkDestroySampler as *const ()) },
-        "vkCreateDescriptorSetLayout" => unsafe {
-            std::mem::transmute(vkCreateDescriptorSetLayout as *const ())
-        },
-        "vkDestroyDescriptorSetLayout" => unsafe {
-            std::mem::transmute(vkDestroyDescriptorSetLayout as *const ())
-        },
-        "vkCreateDescriptorPool" => unsafe {
-            std::mem::transmute(vkCreateDescriptorPool as *const ())
-        },
-        "vkDestroyDescriptorPool" => unsafe {
-            std::mem::transmute(vkDestroyDescriptorPool as *const ())
-        },
-        "vkResetDescriptorPool" => unsafe {
-            std::mem::transmute(vkResetDescriptorPool as *const ())
-        },
-        "vkAllocateDescriptorSets" => unsafe {
-            std::mem::transmute(vkAllocateDescriptorSets as *const ())
-        },
-        "vkFreeDescriptorSets" => unsafe { std::mem::transmute(vkFreeDescriptorSets as *const ()) },
-        "vkUpdateDescriptorSets" => unsafe {
-            std::mem::transmute(vkUpdateDescriptorSets as *const ())
-        },
-        "vkCreateFramebuffer" => unsafe { std::mem::transmute(vkCreateFramebuffer as *const ()) },
-        "vkDestroyFramebuffer" => unsafe { std::mem::transmute(vkDestroyFramebuffer as *const ()) },
-        "vkCreateRenderPass" => unsafe { std::mem::transmute(vkCreateRenderPass as *const ()) },
-        "vkDestroyRenderPass" => unsafe { std::mem::transmute(vkDestroyRenderPass as *const ()) },
-        "vkGetRenderAreaGranularity" => unsafe {
-            std::mem::transmute(vkGetRenderAreaGranularity as *const ())
-        },
-        "vkCreateCommandPool" => unsafe { std::mem::transmute(vkCreateCommandPool as *const ()) },
-        "vkDestroyCommandPool" => unsafe { std::mem::transmute(vkDestroyCommandPool as *const ()) },
-        "vkResetCommandPool" => unsafe { std::mem::transmute(vkResetCommandPool as *const ()) },
-        "vkAllocateCommandBuffers" => unsafe {
-            std::mem::transmute(vkAllocateCommandBuffers as *const ())
-        },
-        "vkFreeCommandBuffers" => unsafe { std::mem::transmute(vkFreeCommandBuffers as *const ()) },
-        "vkBeginCommandBuffer" => unsafe { std::mem::transmute(vkBeginCommandBuffer as *const ()) },
-        "vkEndCommandBuffer" => unsafe { std::mem::transmute(vkEndCommandBuffer as *const ()) },
-        "vkResetCommandBuffer" => unsafe { std::mem::transmute(vkResetCommandBuffer as *const ()) },
-        "vkCmdBindPipeline" => unsafe { std::mem::transmute(vkCmdBindPipeline as *const ()) },
-        "vkCmdSetViewport" => unsafe { std::mem::transmute(vkCmdSetViewport as *const ()) },
-        "vkCmdSetScissor" => unsafe { std::mem::transmute(vkCmdSetScissor as *const ()) },
-        "vkCmdSetLineWidth" => unsafe { std::mem::transmute(vkCmdSetLineWidth as *const ()) },
-        "vkCmdSetDepthBias" => unsafe { std::mem::transmute(vkCmdSetDepthBias as *const ()) },
-        "vkCmdSetBlendConstants" => unsafe {
-            std::mem::transmute(vkCmdSetBlendConstants as *const ())
-        },
-        "vkCmdSetDepthBounds" => unsafe { std::mem::transmute(vkCmdSetDepthBounds as *const ()) },
-        "vkCmdSetStencilCompareMask" => unsafe {
-            std::mem::transmute(vkCmdSetStencilCompareMask as *const ())
-        },
-        "vkCmdSetStencilWriteMask" => unsafe {
-            std::mem::transmute(vkCmdSetStencilWriteMask as *const ())
-        },
-        "vkCmdSetStencilReference" => unsafe {
-            std::mem::transmute(vkCmdSetStencilReference as *const ())
-        },
-        "vkCmdBindDescriptorSets" => unsafe {
-            std::mem::transmute(vkCmdBindDescriptorSets as *const ())
-        },
-        "vkCmdBindIndexBuffer" => unsafe { std::mem::transmute(vkCmdBindIndexBuffer as *const ()) },
-        "vkCmdBindVertexBuffers" => unsafe {
-            std::mem::transmute(vkCmdBindVertexBuffers as *const ())
-        },
-        "vkCmdDraw" => unsafe { std::mem::transmute(vkCmdDraw as *const ()) },
-        "vkCmdDrawIndexed" => unsafe { std::mem::transmute(vkCmdDrawIndexed as *const ()) },
-        "vkCmdDrawIndirect" => unsafe { std::mem::transmute(vkCmdDrawIndirect as *const ()) },
-        "vkCmdDrawIndexedIndirect" => unsafe {
-            std::mem::transmute(vkCmdDrawIndexedIndirect as *const ())
-        },
-        "vkCmdDispatch" => unsafe { std::mem::transmute(vkCmdDispatch as *const ()) },
-        "vkCmdDispatchIndirect" => unsafe {
-            std::mem::transmute(vkCmdDispatchIndirect as *const ())
-        },
-        "vkCmdCopyBuffer" => unsafe { std::mem::transmute(vkCmdCopyBuffer as *const ()) },
-        "vkCmdCopyImage" => unsafe { std::mem::transmute(vkCmdCopyImage as *const ()) },
-        "vkCmdBlitImage" => unsafe { std::mem::transmute(vkCmdBlitImage as *const ()) },
-        "vkCmdCopyBufferToImage" => unsafe {
-            std::mem::transmute(vkCmdCopyBufferToImage as *const ())
-        },
-        "vkCmdCopyImageToBuffer" => unsafe {
-            std::mem::transmute(vkCmdCopyImageToBuffer as *const ())
-        },
-        "vkCmdUpdateBuffer" => unsafe { std::mem::transmute(vkCmdUpdateBuffer as *const ()) },
-        "vkCmdFillBuffer" => unsafe { std::mem::transmute(vkCmdFillBuffer as *const ()) },
-        "vkCmdClearColorImage" => unsafe { std::mem::transmute(vkCmdClearColorImage as *const ()) },
-        "vkCmdClearDepthStencilImage" => unsafe {
-            std::mem::transmute(vkCmdClearDepthStencilImage as *const ())
-        },
-        "vkCmdClearAttachments" => unsafe {
-            std::mem::transmute(vkCmdClearAttachments as *const ())
-        },
-        "vkCmdResolveImage" => unsafe { std::mem::transmute(vkCmdResolveImage as *const ()) },
-        "vkCmdSetEvent" => unsafe { std::mem::transmute(vkCmdSetEvent as *const ()) },
-        "vkCmdResetEvent" => unsafe { std::mem::transmute(vkCmdResetEvent as *const ()) },
-        "vkCmdWaitEvents" => unsafe { std::mem::transmute(vkCmdWaitEvents as *const ()) },
-        "vkCmdPipelineBarrier" => unsafe { std::mem::transmute(vkCmdPipelineBarrier as *const ()) },
-        "vkCmdBeginQuery" => unsafe { std::mem::transmute(vkCmdBeginQuery as *const ()) },
-        "vkCmdEndQuery" => unsafe { std::mem::transmute(vkCmdEndQuery as *const ()) },
-        "vkCmdResetQueryPool" => unsafe { std::mem::transmute(vkCmdResetQueryPool as *const ()) },
-        "vkCmdWriteTimestamp" => unsafe { std::mem::transmute(vkCmdWriteTimestamp as *const ()) },
-        "vkCmdCopyQueryPoolResults" => unsafe {
-            std::mem::transmute(vkCmdCopyQueryPoolResults as *const ())
-        },
-        "vkCmdPushConstants" => unsafe { std::mem::transmute(vkCmdPushConstants as *const ()) },
-        "vkCmdBeginRenderPass" => unsafe { std::mem::transmute(vkCmdBeginRenderPass as *const ()) },
-        "vkCmdNextSubpass" => unsafe { std::mem::transmute(vkCmdNextSubpass as *const ()) },
-        "vkCmdEndRenderPass" => unsafe { std::mem::transmute(vkCmdEndRenderPass as *const ()) },
-        "vkCmdExecuteCommands" => unsafe { std::mem::transmute(vkCmdExecuteCommands as *const ()) },
-        /* VK_EXT_debug_marker extension device commands */
-        "vkDebugMarkerSetObjectTagEXT" => unsafe {
-            std::mem::transmute(vkDebugMarkerSetObjectTagEXT as *const ())
-        },
-        "vkDebugMarkerSetObjectNameEXT" => unsafe {
-            std::mem::transmute(vkDebugMarkerSetObjectNameEXT as *const ())
-        },
-        "vkCmdDebugMarkerBeginEXT" => unsafe {
-            std::mem::transmute(vkCmdDebugMarkerBeginEXT as *const ())
-        },
-        "vkCmdDebugMarkerEndEXT" => unsafe {
-            std::mem::transmute(vkCmdDebugMarkerEndEXT as *const ())
-        },
-        "vkCmdDebugMarkerInsertEXT" => unsafe {
-            std::mem::transmute(vkCmdDebugMarkerInsertEXT as *const ())
-        },
-        /* VK_KHR_swapchain extension device commands */
-        "vkCreateSwapchainKHR" => unsafe { std::mem::transmute(vkCreateSwapchainKHR as *const ()) },
-        "vkDestroySwapchainKHR" => unsafe {
-            std::mem::transmute(vkDestroySwapchainKHR as *const ())
-        },
-        "vkGetSwapchainImagesKHR" => unsafe {
-            std::mem::transmute(vkGetSwapchainImagesKHR as *const ())
-        },
-        "vkAcquireNextImageKHR" => unsafe {
-            std::mem::transmute(vkAcquireNextImageKHR as *const ())
-        },
-        "vkQueuePresentKHR" => unsafe { std::mem::transmute(vkQueuePresentKHR as *const ()) },
-        "vkGetDeviceGroupPresentCapabilitiesKHR" => unsafe {
-            std::mem::transmute(vkGetDeviceGroupPresentCapabilitiesKHR as *const ())
-        },
-        "vkGetDeviceGroupSurfacePresentModesKHR" => unsafe {
-            std::mem::transmute(vkGetDeviceGroupSurfacePresentModesKHR as *const ())
-        },
-        "vkAcquireNextImage2KHR" => unsafe {
-            std::mem::transmute(vkAcquireNextImage2KHR as *const ())
-        },
-        &_ => None, // unreachable!("pName: {}", pName) TODO: Vulkan 1.1 Core commands.
-    }
+    // SPEC: The overhead of the internal dispatch for VkDevice objects can be
+    // avoided by obtaining device-specific function pointers for any commands
+    // that use a device or a device-child object as their dispatchable object.
+    device_command(pName)
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
@@ -560,13 +275,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceFormatProperties(
     format: VkFormat,
     pFormatProperties: Option<NonNull<VkFormatProperties>>,
 ) {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pFormatProperties) = pFormatProperties else {
-        unreachable!()
-    };
+    let pFormatProperties = pFormatProperties.expect("Vulkan guarantees a non-null pointer");
 
     // SPEC: "Reports capabilities of a physical device"
     *pFormatProperties.as_ptr() = physicalDevice.lock().format_properties(format);
@@ -581,13 +293,11 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceImageFormatProperties(
     flags: VkImageCreateFlags,
     pImageFormatProperties: Option<NonNull<VkImageFormatProperties>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pImageFormatProperties) = pImageFormatProperties else {
-        unreachable!()
-    };
+    let pImageFormatProperties =
+        pImageFormatProperties.expect("Vulkan guarantees a non-null pointer");
 
     let properties = physicalDevice
         .lock()
@@ -624,14 +334,12 @@ pub unsafe extern "C" fn vkGetDeviceQueue(
     queueIndex: u32,
     pQueue: Option<NonNull<VkQueue>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pQueue) = pQueue else { unreachable!() };
+    let pQueue = pQueue.expect("Vulkan guarantees a non-null pointer");
 
     let queue = device.lock().queue(queueFamilyIndex, queueIndex);
-    *pQueue.as_ptr() = queue.lock().get_handle();
+    *pQueue.as_ptr() = queue.lock().handle();
 }
 
 pub unsafe extern "C" fn vkCreateFence(
@@ -640,13 +348,9 @@ pub unsafe extern "C" fn vkCreateFence(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pFence: Option<NonNull<VkFence>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     assert_eq!(
         create_info.sType,
@@ -655,9 +359,7 @@ pub unsafe extern "C" fn vkCreateFence(
 
     let _ = pAllocator;
 
-    let Some(mut pFence) = pFence else {
-        unreachable!()
-    };
+    let pFence = pFence.expect("Vulkan guarantees a non-null pointer");
 
     *pFence.as_ptr() = Fence::create(device, create_info);
 
@@ -669,9 +371,7 @@ pub unsafe extern "C" fn vkDestroyFence(
     fence: VkFence,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -684,13 +384,9 @@ pub unsafe extern "C" fn vkCreateSemaphore(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSemaphore: Option<NonNull<VkSemaphore>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     assert_eq!(
         create_info.sType,
@@ -699,9 +395,7 @@ pub unsafe extern "C" fn vkCreateSemaphore(
 
     let _ = pAllocator;
 
-    let Some(mut pSemaphore) = pSemaphore else {
-        unreachable!()
-    };
+    let pSemaphore = pSemaphore.expect("Vulkan guarantees a non-null pointer");
 
     *pSemaphore.as_ptr() = Semaphore::create(create_info);
 
@@ -713,9 +407,7 @@ pub unsafe extern "C" fn vkDestroySemaphore(
     semaphore: VkSemaphore,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -729,17 +421,13 @@ pub unsafe extern "C" fn vkWaitForFences(
     waitAll: VkBool32,
     timeout: u64,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     if fenceCount == 0 {
         return VkResult::VK_SUCCESS;
     }
 
-    let Some(mut pFences) = pFences else {
-        unreachable!()
-    };
+    let pFences = pFences.expect("Vulkan guarantees a non-null pointer");
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
     let fences = pFences
         .iter()
@@ -755,19 +443,15 @@ pub unsafe extern "C" fn vkResetFences(
     fenceCount: u32,
     pFences: Option<NonNull<VkFence>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     if fenceCount == 0 {
         return VkResult::VK_SUCCESS;
     }
 
-    let Some(mut pFences) = pFences else {
-        unreachable!()
-    };
+    let pFences = pFences.expect("Vulkan guarantees a non-null pointer");
     let pFences = std::slice::from_raw_parts(pFences.as_ptr(), fenceCount as usize);
-    let mut fences = pFences
+    let fences = pFences
         .iter()
         .flat_map(|&handle| Fence::from_handle(handle))
         .collect::<Vec<_>>();
@@ -782,9 +466,7 @@ pub unsafe extern "C" fn vkQueueSubmit(
     pSubmits: Option<NonNull<VkSubmitInfo>>,
     fence: VkFence,
 ) -> VkResult {
-    let Some(queue) = Queue::from_handle(queue) else {
-        unreachable!()
-    };
+    let queue = Queue::from_handle(queue).expect("Vulkan handle refers to a live object");
 
     let submits = pSubmits.map_or(&[] as &[_], |x| {
         std::slice::from_raw_parts(x.as_ptr(), submitCount as usize)
@@ -828,21 +510,15 @@ pub unsafe extern "C" fn vkQueueSubmit(
 }
 
 pub unsafe extern "C" fn vkDeviceWaitIdle(device: VkDevice) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let result = device.lock().wait_idle();
-    result
+    device.lock().wait_idle()
 }
 
 pub unsafe extern "C" fn vkQueueWaitIdle(queue: VkQueue) -> VkResult {
-    let Some(queue) = Queue::from_handle(queue) else {
-        unreachable!()
-    };
+    let queue = Queue::from_handle(queue).expect("Vulkan handle refers to a live object");
 
-    let result = queue.lock().wait_idle();
-    result
+    queue.lock().wait_idle()
 }
 
 /* VK_KHR_surface extension instance commands */
@@ -853,13 +529,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceSupportKHR(
     surface: VkSurfaceKHR,
     pSupported: Option<NonNull<VkBool32>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pSupported) = pSupported else {
-        unreachable!()
-    };
+    let pSupported = pSupported.expect("Vulkan guarantees a non-null pointer");
 
     *pSupported.as_ptr() = physicalDevice
         .lock()
@@ -874,13 +547,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfacePresentModesKHR(
     pPresentModeCount: Option<NonNull<u32>>,
     pPresentModes: Option<NonNull<VkPresentModeKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pPresentModeCount) = pPresentModeCount else {
-        unreachable!()
-    };
+    let pPresentModeCount = pPresentModeCount.expect("Vulkan guarantees a non-null pointer");
 
     pPresentModes.map_or_else(
         || {
@@ -905,13 +575,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceFormatsKHR(
     pSurfaceFormatCount: Option<NonNull<u32>>,
     pSurfaceFormats: Option<NonNull<VkSurfaceFormatKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pSurfaceFormatCount) = pSurfaceFormatCount else {
-        unreachable!()
-    };
+    let pSurfaceFormatCount = pSurfaceFormatCount.expect("Vulkan guarantees a non-null pointer");
 
     pSurfaceFormats.map_or_else(
         || {
@@ -935,13 +602,10 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
     surface: VkSurfaceKHR,
     pSurfaceCapabilities: Option<NonNull<VkSurfaceCapabilitiesKHR>>,
 ) -> VkResult {
-    let Some(physicalDevice) = PhysicalDevice::from_handle(physicalDevice) else {
-        unreachable!()
-    };
+    let physicalDevice =
+        PhysicalDevice::from_handle(physicalDevice).expect("Vulkan handle refers to a live object");
 
-    let Some(pSurfaceCapabilities) = pSurfaceCapabilities else {
-        unreachable!()
-    };
+    let pSurfaceCapabilities = pSurfaceCapabilities.expect("Vulkan guarantees a non-null pointer");
 
     *pSurfaceCapabilities.as_ptr() = physicalDevice.lock().surface_capabilities();
 
@@ -1537,7 +1201,9 @@ pub unsafe extern "C" fn vkCmdBindDescriptorBufferEmbeddedSamplersEXT(
     layout: VkPipelineLayout,
     set: u32,
 ) {
-    unimplemented!("vkCmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer, pipelineBindPoint, layout, set")
+    unimplemented!(
+        "vkCmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer, pipelineBindPoint, layout, set"
+    )
 }
 
 pub unsafe extern "C" fn vkGetPhysicalDeviceSurfaceCapabilities2EXT(
@@ -2660,7 +2326,9 @@ pub unsafe extern "C" fn vkCmdSetRepresentativeFragmentTestEnableNV(
     commandBuffer: VkCommandBuffer,
     representativeFragmentTestEnable: VkBool32,
 ) {
-    unimplemented!("vkCmdSetRepresentativeFragmentTestEnableNV(commandBuffer, representativeFragmentTestEnable")
+    unimplemented!(
+        "vkCmdSetRepresentativeFragmentTestEnableNV(commandBuffer, representativeFragmentTestEnable"
+    )
 }
 
 pub unsafe extern "C" fn vkGetFramebufferTilePropertiesQCOM(
@@ -2708,7 +2376,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceWaylandPresentationSupportKHR(
     queueFamilyIndex: u32,
     display: Option<NonNull<wl_display>>,
 ) -> VkBool32 {
-    unimplemented!("vkGetPhysicalDeviceWaylandPresentationSupportKHR(physicalDevice, queueFamilyIndex, display")
+    unimplemented!(
+        "vkGetPhysicalDeviceWaylandPresentationSupportKHR(physicalDevice, queueFamilyIndex, display"
+    )
 }
 
 pub unsafe extern "C" fn vkDebugMarkerSetObjectNameEXT(
@@ -3255,7 +2925,9 @@ pub unsafe extern "C" fn vkCmdSetExtraPrimitiveOverestimationSizeEXT(
     commandBuffer: VkCommandBuffer,
     extraPrimitiveOverestimationSize: f32,
 ) {
-    unimplemented!("vkCmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer, extraPrimitiveOverestimationSize")
+    unimplemented!(
+        "vkCmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer, extraPrimitiveOverestimationSize"
+    )
 }
 
 pub unsafe extern "C" fn vkCmdDebugMarkerEndEXT(commandBuffer: VkCommandBuffer) {
@@ -3984,7 +3656,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceMultisamplePropertiesEXT(
     samples: VkSampleCountFlagBits,
     pMultisampleProperties: Option<NonNull<VkMultisamplePropertiesEXT>>,
 ) {
-    unimplemented!("vkGetPhysicalDeviceMultisamplePropertiesEXT(physicalDevice, samples, pMultisampleProperties")
+    unimplemented!(
+        "vkGetPhysicalDeviceMultisamplePropertiesEXT(physicalDevice, samples, pMultisampleProperties"
+    )
 }
 
 pub unsafe extern "C" fn vkGetImageSubresourceLayout2EXT(
@@ -4020,7 +3694,9 @@ pub unsafe extern "C" fn vkGetPipelineExecutableStatisticsKHR(
     pStatisticCount: Option<NonNull<u32>>,
     pStatistics: Option<NonNull<VkPipelineExecutableStatisticKHR>>,
 ) -> VkResult {
-    unimplemented!("vkGetPipelineExecutableStatisticsKHR(device, pExecutableInfo, pStatisticCount, pStatistics")
+    unimplemented!(
+        "vkGetPipelineExecutableStatisticsKHR(device, pExecutableInfo, pStatisticCount, pStatistics"
+    )
 }
 
 pub unsafe extern "C" fn vkCmdSetFragmentShadingRateKHR(
@@ -4735,7 +4411,9 @@ pub unsafe extern "C" fn vkGetPhysicalDeviceSciSyncAttributesNV(
     pSciSyncAttributesInfo: Option<NonNull<VkSciSyncAttributesInfoNV>>,
     pAttributes: NvSciSyncAttrList,
 ) -> VkResult {
-    unimplemented!("vkGetPhysicalDeviceSciSyncAttributesNV(physicalDevice, pSciSyncAttributesInfo, pAttributes")
+    unimplemented!(
+        "vkGetPhysicalDeviceSciSyncAttributesNV(physicalDevice, pSciSyncAttributesInfo, pAttributes"
+    )
 }
 
 pub unsafe extern "C" fn vkGetShaderModuleIdentifierEXT(
@@ -5207,7 +4885,9 @@ pub unsafe extern "C" fn vkCreateVideoSessionParametersKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pVideoSessionParameters: Option<NonNull<VkVideoSessionParametersKHR>>,
 ) -> VkResult {
-    unimplemented!("vkCreateVideoSessionParametersKHR(device, pCreateInfo, pAllocator, pVideoSessionParameters")
+    unimplemented!(
+        "vkCreateVideoSessionParametersKHR(device, pCreateInfo, pAllocator, pVideoSessionParameters"
+    )
 }
 
 pub unsafe extern "C" fn vkGetPipelineExecutablePropertiesKHR(
@@ -5411,7 +5091,9 @@ pub unsafe extern "C" fn vkGetDisplayPlaneSupportedDisplaysKHR(
     pDisplayCount: Option<NonNull<u32>>,
     pDisplays: Option<NonNull<VkDisplayKHR>>,
 ) -> VkResult {
-    unimplemented!("vkGetDisplayPlaneSupportedDisplaysKHR(physicalDevice, planeIndex, pDisplayCount, pDisplays")
+    unimplemented!(
+        "vkGetDisplayPlaneSupportedDisplaysKHR(physicalDevice, planeIndex, pDisplayCount, pDisplays"
+    )
 }
 
 pub unsafe extern "C" fn vkCmdUpdateBuffer(
@@ -5500,7 +5182,9 @@ pub unsafe extern "C" fn vkCreateDescriptorUpdateTemplate(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pDescriptorUpdateTemplate: Option<NonNull<VkDescriptorUpdateTemplate>>,
 ) -> VkResult {
-    unimplemented!("vkCreateDescriptorUpdateTemplate(device, pCreateInfo, pAllocator, pDescriptorUpdateTemplate")
+    unimplemented!(
+        "vkCreateDescriptorUpdateTemplate(device, pCreateInfo, pAllocator, pDescriptorUpdateTemplate"
+    )
 }
 
 pub unsafe extern "C" fn vkQueueSetPerformanceConfigurationINTEL(

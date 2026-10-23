@@ -1,10 +1,9 @@
 //! VK_KHR_surface and VK_KHR_xcb_surface extension instance commands
 
 use headers::vk_decls::*;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::instance::Instance;
 use runtime::surface::*;
-
 
 pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     instance: VkInstance,
@@ -12,13 +11,9 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pSurface: Option<NonNull<VkSurfaceKHR>>,
 ) -> VkResult {
-    let Some(instance) = Instance::from_handle(instance) else {
-        unreachable!()
-    };
+    let instance = Instance::from_handle(instance).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     assert_eq!(
         create_info.sType,
@@ -27,9 +22,7 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
 
     let _ = pAllocator;
 
-    let Some(pSurface) = pSurface else {
-        unreachable!()
-    };
+    let pSurface = pSurface.expect("Vulkan guarantees a non-null pointer");
 
     *pSurface.as_ptr() = Surface::create(instance, create_info);
 
@@ -57,9 +50,7 @@ pub unsafe extern "C" fn vkDestroySurfaceKHR(
     surface: VkSurfaceKHR,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_instance) = Instance::from_handle(instance) else {
-        unreachable!()
-    };
+    let _instance = Instance::from_handle(instance).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 

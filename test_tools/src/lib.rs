@@ -11,6 +11,7 @@
 //! the CTS submodules, and builds `deqp-vk`. Building requires `python3`,
 //! `cmake`, and `ninja` to be available.
 
+use std::fmt::Write as _;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -18,7 +19,7 @@ use std::process::Command;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use fs2::FileExt;
 use sha2::{Digest, Sha256};
 
@@ -249,14 +250,16 @@ fn download(root: &Path, url: &str, filename: &str, expected_sha256: &str) -> Re
     eprintln!("[vkswr] downloading {url}");
     let partial = downloads.join(format!("{filename}.partial"));
     let _ = fs::remove_file(&partial);
-    let response = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(30))
-        .timeout_read(Duration::from_secs(300))
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_global(Some(Duration::from_secs(300)))
         .build()
+        .into();
+    let mut response = agent
         .get(url)
         .call()
         .with_context(|| format!("downloading {url}"))?;
-    let mut reader = response.into_reader();
+    let mut reader = response.body_mut().as_reader();
     let mut file =
         File::create(&partial).with_context(|| format!("creating {}", partial.display()))?;
     io::copy(&mut reader, &mut file).with_context(|| format!("writing {}", partial.display()))?;
@@ -285,7 +288,12 @@ fn sha256_file(path: &Path) -> Result<String> {
         }
         hasher.update(&buffer[..read]);
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    let digest = hasher.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut hex, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    Ok(hex)
 }
 
 fn extract_tar_xz(archive: &Path, destination: &Path) -> Result<()> {

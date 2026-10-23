@@ -1,7 +1,8 @@
 [package]
 name = "runtime"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["lib"]
@@ -11,12 +12,9 @@ headers = { path = "../headers" }
 gpu = { path = "../gpu" }
 common = { path = "../common" }
 shader = { path = "../shader" }
-lazy_static = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 xcb = { workspace = true }
-itertools = { workspace = true }
-anyhow = { workspace = true }
 
 [lints]
 workspace = true

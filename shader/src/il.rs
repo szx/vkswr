@@ -1,31 +1,68 @@
-use crate::spirv;
-use crate::spirv::Spirv;
-use anyhow::Context;
+use crate::error::Error;
+use crate::spirv::{self, Spirv};
 
+/// A program in the interpreter's intermediate representation.
 #[derive(Debug, Clone)]
 pub struct Il {
     pub(crate) instructions: Vec<Instruction>,
 }
 
 impl Il {
-    pub fn new(name: &str, code: Vec<u32>) -> anyhow::Result<Self> {
+    pub fn new(name: &str, code: Vec<u32>) -> Result<Self, Error> {
         let spirv = Spirv::new(name, code)?;
-        let instructions = Self::parse_spirv(spirv)?;
+        let instructions = Self::parse_spirv(name, &spirv)?;
         Ok(Self { instructions })
     }
-}
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub enum Variable {
-    ObjectId(u32),
-}
-
-impl Variable {
-    pub const fn from_spirv(id: &spirv::ObjectId) -> Self {
-        Self::ObjectId(id.0)
+    fn parse_spirv(name: &str, spirv: &Spirv) -> Result<Vec<Instruction>, Error> {
+        let mut lowering = Lowering {
+            name,
+            spirv,
+            instructions: Vec::new(),
+        };
+        lowering.lower_globals()?;
+        lowering.lower_entry_point()?;
+        Ok(lowering.instructions)
     }
 }
 
+/// A variable in the intermediate representation.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct Variable(u32);
+
+impl Variable {
+    const fn from_spirv(id: &spirv::ObjectId) -> Self {
+        Self(id.0)
+    }
+}
+
+/// Binary operations supported by the interpreter.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BinaryOp {
+    MulVectorScalar,
+    AddI32I32,
+    MulI32I32,
+    SubF32F32,
+    DivF32F32,
+    DivI32I32,
+    DivU32U32,
+    ModI32I32,
+    ModU32U32,
+    BitAnd,
+    BitShiftRight,
+    EqualI32I32,
+    LessThanU32U32,
+}
+
+/// Type conversions supported by the interpreter.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum UnaryOp {
+    ConvertI32ToF32,
+    ConvertF32ToU32,
+    ConvertU32ToF32,
+}
+
+/// One instruction of the intermediate representation.
 #[derive(Debug, Clone)]
 pub enum Instruction {
     Label {
@@ -65,84 +102,16 @@ pub enum Instruction {
         id: Variable,
         src_pointer: Variable,
     },
-    MathMulVectorScalar {
-        id: Variable,
-        vector: Variable,
-        scalar: Variable,
-    },
-    MathAddI32I32 {
+    MathBinary {
         id: Variable,
         op1: Variable,
         op2: Variable,
+        op: BinaryOp,
     },
-    MathMulI32I32 {
+    MathUnary {
         id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathSubF32F32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathDivF32F32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathDivI32I32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathDivU32U32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathModI32I32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathModU32U32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-
-    MathBitAnd {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathBitShiftRight {
-        id: Variable,
-        base: Variable,
-        shift: Variable,
-    },
-
-    MathEqualI32I32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathLessThanU32U32 {
-        id: Variable,
-        op1: Variable,
-        op2: Variable,
-    },
-    MathConvertI32F32 {
-        id: Variable,
-        op: Variable,
-    },
-    MathConvertF32U32 {
-        id: Variable,
-        op: Variable,
-    },
-    MathConvertU32F32 {
-        id: Variable,
-        op: Variable,
+        operand: Variable,
+        op: UnaryOp,
     },
     Return,
     Select {
@@ -169,22 +138,41 @@ pub enum Instruction {
     Kill,
 }
 
-impl Il {
-    fn parse_spirv(spirv: Spirv) -> anyhow::Result<Vec<Instruction>> {
-        let mut scalar_variables = vec![];
-        let mut composite_variables = vec![];
-        let mut pointer_variables = vec![];
+/// Lowers parsed SPIR-V instructions to the intermediate representation.
+struct Lowering<'a> {
+    name: &'a str,
+    spirv: &'a Spirv,
+    instructions: Vec<Instruction>,
+}
 
+impl Lowering<'_> {
+    /// Emits a declaration for the result of a SPIR-V instruction.
+    fn declare(
+        &mut self,
+        result_id: &spirv::ObjectId,
+        result_type: &spirv::ObjectId,
+    ) -> Result<Variable, Error> {
+        let decl = get_variable_decl(self.spirv, self.name, result_type, VariableBacking::Memory)?;
+        let id = Variable::from_spirv(result_id);
+        self.instructions
+            .push(Instruction::VariableDecl { id, decl });
+        Ok(id)
+    }
+
+    fn lower_globals(&mut self) -> Result<(), Error> {
+        let spirv = self.spirv;
+        let name = self.name;
         for (id, object) in &spirv.objects {
             match object {
-                spirv::Object::Type(_) => continue,
+                spirv::Object::Type(_) => {}
                 spirv::Object::Constant(constant) => match constant {
                     spirv::Constant::Scalar { type_, value } => {
-                        let decl = Self::get_variable_decl(&spirv, type_, VariableBacking::Memory);
-                        let id = Variable::from_spirv(id);
-                        scalar_variables.push(Instruction::VariableDecl { id, decl });
-                        scalar_variables.push(Instruction::StoreImm32 {
-                            dst: id,
+                        let decl = get_variable_decl(spirv, name, type_, VariableBacking::Memory)?;
+                        let variable = Variable::from_spirv(id);
+                        self.instructions
+                            .push(Instruction::VariableDecl { id: variable, decl });
+                        self.instructions.push(Instruction::StoreImm32 {
+                            dst: variable,
                             imm: *value,
                         });
                     }
@@ -192,597 +180,399 @@ impl Il {
                         type_,
                         constituents,
                     } => {
-                        let decl = Self::get_variable_decl(&spirv, type_, VariableBacking::Memory);
-                        let id = Variable::from_spirv(id);
-                        composite_variables.push(Instruction::VariableDecl { id, decl });
+                        let decl = get_variable_decl(spirv, name, type_, VariableBacking::Memory)?;
+                        let variable = Variable::from_spirv(id);
                         let values = constituents
                             .iter()
-                            .map(|id| match Self::get_spirv_constant(&spirv, id) {
-                                spirv::Constant::Scalar { type_: _, value } => *value,
-                                spirv::Constant::Composite { .. } => {
-                                    unreachable!()
+                            .map(|constituent| {
+                                match get_spirv_constant(spirv, name, constituent)? {
+                                    spirv::Constant::Scalar { value, .. } => Ok(*value),
+                                    spirv::Constant::Composite { .. } => Err(
+                                        Error::unsupported_il(name, "nested composite constant"),
+                                    ),
                                 }
                             })
-                            .collect::<Vec<_>>();
-                        composite_variables.push(Instruction::StoreImm32Array {
-                            dst: id,
+                            .collect::<Result<Vec<_>, Error>>()?;
+                        self.instructions
+                            .push(Instruction::VariableDecl { id: variable, decl });
+                        self.instructions.push(Instruction::StoreImm32Array {
+                            dst: variable,
                             imm: values,
                         });
                     }
                 },
-                spirv::Object::Variable(spirv::Variable::Pointer(
-                    spirv::Pointer::ToMemoryObject { memory_object },
-                )) => {
-                    let decl = Self::get_variable_decl(
-                        &spirv,
-                        &memory_object.type_,
-                        Self::from_spirv_decorations(&memory_object.decorations),
-                    );
+                spirv::Object::Variable(variable) => {
+                    let decl = get_variable_decl(
+                        spirv,
+                        name,
+                        &variable.type_,
+                        VariableBacking::from_decorations(&variable.decorations),
+                    )?;
                     let id = Variable::from_spirv(id);
-                    pointer_variables.push(Instruction::VariableDecl { id, decl });
+                    self.instructions
+                        .push(Instruction::VariableDecl { id, decl });
                 }
             }
         }
+        Ok(())
+    }
 
-        let mut instructions = vec![];
-        instructions.extend(scalar_variables);
-        instructions.extend(composite_variables);
-        instructions.extend(pointer_variables);
+    fn lower_entry_point(&mut self) -> Result<(), Error> {
+        let spirv = self.spirv;
+        let Some(function) = spirv.functions.get(&spirv.entry_point.function) else {
+            return Err(Error::invalid_spirv(
+                self.name,
+                format!(
+                    "entry point function {} is missing",
+                    spirv.entry_point.function.0
+                ),
+            ));
+        };
+        for instruction in &function.instructions {
+            self.lower_instruction(instruction)?;
+        }
+        Ok(())
+    }
 
-        let main = spirv
-            .functions
-            .get(&spirv.entry_point.entry_point)
-            .context("failed to get spirv function")?;
-        for instruction in &main.instructions {
-            match instruction {
-                spirv::Instruction::Label { result_id } => {
-                    instructions.push(Instruction::Label { id: result_id.0 });
-                }
-                spirv::Instruction::AccessChain {
-                    result_id,
-                    result_type,
-                    base,
-                    indexes,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::LoadVariableOffset {
-                        id,
-                        base: Variable::from_spirv(base),
-                        offsets: indexes.iter().map(Variable::from_spirv).collect(),
-                    });
-                }
-                spirv::Instruction::Store { pointer, object } => {
-                    instructions.push(Instruction::StoreVariable {
-                        dst_pointer: Variable::from_spirv(pointer),
-                        src: Variable::from_spirv(object),
-                    });
-                }
-                spirv::Instruction::Load {
-                    result_id,
-                    result_type,
-                    pointer,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::LoadVariable {
-                        id,
-                        src_pointer: Variable::from_spirv(pointer),
-                    });
-                }
-                spirv::Instruction::VectorTimesScalar {
-                    result_id,
-                    result_type,
-                    vector,
-                    scalar,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathMulVectorScalar {
-                        id,
-                        vector: Variable::from_spirv(vector),
-                        scalar: Variable::from_spirv(scalar),
-                    });
-                }
-                spirv::Instruction::IAdd {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathAddI32I32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::IMul {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathMulI32I32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::FSub {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathSubF32F32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::FDiv {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathDivF32F32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::SDiv {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathDivI32I32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::UDiv {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathDivU32U32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::SMod {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathModI32I32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::UMod {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathModU32U32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::BitwiseAnd {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathBitAnd {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::ShiftRightLogical {
-                    result_id,
-                    result_type,
-                    base,
-                    shift,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathBitShiftRight {
-                        id,
-                        base: Variable::from_spirv(base),
-                        shift: Variable::from_spirv(shift),
-                    });
-                }
-                spirv::Instruction::IEqual {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathEqualI32I32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-
-                spirv::Instruction::ULessThan {
-                    result_id,
-                    result_type,
-                    operand1,
-                    operand2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathLessThanU32U32 {
-                        id,
-                        op1: Variable::from_spirv(operand1),
-                        op2: Variable::from_spirv(operand2),
-                    });
-                }
-                spirv::Instruction::ConvertSToF {
-                    result_id,
-                    result_type,
-                    operand,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathConvertI32F32 {
-                        id,
-                        op: Variable::from_spirv(operand),
-                    });
-                }
-                spirv::Instruction::ConvertFToU {
-                    result_id,
-                    result_type,
-                    operand,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathConvertF32U32 {
-                        id,
-                        op: Variable::from_spirv(operand),
-                    });
-                }
-                spirv::Instruction::ConvertUToF {
-                    result_id,
-                    result_type,
-                    operand,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::MathConvertU32F32 {
-                        id,
-                        op: Variable::from_spirv(operand),
-                    });
-                }
-                spirv::Instruction::CompositeExtract {
-                    result_id,
-                    result_type,
-                    composite,
-                    indexes,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    if let [offset] = indexes.as_slice() {
-                        instructions.push(Instruction::VariableDecl { id, decl });
-                        instructions.push(Instruction::LoadVariableImmOffset {
-                            id,
-                            base: Variable::from_spirv(composite),
-                            offset: *offset,
-                        });
-                    } else {
-                        unimplemented!()
-                    }
-                }
-                spirv::Instruction::CompositeConstruct {
-                    result_id,
-                    result_type,
-                    constituents,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    let values = constituents
-                        .iter()
-                        .map(Variable::from_spirv)
-                        .collect::<Vec<_>>();
-                    instructions.push(Instruction::StoreVariableArray { dst: id, values });
-                }
-                spirv::Instruction::Variable {
-                    result_id,
-                    result_type,
-                    storage_class: _,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                }
-                spirv::Instruction::Select {
-                    result_id,
-                    result_type,
-                    condition,
-                    object1,
-                    object2,
-                } => {
-                    let decl =
-                        Self::get_variable_decl(&spirv, result_type, VariableBacking::Memory);
-                    let id = Variable::from_spirv(result_id);
-                    instructions.push(Instruction::VariableDecl { id, decl });
-                    instructions.push(Instruction::Select {
-                        id,
-                        cond: Variable::from_spirv(condition),
-                        obj1: Variable::from_spirv(object1),
-                        obj2: Variable::from_spirv(object2),
-                    });
-                }
-                spirv::Instruction::SelectionMerge { merge_block } => {
-                    instructions.push(Instruction::SelectionMerge {
-                        merge_block_label: merge_block.0,
-                    });
-                }
-                spirv::Instruction::LoopMerge {
-                    merge_block,
-                    continue_target_label,
-                } => {
-                    instructions.push(Instruction::LoopMerge {
-                        merge_block_label: merge_block.0,
-                        continue_target_label: continue_target_label.0,
-                    });
-                }
-                spirv::Instruction::Branch { target_label } => {
-                    instructions.push(Instruction::Branch {
-                        target_label: target_label.0,
-                    });
-                }
-                spirv::Instruction::BranchConditional {
-                    condition,
-                    true_label,
-                    false_label,
-                } => {
-                    instructions.push(Instruction::BranchConditional {
-                        condition: Variable::from_spirv(condition),
-                        true_label: true_label.0,
-                        false_label: false_label.0,
-                    });
-                }
-                spirv::Instruction::Return => {
-                    instructions.push(Instruction::Return);
-                }
-                spirv::Instruction::Kill => {
-                    instructions.push(Instruction::Kill);
-                }
+    fn lower_instruction(&mut self, instruction: &spirv::Instruction) -> Result<(), Error> {
+        match instruction {
+            spirv::Instruction::Label { result_id } => {
+                self.instructions
+                    .push(Instruction::Label { id: result_id.0 });
+            }
+            spirv::Instruction::AccessChain {
+                result_id,
+                result_type,
+                base,
+                indexes,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                let offsets = indexes.iter().map(Variable::from_spirv).collect();
+                self.instructions.push(Instruction::LoadVariableOffset {
+                    id,
+                    base: Variable::from_spirv(base),
+                    offsets,
+                });
+            }
+            spirv::Instruction::Store { pointer, object } => {
+                self.instructions.push(Instruction::StoreVariable {
+                    dst_pointer: Variable::from_spirv(pointer),
+                    src: Variable::from_spirv(object),
+                });
+            }
+            spirv::Instruction::Load {
+                result_id,
+                result_type,
+                pointer,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                self.instructions.push(Instruction::LoadVariable {
+                    id,
+                    src_pointer: Variable::from_spirv(pointer),
+                });
+            }
+            spirv::Instruction::BinaryOp {
+                result_id,
+                result_type,
+                operand1,
+                operand2,
+                op,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                self.instructions.push(Instruction::MathBinary {
+                    id,
+                    op1: Variable::from_spirv(operand1),
+                    op2: Variable::from_spirv(operand2),
+                    op: *op,
+                });
+            }
+            spirv::Instruction::UnaryOp {
+                result_id,
+                result_type,
+                operand,
+                op,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                self.instructions.push(Instruction::MathUnary {
+                    id,
+                    operand: Variable::from_spirv(operand),
+                    op: *op,
+                });
+            }
+            spirv::Instruction::CompositeExtract {
+                result_id,
+                result_type,
+                composite,
+                indexes,
+            } => {
+                let [offset] = indexes.as_slice() else {
+                    return Err(Error::unsupported_il(
+                        self.name,
+                        format!("composite extract with {} indexes", indexes.len()),
+                    ));
+                };
+                let id = self.declare(result_id, result_type)?;
+                self.instructions.push(Instruction::LoadVariableImmOffset {
+                    id,
+                    base: Variable::from_spirv(composite),
+                    offset: *offset,
+                });
+            }
+            spirv::Instruction::CompositeConstruct {
+                result_id,
+                result_type,
+                constituents,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                let values = constituents.iter().map(Variable::from_spirv).collect();
+                self.instructions
+                    .push(Instruction::StoreVariableArray { dst: id, values });
+            }
+            spirv::Instruction::Variable {
+                result_id,
+                result_type,
+            } => {
+                self.declare(result_id, result_type)?;
+            }
+            spirv::Instruction::Select {
+                result_id,
+                result_type,
+                condition,
+                object1,
+                object2,
+            } => {
+                let id = self.declare(result_id, result_type)?;
+                self.instructions.push(Instruction::Select {
+                    id,
+                    cond: Variable::from_spirv(condition),
+                    obj1: Variable::from_spirv(object1),
+                    obj2: Variable::from_spirv(object2),
+                });
+            }
+            spirv::Instruction::SelectionMerge { merge_block } => {
+                self.instructions.push(Instruction::SelectionMerge {
+                    merge_block_label: merge_block.0,
+                });
+            }
+            spirv::Instruction::LoopMerge {
+                merge_block,
+                continue_target_label,
+            } => {
+                self.instructions.push(Instruction::LoopMerge {
+                    merge_block_label: merge_block.0,
+                    continue_target_label: continue_target_label.0,
+                });
+            }
+            spirv::Instruction::Branch { target_label } => {
+                self.instructions.push(Instruction::Branch {
+                    target_label: target_label.0,
+                });
+            }
+            spirv::Instruction::BranchConditional {
+                condition,
+                true_label,
+                false_label,
+            } => {
+                self.instructions.push(Instruction::BranchConditional {
+                    condition: Variable::from_spirv(condition),
+                    true_label: true_label.0,
+                    false_label: false_label.0,
+                });
+            }
+            spirv::Instruction::Return => {
+                self.instructions.push(Instruction::Return);
+            }
+            spirv::Instruction::Kill => {
+                self.instructions.push(Instruction::Kill);
             }
         }
-        Ok(instructions)
+        Ok(())
     }
+}
 
-    fn get_spirv_type<'a>(spirv: &'a Spirv, id: &spirv::ObjectId) -> &'a spirv::Type {
-        match spirv.objects.get(id) {
-            Some(spirv::Object::Type(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_spirv_constant<'a>(spirv: &'a Spirv, id: &spirv::ObjectId) -> &'a spirv::Constant {
-        match spirv.objects.get(id) {
-            Some(spirv::Object::Constant(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    #[allow(dead_code)]
-    fn get_spirv_variable<'a>(spirv: &'a Spirv, id: &spirv::ObjectId) -> &'a spirv::Variable {
-        match spirv.objects.get(id) {
-            Some(spirv::Object::Variable(inner)) => inner,
-            _ => unreachable!(),
-        }
-    }
-
-    const fn from_spirv_decorations(decorations: &spirv::Decorations) -> VariableBacking {
+impl VariableBacking {
+    const fn from_decorations(decorations: &spirv::Decorations) -> Self {
         if let Some(builtin) = decorations.builtin {
             match builtin {
-                spirv::BuiltInDecoration::Position => VariableBacking::Position,
-                spirv::BuiltInDecoration::PointSize => VariableBacking::PointSize,
-                spirv::BuiltInDecoration::VertexIndex => VariableBacking::VertexIndex,
-                spirv::BuiltInDecoration::FragCoord => VariableBacking::FragCoord,
-                spirv::BuiltInDecoration::ClipDistance => VariableBacking::ClipDistance,
-                spirv::BuiltInDecoration::CullDistance => VariableBacking::CullDistance,
+                spirv::BuiltInDecoration::Position => Self::Position,
+                spirv::BuiltInDecoration::PointSize => Self::PointSize,
+                spirv::BuiltInDecoration::VertexIndex => Self::VertexIndex,
+                spirv::BuiltInDecoration::FragCoord => Self::FragCoord,
+                spirv::BuiltInDecoration::ClipDistance => Self::ClipDistance,
+                spirv::BuiltInDecoration::CullDistance => Self::CullDistance,
             }
         } else if let Some(location) = decorations.location {
-            VariableBacking::Location {
+            Self::Location {
                 number: location.number,
             }
         } else {
-            VariableBacking::Memory
-        }
-    }
-
-    fn get_variable_decl(
-        spirv: &Spirv,
-        type_id: &spirv::ObjectId,
-        backing: VariableBacking,
-    ) -> VariableDecl {
-        let (kind, component_count, backing) = match Self::get_spirv_type(spirv, type_id) {
-            spirv::Type::Float { width } => {
-                assert_eq!(*width, 32);
-                (VariableKind::F32, 1, backing)
-            }
-            spirv::Type::Int { width, signedness } => {
-                assert_eq!(*width, 32);
-                if !signedness {
-                    (VariableKind::U32, 1, backing)
-                } else {
-                    (VariableKind::I32, 1, backing)
-                }
-            }
-            spirv::Type::Void => (VariableKind::Void, 0, backing),
-            spirv::Type::Bool => (VariableKind::Bool, 1, backing),
-            spirv::Type::Function(_) => {
-                unimplemented!()
-            }
-            spirv::Type::Array {
-                element_type,
-                length,
-                decorations,
-            } => {
-                let element_type = Self::get_variable_decl(spirv, element_type, backing);
-                let &spirv::Constant::Scalar {
-                    type_: _,
-                    value: length,
-                } = Self::get_spirv_constant(spirv, length)
-                else {
-                    unreachable!()
-                };
-                let array_stride = match decorations.array_stride {
-                    None if length == 1 => std::mem::size_of::<u32>() as u32,
-                    Some(inner) => inner,
-                    None => 0,
-                };
-                (
-                    VariableKind::Array,
-                    length,
-                    VariableBacking::Array {
-                        element_kind: Box::new(element_type),
-                        array_stride,
-                    },
-                )
-            }
-            spirv::Type::Vector {
-                component_type,
-                component_count,
-            } => {
-                let component_type = Self::get_variable_decl(spirv, component_type, backing);
-                if component_type.component_count == 1 {
-                    (
-                        component_type.kind,
-                        *component_count,
-                        component_type.backing,
-                    )
-                } else {
-                    unimplemented!("Matrix?")
-                }
-            }
-            spirv::Type::Struct {
-                member_types,
-                decorations,
-            } => {
-                let members = member_types
-                    .iter()
-                    .map(|spirv::MemberType { type_, decorations }| {
-                        Self::get_variable_decl(
-                            spirv,
-                            type_,
-                            Self::from_spirv_decorations(decorations),
-                        )
-                    })
-                    .collect();
-                assert!(decorations.block);
-                (
-                    VariableKind::Struct,
-                    member_types.len() as u32,
-                    VariableBacking::Struct { members },
-                )
-            }
-            spirv::Type::Pointer {
-                storage_class: _,
-                type_,
-            } => {
-                let type_ = Self::get_variable_decl(spirv, type_, backing);
-                (
-                    VariableKind::Pointer,
-                    1,
-                    VariableBacking::Pointer {
-                        kind: Box::new(type_),
-                    },
-                )
-            }
-        };
-
-        VariableDecl {
-            kind,
-            component_count,
-            backing,
+            Self::Memory
         }
     }
 }
 
-impl From<&VariableDecl> for Variable {
-    fn from(_decl: &VariableDecl) -> Self {
-        todo!()
+/// Resolves a type id to its declaration.
+fn get_spirv_type<'a>(
+    spirv: &'a Spirv,
+    name: &str,
+    id: &spirv::ObjectId,
+) -> Result<&'a spirv::Type, Error> {
+    match spirv.objects.get(id) {
+        Some(spirv::Object::Type(type_)) => Ok(type_),
+        Some(other) => Err(Error::invalid_spirv(
+            name,
+            format!("object {id:?} is not a type: {other:?}"),
+        )),
+        None => Err(Error::invalid_spirv(name, format!("unknown type {id:?}"))),
     }
+}
+
+/// Resolves a constant id to its declaration.
+fn get_spirv_constant<'a>(
+    spirv: &'a Spirv,
+    name: &str,
+    id: &spirv::ObjectId,
+) -> Result<&'a spirv::Constant, Error> {
+    match spirv.objects.get(id) {
+        Some(spirv::Object::Constant(constant)) => Ok(constant),
+        Some(other) => Err(Error::invalid_spirv(
+            name,
+            format!("object {id:?} is not a constant: {other:?}"),
+        )),
+        None => Err(Error::invalid_spirv(
+            name,
+            format!("unknown constant {id:?}"),
+        )),
+    }
+}
+
+fn get_variable_decl(
+    spirv: &Spirv,
+    name: &str,
+    type_id: &spirv::ObjectId,
+    backing: VariableBacking,
+) -> Result<VariableDecl, Error> {
+    let (kind, component_count, backing) = match get_spirv_type(spirv, name, type_id)? {
+        spirv::Type::Float { width } => {
+            if *width != 32 {
+                return Err(Error::unsupported_spirv(
+                    name,
+                    format!("{width}-bit floating-point type"),
+                ));
+            }
+            (VariableKind::F32, 1, backing)
+        }
+        spirv::Type::Int { width, signedness } => {
+            if *width != 32 {
+                return Err(Error::unsupported_spirv(
+                    name,
+                    format!("{width}-bit integer type"),
+                ));
+            }
+            let kind = if *signedness {
+                VariableKind::I32
+            } else {
+                VariableKind::U32
+            };
+            (kind, 1, backing)
+        }
+        spirv::Type::Void => (VariableKind::Void, 0, backing),
+        spirv::Type::Bool => (VariableKind::Bool, 1, backing),
+        spirv::Type::Function(_) => {
+            return Err(Error::unsupported_spirv(name, "function type"));
+        }
+        spirv::Type::Array {
+            element_type,
+            length,
+            decorations,
+        } => {
+            let element_kind = get_variable_decl(spirv, name, element_type, backing)?;
+            let length = match get_spirv_constant(spirv, name, length)? {
+                spirv::Constant::Scalar { value, .. } => *value,
+                spirv::Constant::Composite { .. } => {
+                    return Err(Error::invalid_spirv(
+                        name,
+                        "array length is not a scalar constant",
+                    ));
+                }
+            };
+            let array_stride = match decorations.array_stride {
+                None if length == 1 => {
+                    u32::try_from(std::mem::size_of::<u32>()).expect("u32 size fits in u32")
+                }
+                Some(array_stride) => array_stride,
+                None => 0,
+            };
+            (
+                VariableKind::Array,
+                length,
+                VariableBacking::Array {
+                    element_kind: Box::new(element_kind),
+                    array_stride,
+                },
+            )
+        }
+        spirv::Type::Vector {
+            component_type,
+            component_count,
+        } => {
+            let component_type = get_variable_decl(spirv, name, component_type, backing)?;
+            if component_type.component_count == 1 {
+                (
+                    component_type.kind,
+                    *component_count,
+                    component_type.backing,
+                )
+            } else {
+                return Err(Error::unsupported_spirv(name, "matrix type"));
+            }
+        }
+        spirv::Type::Struct {
+            member_types,
+            decorations,
+        } => {
+            let members = member_types
+                .iter()
+                .map(|member| {
+                    get_variable_decl(
+                        spirv,
+                        name,
+                        &member.type_,
+                        VariableBacking::from_decorations(&member.decorations),
+                    )
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+            if !decorations.block {
+                return Err(Error::unsupported_spirv(
+                    name,
+                    "struct type without Block decoration",
+                ));
+            }
+            let member_count = u32::try_from(member_types.len())
+                .map_err(|_| Error::invalid_spirv(name, "too many struct members"))?;
+            (
+                VariableKind::Struct,
+                member_count,
+                VariableBacking::Struct { members },
+            )
+        }
+        spirv::Type::Pointer { type_ } => {
+            let kind = get_variable_decl(spirv, name, type_, backing)?;
+            (
+                VariableKind::Pointer,
+                1,
+                VariableBacking::Pointer {
+                    kind: Box::new(kind),
+                },
+            )
+        }
+    };
+
+    Ok(VariableDecl {
+        kind,
+        component_count,
+        backing,
+    })
 }
 
 #[derive(Debug, Clone)]

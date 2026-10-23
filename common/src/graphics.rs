@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use crate::consts::{MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDINGS};
 use crate::math::{Extent3, Format};
@@ -36,24 +36,19 @@ pub struct VertexBinding {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VertexBindingNumber(pub u32);
 
-// TODO: impl_index_trait!()
 impl Index<VertexBindingNumber> for [Option<VertexBuffer>] {
     type Output = Option<VertexBuffer>;
 
     fn index(&self, index: VertexBindingNumber) -> &Self::Output {
-        let Some(value) = self.get(index.0 as usize) else {
-            unreachable!()
-        };
-        value
+        self.get(index.0 as usize)
+            .expect("vertex binding number is within MAX_VERTEX_BINDINGS")
     }
 }
 
 impl IndexMut<VertexBindingNumber> for [Option<VertexBuffer>] {
     fn index_mut(&mut self, index: VertexBindingNumber) -> &mut Self::Output {
-        let Some(value) = self.get_mut(index.0 as usize) else {
-            unreachable!()
-        };
-        value
+        self.get_mut(index.0 as usize)
+            .expect("vertex binding number is within MAX_VERTEX_BINDINGS")
     }
 }
 
@@ -113,20 +108,13 @@ pub struct DescriptorImage {
     pub extent: Extent3<u32>,
 }
 
+/// A byte range inside a GPU memory allocation.
+///
+/// Cloning a binding keeps pointing at the same allocation thanks to the
+/// shared atomic handle.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryBinding {
-    /// Thanks to Arc cloned resource binding points to the same MemoryAllocation
     pub memory_handle: Arc<AtomicU64>,
     pub offset: u64,
     pub size: u64,
-}
-
-impl MemoryBinding {
-    pub fn new() -> Self {
-        Self {
-            memory_handle: Arc::new(Default::default()),
-            offset: 0,
-            size: 0,
-        }
-    }
 }

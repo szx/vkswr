@@ -1,16 +1,14 @@
-//! Pipeline
+//! Pipeline, render pass, shader module, and framebuffer objects.
 
-
-use crate::context::NonDispatchable;
+use crate::context::VulkanObject;
 use crate::image::ImageView;
 use crate::logical_device::LogicalDevice;
 use common::graphics::VertexInputState;
 use gpu::{Command, InputAssemblyState, RasterizationState, ViewportState};
 use headers::vk_decls::*;
-use log::*;
+use log::{info, warn};
 use parking_lot::Mutex;
 use shader::glsl::ShaderState;
-use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -23,22 +21,16 @@ pub struct PipelineLayout {
 impl PipelineLayout {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
-        set_layouts: Option<&[VkDescriptorSetLayout]>,
-        push_constant_ranges: Option<&[VkPushConstantRange]>,
+        _flags: VkPipelineLayoutCreateFlags,
+        _set_layouts: Option<&[VkDescriptorSetLayout]>,
+        _push_constant_ranges: Option<&[VkPushConstantRange]>,
     ) -> VkNonDispatchableHandle {
         info!("new PipelineLayout");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let _ = set_layouts;
-        let _ = push_constant_ranges;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }
 
@@ -57,20 +49,17 @@ impl RenderPass {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
         attachments: &[AttachmentDescription],
-        dependencies: &[VkSubpassDependency],
+        _dependencies: &[VkSubpassDependency],
         subpasses: &[SubpassDescription],
     ) -> VkNonDispatchableHandle {
         info!("new RenderPass");
-        let handle = VK_NULL_HANDLE;
-        let _ = dependencies;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             attachments: attachments.into(),
             subpasses: subpasses.into(),
-        };
-        object.register_object()
+        }
+        .register()
     }
 }
 
@@ -109,21 +98,16 @@ pub struct ShaderModule {
 impl ShaderModule {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
+        _flags: VkShaderModuleCreateFlags,
         code: &[u32],
     ) -> VkNonDispatchableHandle {
         info!("new ShaderModule");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let code = code.to_vec();
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-            code,
-        };
-        object.register_object()
+            code: code.to_vec(),
+        }
+        .register()
     }
 }
 
@@ -139,21 +123,16 @@ pub struct PipelineCache {
 impl PipelineCache {
     pub fn create(
         logical_device: Arc<Mutex<LogicalDevice>>,
-        flags: VkDescriptorSetLayoutCreateFlags,
+        _flags: VkPipelineCacheCreateFlags,
         initial_data: &[u8],
     ) -> VkNonDispatchableHandle {
         info!("new PipelineCache");
-        let handle = VK_NULL_HANDLE;
-
-        let _ = flags;
-        let initial_data = initial_data.to_vec();
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
-            initial_data,
-        };
-        object.register_object()
+            initial_data: initial_data.to_vec(),
+        }
+        .register()
     }
 }
 
@@ -162,8 +141,8 @@ pub struct Pipeline {
     pub handle: VkNonDispatchableHandle,
     #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
-    pub pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
-
+    #[allow(dead_code)]
+    pipeline_cache: Option<Arc<Mutex<PipelineCache>>>,
     pub shader_state: ShaderState,
     pub vertex_input_state: VertexInputState,
     pub input_assembly_state: InputAssemblyState,
@@ -182,10 +161,8 @@ impl Pipeline {
         rasterization_state: Option<RasterizationState>,
     ) -> VkNonDispatchableHandle {
         info!("new Pipeline");
-        let handle = VK_NULL_HANDLE;
-
-        let object = Self {
-            handle,
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             pipeline_cache,
             shader_state,
@@ -193,8 +170,8 @@ impl Pipeline {
             input_assembly_state: input_assembly_state.unwrap_or_default(),
             viewport_state: viewport_state.unwrap_or_default(),
             rasterization_state: rasterization_state.unwrap_or_default(),
-        };
-        object.register_object()
+        }
+        .register()
     }
 
     pub fn bind_states(&self, command_buffer: &mut gpu::CommandBuffer) {
@@ -202,7 +179,7 @@ impl Pipeline {
             shader_state: self.shader_state.clone(),
         });
         command_buffer.record(Command::SetVertexInputState {
-            vertex_input_state: self.vertex_input_state.clone(),
+            vertex_input_state: Box::new(self.vertex_input_state.clone()),
         });
         command_buffer.record(Command::SetInputAssemblyState {
             input_assembly_state: self.input_assembly_state.clone(),
@@ -213,21 +190,25 @@ impl Pipeline {
         command_buffer.record(Command::SetRasterizationState {
             rasterization_state: self.rasterization_state.clone(),
         });
-        warn!("TODO: Record rest of pipeline state");
+        warn!("TODO: Record the rest of the pipeline state");
     }
 }
 
 #[derive(Debug)]
-
-#[allow(dead_code)]
 pub struct Framebuffer {
     pub(crate) handle: VkNonDispatchableHandle,
+    #[allow(dead_code)]
     logical_device: Arc<Mutex<LogicalDevice>>,
+    #[allow(dead_code)]
     flags: VkFramebufferCreateFlagBits,
+    #[allow(dead_code)]
     width: u32,
+    #[allow(dead_code)]
     height: u32,
+    #[allow(dead_code)]
     layers: u32,
     pub(crate) attachments: Arc<[Arc<Mutex<ImageView>>]>,
+    #[allow(dead_code)]
     render_pass: Arc<Mutex<RenderPass>>,
 }
 
@@ -242,11 +223,9 @@ impl Framebuffer {
         render_pass: Arc<Mutex<RenderPass>>,
     ) -> VkNonDispatchableHandle {
         info!("new Framebuffer");
-        let handle = VK_NULL_HANDLE;
-        assert_eq!(layers, 1);
-
-        let object = Self {
-            handle,
+        assert_eq!(layers, 1, "layered framebuffers are not implemented");
+        Self {
+            handle: VK_NULL_HANDLE,
             logical_device,
             flags: flags.into(),
             width,
@@ -254,7 +233,7 @@ impl Framebuffer {
             layers,
             attachments: attachments.into(),
             render_pass,
-        };
-        object.register_object()
+        }
+        .register()
     }
 }

@@ -2,12 +2,11 @@
 
 use headers::vk_decls::*;
 use log::warn;
-use runtime::context::{Dispatchable, NonDispatchable};
+use runtime::context::VulkanObject;
 use runtime::image::ImageView;
 use runtime::logical_device::LogicalDevice;
 use runtime::physical_device::PhysicalDevice;
 use runtime::pipeline::*;
-
 
 pub unsafe extern "C" fn vkCreatePipelineLayout(
     device: VkDevice,
@@ -15,13 +14,9 @@ pub unsafe extern "C" fn vkCreatePipelineLayout(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pPipelineLayout: Option<NonNull<VkPipelineLayout>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     let set_layouts = create_info
         .pSetLayouts
@@ -32,9 +27,7 @@ pub unsafe extern "C" fn vkCreatePipelineLayout(
 
     let _ = pAllocator;
 
-    let Some(pPipelineLayout) = pPipelineLayout else {
-        unreachable!()
-    };
+    let pPipelineLayout = pPipelineLayout.expect("Vulkan guarantees a non-null pointer");
 
     *pPipelineLayout.as_ptr() =
         PipelineLayout::create(device, create_info.flags, set_layouts, push_constant_ranges);
@@ -47,9 +40,8 @@ pub unsafe extern "C" fn vkDestroyPipelineLayout(
     pipelineLayout: VkPipelineLayout,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -62,13 +54,9 @@ pub unsafe extern "C" fn vkCreateRenderPass(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pRenderPass: Option<NonNull<VkRenderPass>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
 
     let attachments = create_info
@@ -135,9 +123,7 @@ pub unsafe extern "C" fn vkCreateRenderPass(
 
     let _ = pAllocator;
 
-    let Some(pRenderPass) = pRenderPass else {
-        unreachable!()
-    };
+    let pRenderPass = pRenderPass.expect("Vulkan guarantees a non-null pointer");
 
     *pRenderPass.as_ptr() = RenderPass::create(device, attachments, dependencies, subpasses);
 
@@ -149,9 +135,8 @@ pub unsafe extern "C" fn vkDestroyRenderPass(
     renderPass: VkRenderPass,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -164,26 +149,18 @@ pub unsafe extern "C" fn vkCreateShaderModule(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pShaderModule: Option<NonNull<VkShaderModule>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
-    let Some(code) = create_info.pCode else {
-        unreachable!()
-    };
+    let code = create_info.pCode.expect("value is present");
     assert_eq!(create_info.codeSize % 4, 0);
     let code_size = create_info.codeSize / 4;
     let code = std::slice::from_raw_parts(code.as_ptr(), code_size as usize);
 
     let _ = pAllocator;
 
-    let Some(pShaderModule) = pShaderModule else {
-        unreachable!()
-    };
+    let pShaderModule = pShaderModule.expect("Vulkan guarantees a non-null pointer");
 
     *pShaderModule.as_ptr() = ShaderModule::create(device, create_info.flags, code);
 
@@ -195,9 +172,8 @@ pub unsafe extern "C" fn vkDestroyShaderModule(
     shaderModule: VkShaderModule,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -210,13 +186,9 @@ pub unsafe extern "C" fn vkCreatePipelineCache(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pPipelineCache: Option<NonNull<VkPipelineCache>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     let initial_data = create_info.pInitialData.map_or(&[] as &[u8], |x| {
         std::slice::from_raw_parts(x.as_ptr() as *mut u8, create_info.initialDataSize as usize)
@@ -224,9 +196,7 @@ pub unsafe extern "C" fn vkCreatePipelineCache(
 
     let _ = pAllocator;
 
-    let Some(pPipelineCache) = pPipelineCache else {
-        unreachable!()
-    };
+    let pPipelineCache = pPipelineCache.expect("Vulkan guarantees a non-null pointer");
 
     *pPipelineCache.as_ptr() = PipelineCache::create(device, create_info.flags, initial_data);
 
@@ -238,9 +208,8 @@ pub unsafe extern "C" fn vkDestroyPipelineCache(
     pipelineCache: VkPipelineCache,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -257,22 +226,16 @@ pub unsafe extern "C" fn vkCreateGraphicsPipelines(
 ) -> VkResult {
     let mut result = VkResult::VK_SUCCESS;
 
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let pipelineCache = PipelineCache::from_handle(pipelineCache);
 
     let _ = pAllocator;
 
-    let Some(pPipelines) = pPipelines else {
-        unreachable!()
-    };
+    let pPipelines = pPipelines.expect("Vulkan guarantees a non-null pointer");
     let pipelines = std::slice::from_raw_parts_mut(pPipelines.as_ptr(), createInfoCount as usize);
 
-    let Some(pCreateInfos) = pCreateInfos else {
-        unreachable!()
-    };
+    let pCreateInfos = pCreateInfos.expect("Vulkan guarantees a non-null pointer");
     let create_infos = std::slice::from_raw_parts(pCreateInfos.as_ptr(), createInfoCount as usize);
 
     for (create_info, pipeline) in std::iter::zip(create_infos, pipelines) {
@@ -325,9 +288,8 @@ pub unsafe extern "C" fn vkDestroyPipeline(
     pipeline: VkPipeline,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
@@ -340,13 +302,9 @@ pub unsafe extern "C" fn vkCreateFramebuffer(
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
     pFramebuffer: Option<NonNull<VkFramebuffer>>,
 ) -> VkResult {
-    let Some(device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let device = LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
-    let Some(pCreateInfo) = pCreateInfo else {
-        unreachable!()
-    };
+    let pCreateInfo = pCreateInfo.expect("Vulkan guarantees a non-null pointer");
     let create_info = pCreateInfo.as_ref();
     let attachments = create_info
         .pAttachments
@@ -356,15 +314,12 @@ pub unsafe extern "C" fn vkCreateFramebuffer(
         .iter()
         .flat_map(|&handle| ImageView::from_handle(handle))
         .collect::<Vec<_>>();
-    let Some(render_pass) = RenderPass::from_handle(create_info.renderPass) else {
-        unreachable!()
-    };
+    let render_pass = RenderPass::from_handle(create_info.renderPass)
+        .expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
-    let Some(pFramebuffer) = pFramebuffer else {
-        unreachable!()
-    };
+    let pFramebuffer = pFramebuffer.expect("Vulkan guarantees a non-null pointer");
 
     *pFramebuffer.as_ptr() = Framebuffer::create(
         device,
@@ -384,9 +339,8 @@ pub unsafe extern "C" fn vkDestroyFramebuffer(
     framebuffer: VkFramebuffer,
     pAllocator: Option<NonNull<VkAllocationCallbacks>>,
 ) {
-    let Some(_device) = LogicalDevice::from_handle(device) else {
-        unreachable!()
-    };
+    let _device =
+        LogicalDevice::from_handle(device).expect("Vulkan handle refers to a live object");
 
     let _ = pAllocator;
 
