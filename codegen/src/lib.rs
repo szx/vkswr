@@ -3,6 +3,7 @@ mod vk_xml;
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 pub use vk_xml::*;
@@ -43,8 +44,6 @@ impl VkXml {
             writeln!(f, "{tokens}")?;
         }
 
-        writeln!(f, "{}", quote! {pub type int = i32;})?;
-
         Ok(())
     }
 
@@ -83,6 +82,7 @@ pub enum WriteVkXmlError {
 
 lazy_static! {
     static ref SEEN: Mutex<Vec<Arc<str>>> = Mutex::new(Vec::new());
+    static ref API_CONSTANT_TYPES: Mutex<HashMap<Arc<str>, String>> = Mutex::new(HashMap::new());
 }
 
 fn seen(name: Arc<str>) -> bool {
@@ -172,6 +172,10 @@ impl ToTokens for VkEnumsMember {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::ApiConstantMember { name, type_, value } => {
+                API_CONSTANT_TYPES
+                    .lock()
+                    .expect("failed to unlock API_CONSTANT_TYPES")
+                    .insert(name.clone(), type_.0.clone());
                 let name = format_ident!("{}", name.as_ref());
                 let type_ = type_.0.parse::<TokenStream>().expect("Rust type");
                 let value = value.parse::<TokenStream>().expect("Rust value");
@@ -390,10 +394,11 @@ impl ToTokens for VkExtension {
         let Self {
             name,
             number,
+            internal,
             enum_members,
         } = self;
         {
-            if !(name.contains("VK_VERSION") || name.contains("VKSC_VERSION")) {
+            if !*internal && !(name.contains("VK_VERSION") || name.contains("VKSC_VERSION")) {
                 let number_name = format_ident!("{}_NUMBER", name.to_uppercase());
                 let number = number.parse::<TokenStream>().expect("Rust value");
                 tokens.extend(quote! {pub const #number_name : u64 = #number;});
@@ -406,15 +411,6 @@ impl ToTokens for VkExtension {
 
 impl ToTokens for VkExtensionEnumMember {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let get_type_by_name = |name: &Arc<str>| -> TokenStream {
-            if name.ends_with("_NAME") {
-                "&str"
-            } else {
-                "isize"
-            }
-            .parse::<TokenStream>()
-            .expect("Rust value")
-        };
         let get_type_by_value = |value: &Arc<str>| -> TokenStream {
             if value.starts_with('"') {
                 "&str"
@@ -422,7 +418,7 @@ impl ToTokens for VkExtensionEnumMember {
                 "isize"
             }
             .parse::<TokenStream>()
-            .expect("Rust value")
+		.expect("Rust value")
         };
         match self {
             Self::Value {
@@ -435,15 +431,28 @@ impl ToTokens for VkExtensionEnumMember {
                 }
                 let type_ = get_type_by_value(value);
                 let name = format_ident!("{}", name.as_ref());
-                let value = value.parse::<TokenStream>().expect("Rust value");
                 if let Some(extends) = extends {
+                    let extends_type = format_ident!("{}", enum_type_from_name(extends));
                     let extends = format_ident!("{}", extends.as_ref());
+                    // A plain `-5 as u32` still negates a `u32` literal, so
+                    // give negative values an explicit signed type first.
+                    let value = parse_int::parse::<i64>(value).map_or_else(
+                        |_| {
+                            let value = value.parse::<TokenStream>().expect("Rust value");
+                            quote!((#value) as #extends_type)
+                        },
+                        |value| {
+                            let value = Literal::i64_suffixed(value);
+                            quote!((#value) as #extends_type)
+                        },
+                    );
                     tokens.extend(quote! {
                         impl #extends {
-                           pub const #name : Self = Self(#value);
+                            pub const #name : Self = Self(#value);
                         }
                     });
                 } else {
+                    let value = value.parse::<TokenStream>().expect("Rust value");
                     tokens.extend(quote! {pub const #name : #type_ = #value;});
                 }
             }
@@ -451,7 +460,21 @@ impl ToTokens for VkExtensionEnumMember {
                 if seen(name.clone()) {
                     return;
                 }
-                let type_ = get_type_by_name(name);
+                // The aliased constant can be an API constant (u32/u64/float)
+                // or an extension constant (&str). Use the API constant type
+                // when available instead of always assuming `isize`.
+                let type_ = API_CONSTANT_TYPES
+                    .lock()
+                    .expect("failed to unlock API_CONSTANT_TYPES")
+                    .get(alias.as_ref())
+                    .cloned();
+                let type_ = match type_ {
+                    Some(type_) => type_.parse::<TokenStream>().expect("Rust type"),
+                    None if name.ends_with("_NAME") => {
+                        "&str".parse::<TokenStream>().expect("Rust type")
+                    }
+                    None => "isize".parse::<TokenStream>().expect("Rust type"),
+                };
                 let name = format_ident!("{}", name.as_ref());
                 let alias = format_ident!("{}", alias.as_ref());
                 tokens.extend(quote! { pub const #name : #type_ = #alias; });
@@ -469,7 +492,7 @@ impl ToTokens for VkExtensionEnumMember {
                 let extends = format_ident!("{}", extends.as_ref());
                 tokens.extend(quote! {
                     impl #extends {
-                       pub const #name : Self = Self(#number);
+			pub const #name : Self = Self(#number);
                     }
                 });
             }
@@ -486,7 +509,7 @@ impl ToTokens for VkExtensionEnumMember {
                 let extends = format_ident!("{}", extends.as_ref());
                 tokens.extend(quote! {
                     impl #extends {
-                       pub const #name : Self = Self(1 << #bitpos);
+			pub const #name : Self = Self(1 << #bitpos);
                     }
                 });
             }
@@ -503,7 +526,7 @@ impl ToTokens for VkExtensionEnumMember {
                 let extends = format_ident!("{}", extends.as_ref());
                 tokens.extend(quote! {
                     impl #extends {
-                       pub const #name : Self = Self::#alias;
+			pub const #name : Self = Self::#alias;
                     }
                 });
             }

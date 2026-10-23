@@ -83,10 +83,18 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                         continue;
                     }
                     if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde>(str) {
-                        vk_xml.type_externs.insert(x.fix());
+                        if let Some(x) = x.fix() {
+                            vk_xml.type_externs.insert(x);
+                        }
                         continue;
                     }
                     if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde2>(str) {
+                        if let Some(x) = x.fix(str) {
+                            vk_xml.type_externs.insert(x);
+                        }
+                        continue;
+                    }
+                    if let Ok(x) = quick_xml::de::from_str::<VkTypeExternSerde3>(str) {
                         if let Some(x) = x.fix(str) {
                             vk_xml.type_externs.insert(x);
                         }
@@ -189,6 +197,17 @@ impl VkXmlEnumsSerde {
             };
         };
         let type_ = type_.as_ref();
+        if type_ == "constants" {
+            return VkEnums::ApiConstants {
+                members: self
+                    .enumerators
+                    .as_ref()
+                    .expect("at least one enumerator")
+                    .iter()
+                    .map(|x| x.fix(self.name.clone()))
+                    .collect(),
+            };
+        }
         if type_ == "enum" || type_ == "bitmask" {
             VkEnums::Enum {
                 name: self.name.clone(),
@@ -368,15 +387,31 @@ impl VkStructSerde {
             members.push(member);
         }
 
-        let mut iter = members.iter_mut();
+        let mut iter = members.into_iter().peekable();
         let mut members: Vec<VkStructMember> = vec![];
-        while let Some(member) = iter.next() {
-            if member.is_bitfield_24() {
-                let next = iter.next();
-                members.push(member.fix(next, is_union));
-            } else {
-                members.push(member.fix(None, is_union));
+        while let Some(mut member) = iter.next() {
+            let Some(width) = member.bitfield_width() else {
+                members.push(member.fix(is_union));
+                continue;
+            };
+
+            let mut names = vec![member.name.clone()];
+            let mut total = width;
+            while let Some(next) = iter.peek() {
+                let Some(next_width) = next.bitfield_width() else {
+                    break;
+                };
+                if total + next_width > 32 {
+                    break;
+                }
+                let next = iter.next().expect("peeked");
+                total += next_width;
+                names.push(next.name);
             }
+
+            member.type_ = member.without_bitfield();
+            member.name = names.join("_");
+            members.push(member.fix(is_union));
         }
         members
     }
@@ -389,23 +424,26 @@ struct VkStructMemberSerde {
 }
 
 impl VkStructMemberSerde {
-    fn is_bitfield_24(&self) -> bool {
-        self.type_.contains(" :24")
+    fn bitfield_width(&self) -> Option<u32> {
+        lazy_static! {
+            static ref RE_BITFIELD: regex::Regex = regex::Regex::new(r":\s*(\d+)").expect("regex");
+        }
+        RE_BITFIELD
+            .captures(&self.type_)?
+            .get(1)?
+            .as_str()
+            .parse()
+            .ok()
     }
 
-    fn fix(&mut self, next: Option<&mut Self>, in_union: bool) -> VkStructMember {
+    fn without_bitfield(&self) -> String {
         lazy_static! {
-            static ref RE_BITFIELD_24: regex::Regex =
-                regex::Regex::new(r"(.*?)\s\:24").expect("regex");
+            static ref RE_BITFIELD: regex::Regex = regex::Regex::new(r":\s*\d+").expect("regex");
         }
+        RE_BITFIELD.replace(&self.type_, "").trim().to_string()
+    }
 
-        if let Some(cap) = RE_BITFIELD_24.captures(&self.type_) {
-            self.type_ = cap.get(1).expect("capture").as_str().into();
-            if let Some(next) = next {
-                self.name = format!("{}_{}", self.name, next.name);
-            }
-        }
-
+    fn fix(&self, in_union: bool) -> VkStructMember {
         let name = self.name.clone().into();
         let type_ = VkFFIType::new(&self.type_);
 
@@ -484,10 +522,10 @@ pub struct VkTypeExternSerde {
 
 impl VkTypeExternSerde {
     #[must_use]
-    pub fn fix(&self) -> VkTypeExtern {
-        VkTypeExtern::Extern {
+    pub fn fix(&self) -> Option<VkTypeExtern> {
+        Some(VkTypeExtern::Extern {
             name: self.name.clone(),
-        }
+        })
     }
 }
 
@@ -516,6 +554,23 @@ impl VkTypeExternSerde2 {
             &_ => {
                 unreachable!("{:?}", self)
             }
+        }
+    }
+}
+
+/// Function pointer declarations that use a `<proto>` tag.
+#[derive(Eq, Hash, PartialEq, Debug, Deserialize)]
+pub struct VkTypeExternSerde3 {
+    #[serde(rename = "@category")]
+    category: Arc<str>,
+}
+
+impl VkTypeExternSerde3 {
+    #[must_use]
+    pub fn fix(&self, str: &str) -> Option<VkTypeExtern> {
+        match self.category.as_ref() {
+            "funcpointer" => VkFuncDeclMember::parse_members(str),
+            &_ => None,
         }
     }
 }
@@ -650,6 +705,10 @@ pub enum VkFuncDeclMember {
 
 impl VkFuncDeclMember {
     fn parse_members(str: &str) -> Option<VkTypeExtern> {
+        if str.contains("<proto") {
+            return Self::parse_proto_members(str);
+        }
+
         lazy_static! {
             static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
             static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
@@ -682,6 +741,61 @@ impl VkFuncDeclMember {
             let type_ = VkFFIType::new(cap[1].into());
             let name = cap[2].into();
             members.push(Self::Member { name, type_ });
+        }
+
+        Some(VkTypeExtern::FuncPointer {
+            type_,
+            name,
+            members,
+        })
+    }
+
+    fn parse_proto_members(str: &str) -> Option<VkTypeExtern> {
+        lazy_static! {
+            static ref RE_PROTO: regex::Regex =
+                regex::Regex::new(r"<proto[^>]*>(.*?)<\/proto[^>]*>").expect("regex");
+            static ref RE_NAME: regex::Regex =
+                regex::Regex::new(r"<name[^>]*>(.*?)<\/name[^>]*>").expect("regex");
+            static ref RE_PARAM: regex::Regex =
+                regex::Regex::new(r"<param[^>]*>(.*?)<\/param[^>]*>").expect("regex");
+            static ref RE_ALL_TAGS: regex::Regex = regex::Regex::new(r"</?[^>]*>").expect("regex");
+            static ref RE_ALL_SPACES: regex::Regex = regex::Regex::new(r"\s\s+").expect("regex");
+        }
+
+        let proto = RE_PROTO.captures(str)?.get(1)?.as_str();
+        let name = RE_NAME.captures(proto)?.get(1)?.as_str().into();
+
+        let type_ = RE_NAME.replace_all(proto, " ");
+        let type_ = RE_ALL_TAGS.replace_all(&type_, " ");
+        let type_ = RE_ALL_SPACES.replace_all(&type_, " ");
+        let type_ = match type_.trim() {
+            "" | "void" => None,
+            type_ => Some(VkFFIType::new(type_)),
+        };
+
+        let mut members: Vec<Self> = vec![];
+        for cap in RE_PARAM.captures_iter(str) {
+            if cap[0].contains("vulkansc") {
+                continue;
+            }
+
+            let Some(cap_name) = RE_NAME.captures(&cap[0]) else {
+                unreachable!("{:?}", &cap[0])
+            };
+            let mut member_name = cap_name.get(1)?.as_str().into();
+            if member_name == "type" {
+                member_name = "type_".into();
+            }
+
+            let type_ = RE_NAME.replace_all(&cap[0], " ");
+            let type_ = RE_ALL_TAGS.replace_all(&type_, " ");
+            let type_ = RE_ALL_SPACES.replace_all(&type_, " ");
+            let type_ = VkFFIType::new(type_.trim());
+
+            members.push(Self::Member {
+                name: member_name,
+                type_,
+            });
         }
 
         Some(VkTypeExtern::FuncPointer {
@@ -746,8 +860,8 @@ impl VkFFIType {
     fn parse_value(value: &Arc<str>) -> String {
         parse_int::parse::<usize>(value.as_ref()).map_or_else(
             |_| {
-                if value.ends_with('F') {
-                    format!("{}_f32", value.split('F').next().expect("float"))
+                if value.ends_with('F') || value.ends_with('f') {
+                    format!("{}_f32", &value[..value.len() - 1])
                 } else if value.as_ref() == "(~0U)" {
                     "!0_u32".into()
                 } else if value.as_ref() == "(~0ULL)" {
@@ -842,6 +956,9 @@ pub struct VkExtensionSerde {
     #[serde(rename = "@type")]
     type_: Option<Arc<str>>,
 
+    #[serde(rename = "@apitype")]
+    apitype: Option<Arc<str>>,
+
     #[serde(rename = "require")]
     require: Vec<VkExtensionRequireSerde>,
 }
@@ -858,6 +975,11 @@ impl VkExtensionSerde {
         Some(VkExtension {
             name: self.name.clone(),
             number: self.number.clone(),
+            // `apitype="internal"` features split the Vulkan API into base,
+            // compute, and graphics subsets in recent registries. They carry
+            // core enum members but their `number` is a version such as `1.4`,
+            // not an extension number, so no `*_NUMBER` constant is generated.
+            internal: self.apitype.as_deref() == Some("internal"),
             enum_members: self
                 .require
                 .iter()
@@ -877,6 +999,7 @@ impl VkExtensionSerde {
 pub struct VkExtension {
     pub name: Arc<str>,
     pub number: Arc<str>,
+    pub internal: bool,
     pub enum_members: Vec<VkExtensionEnumMember>,
 }
 

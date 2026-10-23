@@ -32,35 +32,11 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
 
 ## Testing
 
-The tests do not use Vulkan tools from the user's `PATH`, and they do not read
-`VULKAN_SDK` or `VULKAN_CTS_PATH`. Tools are cached in `target/vkswr-tools`:
-
-- Tests that need `glslangValidator`, `vulkaninfo`, or `vkcube` download and
-  extract the pinned Vulkan SDK on first use.
-- Tests that need `deqp-vk` download the pinned Vulkan CTS sources and build
-  `deqp-vk` on first use.
-
-- Vulkan SDK `1.4.363.0` (LunarG) provides `glslangValidator`, `vulkaninfo`, and `vkcube`.
-- Vulkan CTS `vulkan-cts-1.4.7.0` (Khronos) is built from source.
-
-The first test run therefore needs network access plus `git`, `python3` (with
-`lxml`), `cmake`, `ninja`, and a C++ toolchain. Only Linux is supported by the
-download helper.
+Vulkan SDK is downloaded and provides `glslangValidator`, `vulkaninfo`, and `vkcube`.
+Vulkan CTS is built from source and provides `deqp-vk`.
 
 Environment overrides:
-
 - `VKSWR_TOOLS_DIR` — where downloads and builds are cached (default:
   `target/vkswr-tools`).
 - `VKSWR_CTS_JOBS` — parallelism for the CTS build.
 - `VKSWR_PYTHON` / `VKSWR_CMAKE` — override the `python3`/`cmake` executables.
-
-`cargo clean` removes the cache, so the next test run downloads and builds the
-tools again.
-
-Tests that exercise features which are not implemented yet are marked
-`#[ignore]` with an explanation so the default `cargo test` run stays green:
-
-- `run_vkcube` — needs matrix shader support and texture sampling.
-- `run_deqp_vk_memory_pipeline_barrier_host_write_uniform_buffer_1024` — needs
-  descriptor-set/uniform-buffer support (`vkUpdateDescriptorSets` and
-  `vkCmdBindDescriptorSets` are still no-ops).
