@@ -13,8 +13,8 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
 - [ ] dEQP-VK tests
   - [ ] dEQP-VK.api.*
     - [x] dEQP-VK.api.info.*
-    - [ ] dEQP-VK.api.smoke.triangle
-      - [ ] Triangle list rasterization.
+    - [x] dEQP-VK.api.smoke.triangle
+      - [x] Triangle list rasterization.
       - [x] Vertex shader.
       - [x] Fragment shader.
 
@@ -22,11 +22,11 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
     - [x] dEQP-VK.api.object_management.single.buffer_view_uniform_r8g8b8a8_unorm
   - [ ] dEQP-VK.memory.*
     - [x] dEQP-VK.memory.requirements.*
-    - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_2
-    - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.1024_vertex_buffer_stride_4
-    - [x] dEQP-VK.memory.pipeline_barrier.host_write_vertex_buffer.8192_vertex_buffer_stride_2
-    - [x] dEQP-VK.memory.pipeline_barrier.host_write_index_buffer.1024
-    - [ ] dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024
+    - [x] dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_2
+    - [x] dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_4
+    - [x] dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.8192_vertex_buffer_stride_2
+    - [x] dEQP-VK.memory.pipeline_barrier.graphics.host_write_index_buffer.1024
+    - [ ] dEQP-VK.memory.pipeline_barrier.graphics.host_write_uniform_buffer.1024
 
       ![Result](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_Result.PNG)![Reference](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_Reference.PNG)![ErrorMask](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_ErrorMask.PNG)
 
@@ -56,3 +56,11 @@ Environment overrides:
 
 `cargo clean` removes the cache, so the next test run downloads and builds the
 tools again.
+
+Tests that exercise features which are not implemented yet are marked
+`#[ignore]` with an explanation so the default `cargo test` run stays green:
+
+- `run_vkcube` — needs matrix shader support and texture sampling.
+- `run_deqp_vk_memory_pipeline_barrier_host_write_uniform_buffer_1024` — needs
+  descriptor-set/uniform-buffer support (`vkUpdateDescriptorSets` and
+  `vkCmdBindDescriptorSets` are still no-ops).

@@ -85,7 +85,7 @@ impl Image {
         self.gpu_binding.store(
             memory.lock().gpu_memory_allocation,
             offset,
-            self.size_in_bytes().saturating_sub(offset),
+            self.size_in_bytes(),
         );
         VkResult::VK_SUCCESS
     }

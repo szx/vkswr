@@ -13,7 +13,6 @@ use std::num::NonZeroU64;
 pub use std::ptr::NonNull;
 use xcb;
 
-
 /// ICD has to return pointer to struct with the first field being VkLoaderData.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
@@ -363,7 +362,9 @@ impl From<VkFormat> for common::math::Format {
             VkFormat::VK_FORMAT_R8G8B8A8_SSCALED => unimplemented!(),
             VkFormat::VK_FORMAT_R8G8B8A8_UINT => unimplemented!(),
             VkFormat::VK_FORMAT_R8G8B8A8_SINT => unimplemented!(),
-            VkFormat::VK_FORMAT_R8G8B8A8_SRGB => unimplemented!(),
+            // The software renderer does not perform sRGB conversion yet; treat the
+            // format as its UNORM equivalent so uploads and rendering keep working.
+            VkFormat::VK_FORMAT_R8G8B8A8_SRGB => Self::R8G8B8A8Unorm,
             VkFormat::VK_FORMAT_B8G8R8A8_UNORM => unimplemented!(),
             VkFormat::VK_FORMAT_B8G8R8A8_SNORM => unimplemented!(),
             VkFormat::VK_FORMAT_B8G8R8A8_USCALED => unimplemented!(),

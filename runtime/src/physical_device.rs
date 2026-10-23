@@ -2153,17 +2153,62 @@ impl PhysicalDevice {
         }
     }
 
+    fn supports_image_usage(
+        &self,
+        format: VkFormat,
+        tiling: VkImageTiling,
+        usage: VkImageUsageFlags,
+    ) -> bool {
+        let properties = self.format_properties(format);
+        let features = match tiling {
+            VkImageTiling::VK_IMAGE_TILING_LINEAR => properties.linearTilingFeatures,
+            VkImageTiling::VK_IMAGE_TILING_OPTIMAL => properties.optimalTilingFeatures,
+            _ => return false,
+        };
+        let color_or_depth = (VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+            | VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+            .0;
+        let checks = [
+            (
+                VkImageUsageFlagBits::VK_IMAGE_USAGE_SAMPLED_BIT.0,
+                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT.0,
+            ),
+            (
+                VkImageUsageFlagBits::VK_IMAGE_USAGE_STORAGE_BIT.0,
+                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT.0,
+            ),
+            (
+                VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.0,
+                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT.0,
+            ),
+            (
+                VkImageUsageFlagBits::VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.0,
+                VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT.0,
+            ),
+            (
+                VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT.0,
+                color_or_depth,
+            ),
+        ];
+        checks.iter().all(|&(usage_bit, feature_bits)| {
+            usage & usage_bit == 0 || features & feature_bits != 0
+        })
+    }
+
     pub fn image_format_properties(
         &self,
         format: VkFormat,
         type_: VkImageType,
-        _tiling: VkImageTiling,
+        tiling: VkImageTiling,
         usage: VkImageUsageFlags,
-        _flags: VkImageCreateFlags,
+        flags: VkImageCreateFlags,
     ) -> Option<VkImageFormatProperties> {
-        let is_cube_compatible = (Into::<VkImageCreateFlagBits>::into(usage)
-            & VkImageCreateFlagBits::VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
-            != 0;
+        if !self.supports_image_usage(format, tiling, usage) {
+            return None;
+        }
+
+        let is_cube_compatible =
+            (flags & VkImageCreateFlagBits::VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT.0) != 0;
 
         let max_extent = match type_ {
             VkImageType::VK_IMAGE_TYPE_1D => VkExtent3D {

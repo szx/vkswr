@@ -163,8 +163,8 @@ impl Gpu {
         let size = buffer_row_len
             * buffer_image_height
             * region.image_format.info().bytes_per_pixel as u32;
-        let src_offset = region.buffer_offset;
-        let dst_offset = 0;
+        let src_offset = src_buffer.binding.offset + region.buffer_offset;
+        let dst_offset = dst_image.binding.offset;
         self.memory.copy_bytes(
             &src_buffer.binding,
             &dst_image.binding,
@@ -202,8 +202,8 @@ impl Gpu {
         let size = buffer_row_len
             * buffer_image_height
             * region.image_format.info().bytes_per_pixel as u32;
-        let src_offset = 0;
-        let dst_offset = region.buffer_offset;
+        let src_offset = src_image.binding.offset;
+        let dst_offset = dst_buffer.binding.offset + region.buffer_offset;
         self.memory.copy_bytes(
             &src_image.binding,
             &dst_buffer.binding,
@@ -222,8 +222,8 @@ impl Gpu {
         self.memory.copy_bytes(
             &src_buffer.binding,
             &dst_buffer.binding,
-            region.src_offset,
-            region.dst_offset,
+            src_buffer.binding.offset + region.src_offset,
+            dst_buffer.binding.offset + region.dst_offset,
             region.size,
         );
     }

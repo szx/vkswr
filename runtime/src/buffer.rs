@@ -54,11 +54,8 @@ impl Buffer {
     }
 
     pub fn bind_memory(&mut self, memory: Arc<Mutex<MemoryAllocation>>, offset: u64) -> VkResult {
-        self.gpu_binding.store(
-            memory.lock().gpu_memory_allocation,
-            offset,
-            self.size.saturating_sub(offset),
-        );
+        self.gpu_binding
+            .store(memory.lock().gpu_memory_allocation, offset, self.size);
         VkResult::VK_SUCCESS
     }
 

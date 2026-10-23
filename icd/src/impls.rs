@@ -514,6 +514,22 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
         "vkCmdNextSubpass" => unsafe { std::mem::transmute(vkCmdNextSubpass as *const ()) },
         "vkCmdEndRenderPass" => unsafe { std::mem::transmute(vkCmdEndRenderPass as *const ()) },
         "vkCmdExecuteCommands" => unsafe { std::mem::transmute(vkCmdExecuteCommands as *const ()) },
+        /* VK_EXT_debug_marker extension device commands */
+        "vkDebugMarkerSetObjectTagEXT" => unsafe {
+            std::mem::transmute(vkDebugMarkerSetObjectTagEXT as *const ())
+        },
+        "vkDebugMarkerSetObjectNameEXT" => unsafe {
+            std::mem::transmute(vkDebugMarkerSetObjectNameEXT as *const ())
+        },
+        "vkCmdDebugMarkerBeginEXT" => unsafe {
+            std::mem::transmute(vkCmdDebugMarkerBeginEXT as *const ())
+        },
+        "vkCmdDebugMarkerEndEXT" => unsafe {
+            std::mem::transmute(vkCmdDebugMarkerEndEXT as *const ())
+        },
+        "vkCmdDebugMarkerInsertEXT" => unsafe {
+            std::mem::transmute(vkCmdDebugMarkerInsertEXT as *const ())
+        },
         /* VK_KHR_swapchain extension device commands */
         "vkCreateSwapchainKHR" => unsafe { std::mem::transmute(vkCreateSwapchainKHR as *const ()) },
         "vkDestroySwapchainKHR" => unsafe {

@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use crate::{draw_line_bresenham, draw_points, Memory};
+use crate::{draw_line_bresenham, draw_points, draw_triangle, Memory};
 use byteorder::ByteOrder;
 use common::{
     consts::{
@@ -67,18 +67,20 @@ impl GraphicsPipeline {
         assert!(area.offset.x >= 0);
         assert!(area.offset.y >= 0);
 
-        let bytes_per_pixel = rt.format.info().bytes_per_pixel;
-        let dst_offset = rt.image.extent.width * area.offset.y as u32 * bytes_per_pixel as u32;
-        let mut dst = memory.get_memory_mut(&rt.image.binding);
-        dst = &mut dst[dst_offset as usize..];
+        let bytes_per_pixel = rt.format.info().bytes_per_pixel as u32;
+        let row_stride = (rt.image.extent.width * bytes_per_pixel) as usize;
+        let dst_base = rt.image.binding.offset as usize
+            + (rt.image.extent.width * area.offset.y as u32 + area.offset.x as u32) as usize
+                * bytes_per_pixel as usize;
+        let dst = memory.get_memory_mut(&rt.image.binding);
         let src = color.to_bytes(rt.format);
         let src = src.as_slice();
 
-        for _y in 0..area.extent.height {
-            for _x in 0..area.extent.width {
-                let dst_offset = area.offset.x as usize * bytes_per_pixel as usize;
+        for y in 0..area.extent.height {
+            for x in 0..area.extent.width {
+                let dst_offset =
+                    dst_base + y as usize * row_stride + x as usize * bytes_per_pixel as usize;
                 dst[dst_offset..dst_offset + bytes_per_pixel as usize].copy_from_slice(src);
-                dst = &mut dst[bytes_per_pixel as usize..];
             }
         }
     }
@@ -236,8 +238,18 @@ impl GraphicsPipeline {
                     let vertices: [Vertex; 3] =
                         triangle.try_into().unwrap_or_else(|_| unreachable!());
                     match self.rasterization_state.polygon_mode {
-                        PolygonMode::Fill | PolygonMode::Line => {
-                            warn!("TODO: Implement PolygonMode::Fill");
+                        PolygonMode::Fill => {
+                            draw_triangle(
+                                vertices[0],
+                                vertices[1],
+                                vertices[2],
+                                rt.image.extent.width,
+                                rt.image.extent.height,
+                                &mut fragments,
+                                color,
+                            );
+                        }
+                        PolygonMode::Line => {
                             for i in 0..3 {
                                 draw_line_bresenham(
                                     vertices[i],
@@ -283,8 +295,9 @@ impl GraphicsPipeline {
             let framebuffer_y = position.get_as_sfloat32(1) as u64;
             assert!(framebuffer_x < framebuffer_width);
             assert!(framebuffer_y < framebuffer_height);
-            let dst_offset = (framebuffer_x + framebuffer_y * framebuffer_width)
-                * rt.format.info().bytes_per_pixel as u64;
+            let dst_offset = rt.image.binding.offset
+                + (framebuffer_x + framebuffer_y * framebuffer_width)
+                    * rt.format.info().bytes_per_pixel as u64;
             warn!("TODO: Write texel to image function");
             memory.write_bytes(&color, &rt.image.binding, dst_offset);
         }
@@ -341,13 +354,14 @@ impl GraphicsPipeline {
         } else {
             binding.stride
         };
-        let vertex_buffer_size = vertex_buffer.buffer.binding.size - vertex_buffer.offset;
+        let binding = &vertex_buffer.buffer.binding;
+        let vertex_buffer_size = binding.size - vertex_buffer.offset;
         assert_eq!(vertex_buffer_size % element_stride as u64, 0);
 
         let bytes = memory
             .read_bytes(
-                &vertex_buffer.buffer.binding,
-                vertex_buffer.offset,
+                binding,
+                binding.offset + vertex_buffer.offset,
                 vertex_buffer_size,
             )
             .to_vec();
@@ -388,9 +402,12 @@ impl GraphicsPipeline {
             || {
                 let mut vertices = vec![];
                 for index in first_index..first_index + index_count {
+                    let binding = &index_buffer.buffer.binding;
                     let bytes = memory.read_bytes(
-                        &index_buffer.buffer.binding,
-                        index_buffer.offset + index as u64 * index_buffer.index_size as u64,
+                        binding,
+                        binding.offset
+                            + index_buffer.offset
+                            + index as u64 * index_buffer.index_size as u64,
                         index_buffer.index_size as u64,
                     );
                     let index =

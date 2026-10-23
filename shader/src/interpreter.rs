@@ -346,6 +346,35 @@ impl Variable {
         }
     }
 
+    fn byte_size(decl: &il::VariableDecl) -> u32 {
+        match decl.kind {
+            il::VariableKind::Array => {
+                let il::VariableBacking::Array {
+                    element_kind,
+                    array_stride,
+                } = &decl.backing
+                else {
+                    unreachable!()
+                };
+                let element_size = Self::byte_size(element_kind);
+                let stride = if *array_stride == 0 {
+                    element_size
+                } else {
+                    *array_stride
+                };
+                stride * decl.component_count
+            }
+            il::VariableKind::Struct => {
+                let il::VariableBacking::Struct { members } = &decl.backing else {
+                    unreachable!()
+                };
+                members.iter().map(Self::byte_size).sum()
+            }
+            il::VariableKind::Pointer => std::mem::size_of::<u32>() as u32,
+            _ => Self::size(decl) * decl.component_count,
+        }
+    }
+
     fn from_il(decl: &il::VariableDecl, state: &mut State) -> Self {
         match &decl.backing {
             il::VariableBacking::Memory => {
@@ -366,16 +395,27 @@ impl Variable {
                 element_kind,
                 array_stride,
             } => {
-                let element = Self::from_il(element_kind, state);
-                let array = state.array_variable(element);
-                if (array.stride == *array_stride
-                    && array.memory_region.size / array.stride >= decl.component_count)
-                    || *array_stride == 0
-                {
-                    element
-                } else {
-                    unimplemented!("{element_kind:#?} {array_stride:#?} {element:#?}")
+                if !matches!(element_kind.backing, il::VariableBacking::Memory) {
+                    // Arrays of built-ins (e.g. gl_ClipDistance) are already
+                    // represented by the built-in variable.
+                    let element = Self::from_il(element_kind, state);
+                    let array = state.array_variable(element);
+                    if *array_stride == 0 || array.stride == *array_stride {
+                        return element;
+                    }
                 }
+
+                let element_size = Self::byte_size(element_kind);
+                let stride = if *array_stride == 0 {
+                    element_size
+                } else {
+                    *array_stride
+                };
+                let memory_region = state.allocate_memory(stride * decl.component_count);
+                state.add_array_variable(ArrayVariable {
+                    memory_region,
+                    stride,
+                })
             }
             il::VariableBacking::Struct { members } => {
                 let variable = StructVariable {
@@ -702,7 +742,16 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::MulI32I32 => todo!(),
+            BinaryOpKind::MulI32I32 => {
+                let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 * op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<i32>()..(i + 1) * std::mem::size_of::<i32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::SubF32F32 => {
                 let op1: Vec<f32> = bytemuck::cast_slice(&op1).to_vec();
                 let op2: Vec<f32> = bytemuck::cast_slice(&op2).to_vec();
@@ -733,7 +782,16 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::DivU32U32 => todo!(),
+            BinaryOpKind::DivU32U32 => {
+                let op1: Vec<u32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<u32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 / op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u32>()..(i + 1) * std::mem::size_of::<u32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::ModI32I32 => {
                 let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
                 let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
@@ -744,9 +802,36 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::ModU32U32 => todo!(),
-            BinaryOpKind::BitAnd => todo!(),
-            BinaryOpKind::BitShiftRight => todo!(),
+            BinaryOpKind::ModU32U32 => {
+                let op1: Vec<u32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<u32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 % op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u32>()..(i + 1) * std::mem::size_of::<u32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            BinaryOpKind::BitAnd => {
+                let op1: Vec<u32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<u32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 & op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u32>()..(i + 1) * std::mem::size_of::<u32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
+            BinaryOpKind::BitShiftRight => {
+                let op1: Vec<u32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<u32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value = op1 >> op2;
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u32>()..(i + 1) * std::mem::size_of::<u32>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
             BinaryOpKind::EqualI32I32 => {
                 let op1: Vec<i32> = bytemuck::cast_slice(&op1).to_vec();
                 let op2: Vec<i32> = bytemuck::cast_slice(&op2).to_vec();
@@ -757,7 +842,16 @@ impl State {
                         .copy_from_slice(bytemuck::bytes_of(&value));
                 }
             }
-            BinaryOpKind::LessThanU32U32 => todo!(),
+            BinaryOpKind::LessThanU32U32 => {
+                let op1: Vec<u32> = bytemuck::cast_slice(&op1).to_vec();
+                let op2: Vec<u32> = bytemuck::cast_slice(&op2).to_vec();
+                for (i, (op1, op2)) in itertools::izip!(op1, op2).enumerate() {
+                    let value: u8 = if op1 < op2 { 1 } else { 0 };
+                    self.memory_mut(&result.memory_region)
+                        [i * std::mem::size_of::<u8>()..(i + 1) * std::mem::size_of::<u8>()]
+                        .copy_from_slice(bytemuck::bytes_of(&value));
+                }
+            }
         }
     }
 
