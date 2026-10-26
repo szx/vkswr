@@ -1,6 +1,7 @@
 //! PhysicalDevice
 
 use crate::context::VulkanObject;
+use crate::extensions::{DEVICE_EXTENSION_COUNT, DEVICE_EXTENSION_PROPERTIES};
 use crate::pipeline::ShaderModule;
 use common::consts::{
     MAX_VERTEX_ATTRIBUTE_OFFSET, MAX_VERTEX_ATTRIBUTES, MAX_VERTEX_BINDING_STRIDE,
@@ -191,17 +192,6 @@ const NO_DEVICE_FEATURES: VkPhysicalDeviceFeatures = {
     unsafe { std::mem::zeroed() }
 };
 
-/// Returns whether every feature requested in `$enabled` is in `$supported`.
-///
-/// This mirrors the Vulkan rule that an application may only enable a feature
-/// the physical device advertises.
-macro_rules! all_features_supported {
-    ($supported:expr, $enabled:expr, [$first:ident $(, $rest:ident)* $(,)?]) => {
-        ($enabled.$first != VK_TRUE || $supported.$first != VK_FALSE)
-            $(&& ($enabled.$rest != VK_TRUE || $supported.$rest != VK_FALSE))*
-    };
-}
-
 impl PhysicalDevice {
     pub fn create() -> VkDispatchableHandle {
         info!("new PhysicalDevice");
@@ -213,40 +203,12 @@ impl PhysicalDevice {
         physical_device.register()
     }
 
-    pub fn extension_count() -> usize {
-        Self::extension_properties().len()
+    pub const fn extension_count() -> usize {
+        DEVICE_EXTENSION_COUNT
     }
 
-    pub fn extension_properties() -> [VkExtensionProperties; 3] {
-        c_char_array!(
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_MAX_EXTENSION_NAME_SIZE,
-            "VK_KHR_swapchain"
-        );
-        c_char_array!(
-            VK_KHR_TOOLING_INFO_NAME,
-            VK_MAX_EXTENSION_NAME_SIZE,
-            "VK_EXT_tooling_info"
-        );
-        c_char_array!(
-            VK_KHR_DEBUG_MARKER_NAME,
-            VK_MAX_EXTENSION_NAME_SIZE,
-            "VK_EXT_debug_marker"
-        );
-        [
-            VkExtensionProperties {
-                extensionName: VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                specVersion: 70,
-            },
-            VkExtensionProperties {
-                extensionName: VK_KHR_TOOLING_INFO_NAME,
-                specVersion: 1,
-            },
-            VkExtensionProperties {
-                extensionName: VK_KHR_DEBUG_MARKER_NAME,
-                specVersion: 4,
-            },
-        ]
+    pub const fn extension_properties() -> [VkExtensionProperties; DEVICE_EXTENSION_COUNT] {
+        DEVICE_EXTENSION_PROPERTIES
     }
 
     pub fn properties(&self) -> VkPhysicalDeviceProperties {
@@ -310,68 +272,7 @@ impl PhysicalDevice {
     }
 
     pub const fn supports_features(&self, enabled_features: &VkPhysicalDeviceFeatures) -> bool {
-        let supported_features = self.features();
-        all_features_supported!(
-            supported_features,
-            enabled_features,
-            [
-                robustBufferAccess,
-                fullDrawIndexUint32,
-                imageCubeArray,
-                independentBlend,
-                geometryShader,
-                tessellationShader,
-                sampleRateShading,
-                dualSrcBlend,
-                logicOp,
-                multiDrawIndirect,
-                drawIndirectFirstInstance,
-                depthClamp,
-                depthBiasClamp,
-                fillModeNonSolid,
-                depthBounds,
-                wideLines,
-                largePoints,
-                alphaToOne,
-                multiViewport,
-                samplerAnisotropy,
-                textureCompressionETC2,
-                textureCompressionASTC_LDR,
-                textureCompressionBC,
-                occlusionQueryPrecise,
-                pipelineStatisticsQuery,
-                vertexPipelineStoresAndAtomics,
-                fragmentStoresAndAtomics,
-                shaderTessellationAndGeometryPointSize,
-                shaderImageGatherExtended,
-                shaderStorageImageExtendedFormats,
-                shaderStorageImageMultisample,
-                shaderStorageImageReadWithoutFormat,
-                shaderStorageImageWriteWithoutFormat,
-                shaderUniformBufferArrayDynamicIndexing,
-                shaderSampledImageArrayDynamicIndexing,
-                shaderStorageBufferArrayDynamicIndexing,
-                shaderStorageImageArrayDynamicIndexing,
-                shaderClipDistance,
-                shaderCullDistance,
-                shaderFloat64,
-                shaderInt64,
-                shaderInt16,
-                shaderResourceResidency,
-                shaderResourceMinLod,
-                sparseBinding,
-                sparseResidencyBuffer,
-                sparseResidencyImage2D,
-                sparseResidencyImage3D,
-                sparseResidency2Samples,
-                sparseResidency4Samples,
-                sparseResidency8Samples,
-                sparseResidency16Samples,
-                sparseResidencyAliased,
-                variableMultisampleRate,
-                inheritedQueries,
-            ]
-        )
+        enabled_features.is_supported_by(&self.features())
     }
 
     pub const fn format_properties(&self, format: VkFormat) -> VkFormatProperties {

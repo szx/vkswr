@@ -30,13 +30,23 @@ The current goal is to fully implement the Vulkan Core 1.0 API with a software r
 
       ![Result](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_Result.PNG)![Reference](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_Reference.PNG)![ErrorMask](assets/deqp-vk/dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1024_ErrorMask.PNG)
 
+## Sources of truth
+
+Sources:
+- `codegen/vk.xml`
+- `codegen/src/policy.rs`
+- `rspirv`
+- `test_tools/src/lib.rs`
+
+Generated sources live in `OUT_DIR`.
+
 ## Testing
 
 Vulkan SDK is downloaded and provides `glslangValidator`, `vulkaninfo`, and `vkcube`.
 Vulkan CTS is built from source and provides `deqp-vk`.
 
 Environment overrides:
-- `VKSWR_TOOLS_DIR` — where downloads and builds are cached (default:
+- `VKSWR_TOOLS_DIR` - where downloads and builds are cached (default:
   `target/vkswr-tools`).
-- `VKSWR_CTS_JOBS` — parallelism for the CTS build.
-- `VKSWR_PYTHON` / `VKSWR_CMAKE` — override the `python3`/`cmake` executables.
+- `VKSWR_CTS_JOBS` - parallelism for the CTS build.
+- `VKSWR_PYTHON` / `VKSWR_CMAKE` - override the `python3`/`cmake` executables.

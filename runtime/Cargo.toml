@@ -16,5 +16,8 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 xcb = { workspace = true }
 
+[build-dependencies]
+codegen = { path = "../codegen" }
+
 [lints]
 workspace = true

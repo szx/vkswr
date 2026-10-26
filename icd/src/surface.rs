@@ -29,22 +29,6 @@ pub unsafe extern "C" fn vkCreateXcbSurfaceKHR(
     VkResult::VK_SUCCESS
 }
 
-pub unsafe extern "C" fn vkGetPhysicalDeviceXcbPresentationSupportKHR(
-    _physicalDevice: VkPhysicalDevice,
-    _queueFamilyIndex: u32,
-    _connection: Option<NonNull<xcb_connection_t>>,
-    _visual_id: xcb_visualid_t,
-) -> VkBool32 {
-    unimplemented!(
-        "vkGetPhysicalDeviceXcbPresentationSupportKHR(
-        physicalDevice,
-        queueFamilyIndex,
-        connection,
-        visual_id,
-    "
-    )
-}
-
 pub unsafe extern "C" fn vkDestroySurfaceKHR(
     instance: VkInstance,
     surface: VkSurfaceKHR,

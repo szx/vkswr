@@ -27,6 +27,7 @@ pub struct VkXml {
     pub type_externs: HashSet<VkTypeExtern>,
     pub extensions: HashSet<VkExtension>,
     pub commands: HashSet<VkCommand>,
+    pub formats: Vec<VkFormatMetadata>,
 }
 
 impl VkXml {
@@ -51,6 +52,8 @@ pub enum ParseVkXmlError {
     UTF8(#[from] std::str::Utf8Error),
     #[error("Deserialization error: {0}")]
     Deserialization(#[from] quick_xml::DeError),
+    #[error("format `{0}` has an invalid block size")]
+    InvalidFormatBlockSize(String),
 }
 
 fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
@@ -121,6 +124,21 @@ fn read_vk_xml(str: &str) -> Result<VkXml, ParseVkXmlError> {
                         vk_xml.commands.insert(command);
                     }
                 }
+                "formats" => {
+                    let bytes = read_to_end_into_buffer(&mut reader, &e)?;
+                    let str = std::str::from_utf8(&bytes)?;
+                    let formats = quick_xml::de::from_str::<VkFormatsSerde>(str)?;
+                    for format in formats.formats {
+                        let block_size = parse_int::parse::<u8>(format.block_size.as_ref())
+                            .map_err(|_| {
+                                ParseVkXmlError::InvalidFormatBlockSize(format.name.to_string())
+                            })?;
+                        vk_xml.formats.push(VkFormatMetadata {
+                            name: format.name,
+                            block_size,
+                        });
+                    }
+                }
                 "extension" | "feature" => {
                     let bytes = read_to_end_into_buffer(&mut reader, &e)?;
                     let str = std::str::from_utf8(&bytes)?;
@@ -172,6 +190,31 @@ fn read_to_end_into_buffer<R: BufRead>(
             _ => {}
         }
     }
+}
+
+// ---
+
+#[derive(Debug, Deserialize)]
+struct VkFormatsSerde {
+    #[serde(rename = "format", default)]
+    formats: Vec<VkFormatSerde>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VkFormatSerde {
+    #[serde(rename = "@name")]
+    name: Arc<str>,
+
+    #[serde(rename = "@blockSize")]
+    block_size: Arc<str>,
+}
+
+/// Storage layout metadata for a `VkFormat`.
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub struct VkFormatMetadata {
+    pub name: Arc<str>,
+    /// Bytes in one texel, or in one block for block-compressed formats.
+    pub block_size: u8,
 }
 
 // ---
@@ -738,6 +781,50 @@ impl VkFFIType {
         Self(type_)
     }
 
+    fn new_command_param(str: &str) -> Option<Self> {
+        regex!(RE_STRUCT, r"\bstruct\b");
+        regex!(RE_CONST, r"\bconst\b");
+        regex!(RE_ARRAY, r"\[\s*[^\]]*\s*\]");
+        regex!(RE_ALL_SPACES, r"\s+");
+
+        let is_array = RE_ARRAY.is_match(str);
+        let is_const = RE_CONST.is_match(str);
+        let without_array = RE_ARRAY.replace_all(str, " ");
+        let pointer_count = without_array.matches('*').count();
+        if pointer_count > 2 {
+            return None;
+        }
+
+        let base = RE_STRUCT.replace_all(&without_array, " ");
+        let base = base.replace('*', " ");
+        let base = RE_CONST.replace_all(&base, " ");
+        let base = RE_ALL_SPACES.replace_all(&base, " ");
+        let base = base.trim();
+        if base.is_empty() {
+            return None;
+        }
+        let base = c_type_to_ffi(base).map_or_else(|| base.to_owned(), str::to_owned);
+
+        if is_array {
+            if pointer_count > 0 {
+                return None;
+            }
+            return Some(Self(format!(
+                "*{} {base}",
+                if is_const { "const" } else { "mut" }
+            )));
+        }
+
+        let mut type_ = base;
+        for _ in 1..pointer_count {
+            type_ = format!("NonNull<{type_}>");
+        }
+        if pointer_count > 0 {
+            type_ = format!("Option<NonNull<{type_}>>");
+        }
+        Some(Self(type_))
+    }
+
     fn parse_value(value: &Arc<str>) -> String {
         parse_int::parse::<usize>(value.as_ref()).map_or_else(
             |_| {
@@ -911,16 +998,32 @@ pub struct VkCommand {
     pub alias: Option<Arc<str>>,
     /// Type of the first parameter, used to derive the dispatch level.
     pub first_parameter_type: Option<Arc<str>>,
+    /// Registry signature; absent for aliases and unparseable declarations.
+    pub signature: Option<VkCommandSignature>,
+}
+
+/// The return and parameter types of a Vulkan command.
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub struct VkCommandSignature {
+    pub return_type: Option<VkFFIType>,
+    pub parameter_types: Vec<VkFFIType>,
 }
 
 fn parse_command(str: &str) -> Option<VkCommand> {
     regex!(RE_COMMAND_ALIAS, r#"<command[^>]*\balias="(vk\w+)""#);
     regex!(RE_COMMAND_NAME, r#"<command[^>]*\bname="(vk\w+)""#);
+    regex!(RE_COMMAND_API, r#"<command[^>]*\bapi="([^"]*)""#);
     regex!(RE_PROTO_NAME, r"<proto[^>]*>.*?<name>(vk\w+)</name>");
     regex!(
         RE_FIRST_PARAM_TYPE,
         r"<param[^>]*>.*?<type[^>]*>([^<]*)</type>"
     );
+
+    if let Some(api) = RE_COMMAND_API.captures(str)
+        && !api[1].split(',').any(|api| api.trim() == "vulkan")
+    {
+        return None;
+    }
 
     if let Some(alias) = RE_COMMAND_ALIAS.captures(str) {
         let name = RE_COMMAND_NAME.captures(str)?;
@@ -928,6 +1031,7 @@ fn parse_command(str: &str) -> Option<VkCommand> {
             name: Arc::from(&name[1]),
             alias: Some(Arc::from(&alias[1])),
             first_parameter_type: None,
+            signature: None,
         });
     }
 
@@ -939,6 +1043,52 @@ fn parse_command(str: &str) -> Option<VkCommand> {
         name: Arc::from(&name[1]),
         alias: None,
         first_parameter_type,
+        signature: parse_command_signature(str),
+    })
+}
+
+fn parse_command_signature(str: &str) -> Option<VkCommandSignature> {
+    regex!(
+        RE_IMPLICIT_EXTERN_SYNC,
+        r"(?s)<implicitexternsyncparams>.*?</implicitexternsyncparams>"
+    );
+    regex!(RE_COMMENT, r"(?s)<comment>.*?</comment>");
+    regex!(RE_PROTO, r"(?s)<proto[^>]*>(.*?)</proto[^>]*>");
+    regex!(RE_NAME, r"<name[^>]*>(.*?)</name[^>]*>");
+    regex!(RE_PARAM, r"(?s)<param[^>]*>(.*?)</param[^>]*>");
+    regex!(RE_PARAM_API, r#"<param[^>]*\bapi="([^"]*)""#);
+    regex!(RE_ALL_TAGS, r"</?[^>]*>");
+    regex!(RE_ALL_SPACES, r"\s+");
+
+    let str = RE_IMPLICIT_EXTERN_SYNC.replace_all(str, "");
+    let str = RE_COMMENT.replace_all(&str, "");
+    let proto = RE_PROTO.captures(&str)?.get(1)?.as_str();
+
+    let return_type = RE_NAME.replace_all(proto, " ");
+    let return_type = RE_ALL_TAGS.replace_all(&return_type, " ");
+    let return_type = RE_ALL_SPACES.replace_all(&return_type, " ");
+    let return_type = return_type.trim();
+    let return_type = match return_type {
+        "" | "void" => None,
+        type_ => Some(VkFFIType::new(type_)),
+    };
+
+    let mut parameter_types = Vec::new();
+    for capture in RE_PARAM.captures_iter(&str) {
+        if let Some(api) = RE_PARAM_API.captures(&capture[0])
+            && !api[1].split(',').any(|api| api.trim() == "vulkan")
+        {
+            continue;
+        }
+        let type_ = RE_NAME.replace_all(&capture[0], " ");
+        let type_ = RE_ALL_TAGS.replace_all(&type_, " ");
+        let type_ = RE_ALL_SPACES.replace_all(&type_, " ");
+        parameter_types.push(VkFFIType::new_command_param(type_.trim())?);
+    }
+
+    Some(VkCommandSignature {
+        return_type,
+        parameter_types,
     })
 }
 

@@ -7,6 +7,7 @@ pub mod buffer;
 pub mod command_buffer;
 pub mod context;
 pub mod descriptor;
+pub mod extensions;
 pub mod fence;
 pub mod image;
 pub mod instance;
