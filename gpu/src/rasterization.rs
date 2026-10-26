@@ -32,14 +32,12 @@ pub fn draw_line_bresenham(v0: Vertex, v1: Vertex, fragments: &mut Vec<Fragment>
     let mut err = d_x / 2; // Pixel center.
     let mut y = y0;
     for x in x0..=x1 {
-        // TODO: Compute z_screen.
         let (fragment_x, fragment_y) = if steep {
             (y as f32, x as f32)
         } else {
             (x as f32, y as f32)
         };
         fragments.push(Fragment {
-            // TODO: Get z and w from the vertex shader.
             position: Position::from_sfloat32_raw(fragment_x, fragment_y, 0.0, 1.0),
             color,
         });

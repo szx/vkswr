@@ -586,8 +586,6 @@ pub enum VkTypeExtern {
 
 // ---
 
-// ---
-
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum VkFuncDeclMember {
     Member { name: String, type_: VkFFIType },
@@ -724,8 +722,6 @@ impl VkFFIType {
             type_.replace_range(.., ffi);
         }
         if let Some(array_index) = array_index {
-            // Numeric dimensions are already valid array lengths; named
-            // constants are generated as `u32` and need an explicit cast.
             if array_index
                 .chars()
                 .all(|character| character.is_ascii_digit())
@@ -872,10 +868,6 @@ impl VkExtensionSerde {
         Some(VkExtension {
             name: self.name.clone(),
             number: self.number.clone(),
-            // `apitype="internal"` features split the Vulkan API into base,
-            // compute, and graphics subsets in recent registries. They carry
-            // core enum members but their `number` is a version such as `1.4`,
-            // not an extension number, so no `*_NUMBER` constant is generated.
             internal: self.apitype.as_deref() == Some("internal"),
             api: self.api.clone(),
             enum_members: self

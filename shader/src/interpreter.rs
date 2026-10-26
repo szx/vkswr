@@ -86,7 +86,7 @@ impl State {
     fn new() -> Self {
         Self {
             pc: 0,
-            memory: vec![0; MEMORY_SIZE], // TODO: Max memory size.
+            memory: vec![0; MEMORY_SIZE],
             memory_last_idx: 0,
             array_variables: Vec::new(),
             struct_variables: Vec::new(),
@@ -247,8 +247,7 @@ impl Variable {
                 array_stride,
             } => {
                 if !matches!(element_kind.backing, il::VariableBacking::Memory) {
-                    // Arrays of built-ins (e.g. gl_ClipDistance) are already
-                    // represented by the built-in variable.
+                    // Arrays of built-ins are represented by the built-in variable.
                     let element = Self::from_il(element_kind, state);
                     let array = state.array_variable(element);
                     if *array_stride == 0 || array.stride == *array_stride {
@@ -404,8 +403,6 @@ impl State {
 
         let location = self.add_input_variable(&vertex.position.get_as_f32_array());
         self.location_variables.insert(0, location);
-
-        // TODO: Use the vertex input state to fetch vertex attributes.
     }
 
     fn vertex_shader_output(&self) -> VertexShaderOutput {
@@ -437,8 +434,6 @@ impl State {
 
         let color = self.add_input_variable(&fragment.color.get_as_f32_array());
         self.location_variables.insert(0, color);
-
-        // TODO: Use descriptors to fetch shader inputs.
     }
 
     fn fragment_shader_output(&self) -> FragmentShaderOutput {
@@ -446,7 +441,6 @@ impl State {
             Format::R32G32B32A32Sfloat,
             self.bytes(self.array_variable(self.built_in_variable(BuiltIn::FragCoord))),
         );
-        // TODO: Determine the color from the fragment shader output interface.
         let color = Vector4::from_vertex_buffer_bytes(
             Format::R32G32B32A32Sfloat,
             self.bytes(self.array_variable(self.location_variable(0))),
@@ -618,7 +612,6 @@ impl State {
             .pointer
             .expect("pointer variable has a target");
 
-        // TODO: Match identical object types before storing.
         self.store_array(self.array_variable(dst), self.array_variable(src));
     }
 

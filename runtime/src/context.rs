@@ -207,8 +207,6 @@ impl Handle for VkDispatchableHandle {
             },
             key,
         });
-        // `Box::leak` keeps the loader data alive for as long as the handle.
-        // `release` reclaims it.
         Self(NonNull::new(Box::leak(inner)))
     }
 
@@ -216,8 +214,7 @@ impl Handle for VkDispatchableHandle {
         let Some(inner) = self.0 else {
             return;
         };
-        // SAFETY: `allocate` leaked exactly one box, and `release` runs once
-        // per handle when the object is removed from the registry.
+        // SAFETY: `allocate` leaked exactly one box per live handle.
         drop(unsafe { Box::from_raw(inner.as_ptr()) });
     }
 }
@@ -267,8 +264,7 @@ pub trait VulkanObject: Sized + Send + Sync {
             let mut context = CONTEXT.write();
             Self::registry_mut(&mut context).remove(&handle)
         };
-        // Drop the object outside the registry lock so its destructor may lock
-        // other objects without deadlocking.
+        // Drop outside the registry lock; destructors may lock other objects.
         drop(object);
         handle.release();
     }

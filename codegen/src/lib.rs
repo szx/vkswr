@@ -517,11 +517,7 @@ impl Emit for VkStruct {
 
                     impl Default for #ident {
                         fn default() -> Self {
-                            // SAFETY: Vulkan structs are plain-old-data C
-                            // structs. Every field accepts an all-zero bit
-                            // pattern: integers, floats, raw pointers,
-                            // function pointers, nested POD structs, and
-                            // nullable handles all have a valid zero value.
+                            // SAFETY: Every field accepts an all-zero bit pattern.
                             unsafe { std::mem::zeroed() }
                         }
                     }
@@ -548,9 +544,7 @@ impl Emit for VkStruct {
 
                     impl Default for #ident {
                         fn default() -> Self {
-                            // SAFETY: A union has no invalid bit patterns at
-                            // the type level; zero is a valid byte pattern and
-                            // its fields are only read inside `unsafe` code.
+                            // SAFETY: Zero is a valid bit pattern for every field.
                             unsafe { std::mem::zeroed() }
                         }
                     }
@@ -684,8 +678,6 @@ impl Emit for VkExtensionEnumMember {
                 if let Some(extends) = extends {
                     let inner = enum_inner_type(extends);
                     let extends = format_ident!("{extends}");
-                    // A plain `-5 as u32` still negates a `u32` literal, so
-                    // give negative values an explicit signed type first.
                     let value = match parse_int::parse::<i64>(value) {
                         Ok(value) => {
                             let value = Literal::i64_suffixed(value);

@@ -172,8 +172,6 @@ impl GraphicsPipeline {
                 warn!("TODO: Depth test.");
                 warn!("TODO: Back-face culling.");
                 warn!("TODO: Clipping.");
-                // Viewport transformation.
-                // See <https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#vertexpostproc-viewport>.
                 let (p_x, p_y, p_z) = (
                     viewport.extent.width,
                     viewport.extent.height,
@@ -264,7 +262,6 @@ impl GraphicsPipeline {
         warn!("TODO: late per-fragment operations");
         warn!("TODO: color/blending operations");
 
-        // Color attachment output.
         warn!("TODO: Fragment shader should write directly to render target");
         let framebuffer_width = u64::from(render_target.image.extent.width);
         let framebuffer_height = u64::from(render_target.image.extent.height);
@@ -322,7 +319,6 @@ impl GraphicsPipeline {
         assert_eq!(attribute.location, 0);
         assert!(attribute.offset < MAX_VERTEX_ATTRIBUTE_OFFSET);
 
-        // Create elements from the vertex buffer using the attributes.
         let Some(vertex_buffer) = self.vertex_buffers[binding.number].as_ref() else {
             panic!(
                 "vertex buffer for binding {} is not bound",

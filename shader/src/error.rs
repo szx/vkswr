@@ -47,8 +47,7 @@ impl Error {
     }
 }
 
-// `Shader::new` must be usable with `?` in fallible code that requires a
-// `Send + Sync + 'static` error.
+// `Shader::new` requires a `Send + Sync + 'static` error.
 const _: () = {
     const fn assert_error_traits<E: std::error::Error + Send + Sync + 'static>() {}
     assert_error_traits::<Error>();

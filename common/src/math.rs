@@ -61,7 +61,6 @@ impl Format {
                 component_bytes: [Some(0..4), Some(4..8), Some(8..12), Some(12..16)],
                 is_unorm: false,
             },
-            // TODO: Implement packed 10/10/10/2 formats.
             Self::A2b10g10r10UnormPack32 => FormatInfo {
                 bytes_per_pixel: 4,
                 bytes_per_component: None,

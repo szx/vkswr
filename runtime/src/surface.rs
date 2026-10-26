@@ -33,9 +33,7 @@ impl Surface {
     ) -> VkNonDispatchableHandle {
         info!("new Surface");
         let connection = create_info.connection.expect("xcb connection is not null");
-        // SAFETY: Vulkan takes ownership of the surface, not of the XCB
-        // connection. The pointer is valid for the lifetime of the application
-        // connection, and `ManuallyDrop` prevents closing it.
+        // SAFETY: Vulkan does not own the XCB connection; `ManuallyDrop` keeps it open.
         let connection = unsafe { xcb::Connection::from_raw_conn(connection.as_ptr()) };
         let connection = ManuallyDrop::new(connection);
         let window = x::Window::new(create_info.window);
@@ -82,12 +80,9 @@ impl Surface {
             .map_host(0, size)
             .map_err(|_| VkResult::VK_ERROR_OUT_OF_DATE_KHR)?;
         let data_length = usize::try_from(size).expect("framebuffer fits in host memory");
-        // SAFETY: `map_host` points at `size` bytes that stay mapped until
-        // `unmap_host` is called below.
+        // SAFETY: `map_host` points at `size` bytes mapped until `unmap_host`.
         let data = unsafe { std::slice::from_raw_parts(data.as_ptr().cast::<u8>(), data_length) };
 
-        // TODO: VK_ERROR_OUT_OF_DATE_KHR
-        // TODO: Use the X Present extension.
         self.connection
             .send_and_check_request(&x::PutImage {
                 format: x::ImageFormat::ZPixmap,

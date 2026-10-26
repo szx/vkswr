@@ -38,7 +38,7 @@ fn generate_dispatch_tables() -> Result<(), Box<dyn Error>> {
     let options = codegen::DispatchOptions {
         extensions: ADVERTISED_EXTENSIONS,
         loader_commands: LOADER_COMMANDS,
-        // The loader resolves vkGetDeviceProcAddr through vk_icdGetInstanceProcAddr.
+        // The loader resolves this through vk_icdGetInstanceProcAddr.
         instance_commands: &["vkGetDeviceProcAddr"],
     };
 

@@ -28,7 +28,7 @@ impl Gpu {
 
 /// A recorded GPU command.
 #[derive(Debug, Clone)]
-#[allow(clippy::large_enum_variant)] // Commands are short-lived; boxing adds allocations.
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     CopyBufferToImage {
         src_buffer: DescriptorBuffer,

@@ -69,9 +69,6 @@ const MEMORY_HEAPS: [VkMemoryHeap; VK_MAX_MEMORY_HEAPS as usize] = {
     memory_heaps
 };
 
-// The format table below advertises a deliberately small set of features.
-// Naming the individual bits once keeps the table readable and makes each
-// combination self-documenting.
 const SAMPLED_IMAGE_BIT: VkFormatFeatureFlags =
     VkFormatFeatureFlagBits::VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT.0;
 const STORAGE_IMAGE_BIT: VkFormatFeatureFlags =
@@ -190,8 +187,7 @@ const UNSUPPORTED_FORMAT: VkFormatProperties =
 /// [`PhysicalDevice::features`] is a `const fn`, so spell the zero value out
 /// here.
 const NO_DEVICE_FEATURES: VkPhysicalDeviceFeatures = {
-    // SAFETY: `VkPhysicalDeviceFeatures` is a `#[repr(C)]` plain-old-data
-    // struct whose fields are all `VkBool32`, for which zero is valid.
+    // SAFETY: Every field is a `VkBool32`, for which zero is valid.
     unsafe { std::mem::zeroed() }
 };
 
@@ -380,7 +376,6 @@ impl PhysicalDevice {
 
     pub const fn format_properties(&self, format: VkFormat) -> VkFormatProperties {
         match format {
-            // Sampled, linearly filtered, blittable formats with no buffer features.
             VkFormat::VK_FORMAT_B4G4R4A4_UNORM_PACK16
             | VkFormat::VK_FORMAT_E5B9G9R9_UFLOAT_PACK32
             | VkFormat::VK_FORMAT_BC1_RGB_UNORM_BLOCK
@@ -440,7 +435,6 @@ impl PhysicalDevice {
                 format_features(SAMPLED_BLIT_TRANSFER, NO_FORMAT_FEATURES)
             }
 
-            // Sampled, blendable color attachments with no buffer features.
             VkFormat::VK_FORMAT_R5G6B5_UNORM_PACK16
             | VkFormat::VK_FORMAT_A1R5G5B5_UNORM_PACK16
             | VkFormat::VK_FORMAT_R8G8B8A8_SRGB
@@ -449,7 +443,6 @@ impl PhysicalDevice {
                 format_features(SAMPLED_BLENDABLE_COLOR_ATTACHMENT, NO_FORMAT_FEATURES)
             }
 
-            // Sampled, blendable color attachments usable as texel and vertex buffers.
             VkFormat::VK_FORMAT_R8_UNORM
             | VkFormat::VK_FORMAT_R8G8_UNORM
             | VkFormat::VK_FORMAT_B8G8R8A8_UNORM
@@ -459,12 +452,10 @@ impl PhysicalDevice {
                 format_features(SAMPLED_BLENDABLE_COLOR_ATTACHMENT, UNIFORM_VERTEX_BUFFER)
             }
 
-            // Sampled, linearly filtered, blittable formats usable as texel and vertex buffers.
             VkFormat::VK_FORMAT_R8_SNORM | VkFormat::VK_FORMAT_R8G8_SNORM => {
                 format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_VERTEX_BUFFER)
             }
 
-            // Sampled color attachments usable as texel and vertex buffers.
             VkFormat::VK_FORMAT_R8_UINT
             | VkFormat::VK_FORMAT_R8_SINT
             | VkFormat::VK_FORMAT_R8G8_UINT
@@ -476,7 +467,6 @@ impl PhysicalDevice {
                 format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_VERTEX_BUFFER)
             }
 
-            // Sampled, blendable color attachments with storage image and texel buffer support.
             VkFormat::VK_FORMAT_R8G8B8A8_UNORM | VkFormat::VK_FORMAT_R16G16B16A16_SFLOAT => {
                 format_features(
                     SAMPLED_STORAGE_BLENDABLE_COLOR_ATTACHMENT,
@@ -484,12 +474,10 @@ impl PhysicalDevice {
                 )
             }
 
-            // Sampled storage images usable as texel and vertex buffers.
             VkFormat::VK_FORMAT_R8G8B8A8_SNORM => {
                 format_features(SAMPLED_STORAGE_BLIT_TRANSFER, UNIFORM_STORAGE_VERTEX_BUFFER)
             }
 
-            // Sampled storage images usable as color attachments and texel buffers.
             VkFormat::VK_FORMAT_R8G8B8A8_UINT
             | VkFormat::VK_FORMAT_R8G8B8A8_SINT
             | VkFormat::VK_FORMAT_R16G16B16A16_UINT
@@ -505,28 +493,23 @@ impl PhysicalDevice {
                 UNIFORM_STORAGE_VERTEX_BUFFER,
             ),
 
-            // Sampled, blendable color attachments with texel buffer support.
             VkFormat::VK_FORMAT_A8B8G8R8_UNORM_PACK32 => format_features(
                 SAMPLED_BLENDABLE_COLOR_ATTACHMENT,
                 UNIFORM_STORAGE_VERTEX_BUFFER,
             ),
 
-            // Sampled, linearly filtered, blittable formats with texel buffer support.
             VkFormat::VK_FORMAT_A8B8G8R8_SNORM_PACK32 => {
                 format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_STORAGE_VERTEX_BUFFER)
             }
 
-            // Sampled color attachments with texel buffer support.
             VkFormat::VK_FORMAT_A8B8G8R8_UINT_PACK32 | VkFormat::VK_FORMAT_A8B8G8R8_SINT_PACK32 => {
                 format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_STORAGE_VERTEX_BUFFER)
             }
 
-            // Sampled color attachments usable as uniform texel buffers.
             VkFormat::VK_FORMAT_A2B10G10R10_UINT_PACK32 => {
                 format_features(SAMPLED_COLOR_ATTACHMENT, UNIFORM_TEXEL_BUFFER)
             }
 
-            // Vertex-buffer-only formats.
             VkFormat::VK_FORMAT_R16_UNORM
             | VkFormat::VK_FORMAT_R16_SNORM
             | VkFormat::VK_FORMAT_R16G16_UNORM
@@ -537,28 +520,23 @@ impl PhysicalDevice {
                 format_features(NO_FORMAT_FEATURES, VERTEX_BUFFER)
             }
 
-            // Uniform texel and vertex buffer formats.
             VkFormat::VK_FORMAT_R16G16B16A16_UNORM | VkFormat::VK_FORMAT_R16G16B16A16_SNORM => {
                 format_features(NO_FORMAT_FEATURES, UNIFORM_VERTEX_BUFFER)
             }
 
-            // Atomic storage image and color attachment formats with texel buffer support.
             VkFormat::VK_FORMAT_R32_UINT | VkFormat::VK_FORMAT_R32_SINT => format_features(
                 SAMPLED_STORAGE_ATOMIC_COLOR_ATTACHMENT,
                 UNIFORM_STORAGE_ATOMIC_VERTEX_BUFFER,
             ),
 
-            // Sampled, linearly filtered, blittable formats usable as uniform texel buffers.
             VkFormat::VK_FORMAT_B10G11R11_UFLOAT_PACK32 => {
                 format_features(SAMPLED_BLIT_TRANSFER, UNIFORM_TEXEL_BUFFER)
             }
 
-            // Sampled depth/stencil formats that can be blitted.
             VkFormat::VK_FORMAT_D16_UNORM => {
                 format_features(SAMPLED_DEPTH_STENCIL_TRANSFER, NO_FORMAT_FEATURES)
             }
 
-            // Depth/stencil attachment formats.
             VkFormat::VK_FORMAT_X8_D24_UNORM_PACK32
             | VkFormat::VK_FORMAT_D32_SFLOAT
             | VkFormat::VK_FORMAT_D24_UNORM_S8_UINT
@@ -566,7 +544,6 @@ impl PhysicalDevice {
                 format_features(DEPTH_STENCIL_ATTACHMENT_BIT, NO_FORMAT_FEATURES)
             }
 
-            // Formats without any advertised tiling or buffer features.
             VkFormat::VK_FORMAT_UNDEFINED
             | VkFormat::VK_FORMAT_R4G4_UNORM_PACK8
             | VkFormat::VK_FORMAT_R4G4B4A4_UNORM_PACK16
@@ -702,7 +679,6 @@ impl PhysicalDevice {
             | VkFormat::VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK
             | VkFormat::VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK
             | VkFormat::VK_FORMAT_R16G16_S10_5_NV => UNSUPPORTED_FORMAT,
-            // Formats added to Vulkan after this crate's registry snapshot.
             _ => UNSUPPORTED_FORMAT,
         }
     }
@@ -769,8 +745,8 @@ impl PhysicalDevice {
                 depth: 1,
             },
             VkImageType::VK_IMAGE_TYPE_2D if is_cube_compatible => VkExtent3D {
-                width: 16384,  // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (5).
-                height: 16384, // TODO: Replace with VkPhysicalDeviceLimits::maxImageDimensionCube (6).
+                width: 16384,
+                height: 16384,
                 depth: 1,
             },
             VkImageType::VK_IMAGE_TYPE_2D => VkExtent3D {
@@ -792,7 +768,7 @@ impl PhysicalDevice {
                 maxMipLevels: 1,
                 maxArrayLayers: 1, // TODO: VkPhysicalDeviceLimits::maxImageArrayLayers
                 sampleCounts: VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT.into(),
-                maxResourceSize: 1_u64 << 31, // TODO: VK_ERROR_OUT_OF_DEVICE_MEMORY
+                maxResourceSize: 1_u64 << 31,
             }),
             _ => None,
         }
@@ -872,8 +848,7 @@ impl PhysicalDevice {
                 .map_or(&[] as &[_], |descriptions| {
                     let count = usize::try_from(vertex_input_state.vertexAttributeDescriptionCount)
                         .expect("vertex attribute description count fits in usize");
-                    // SAFETY: The caller guarantees that `pVertexAttributeDescriptions`
-                    // points to `vertexAttributeDescriptionCount` valid descriptions.
+                    // SAFETY: The caller provides `vertexAttributeDescriptionCount` valid descriptions.
                     unsafe { std::slice::from_raw_parts(descriptions.as_ptr(), count) }
                 });
         let vk_bindings =
@@ -882,8 +857,7 @@ impl PhysicalDevice {
                 .map_or(&[] as &[_], |descriptions| {
                     let count = usize::try_from(vertex_input_state.vertexBindingDescriptionCount)
                         .expect("vertex binding description count fits in usize");
-                    // SAFETY: The caller guarantees that `pVertexBindingDescriptions`
-                    // points to `vertexBindingDescriptionCount` valid descriptions.
+                    // SAFETY: The caller provides `vertexBindingDescriptionCount` valid descriptions.
                     unsafe { std::slice::from_raw_parts(descriptions.as_ptr(), count) }
                 });
         let mut vertex_input_state = VertexInputState::default();
@@ -977,15 +951,13 @@ impl PhysicalDevice {
         let vk_viewports = viewport_state.pViewports.map_or(&[] as &[_], |viewports| {
             let count = usize::try_from(viewport_state.viewportCount)
                 .expect("viewport count fits in usize");
-            // SAFETY: The caller guarantees that `pViewports` points to
-            // `viewportCount` valid viewports.
+            // SAFETY: The caller provides `viewportCount` valid viewports.
             unsafe { std::slice::from_raw_parts(viewports.as_ptr(), count) }
         });
         let vk_scissors = viewport_state.pScissors.map_or(&[] as &[_], |scissors| {
             let count =
                 usize::try_from(viewport_state.scissorCount).expect("scissor count fits in usize");
-            // SAFETY: The caller guarantees that `pScissors` points to
-            // `scissorCount` valid scissors.
+            // SAFETY: The caller provides `scissorCount` valid scissors.
             unsafe { std::slice::from_raw_parts(scissors.as_ptr(), count) }
         });
 
@@ -1060,8 +1032,7 @@ impl PhysicalDevice {
             let name = shader_stage
                 .pName
                 .expect("shader stage must have an entry point name");
-            // SAFETY: Vulkan requires `pName` to point to a null-terminated
-            // string that remains valid for the duration of the call.
+            // SAFETY: Vulkan requires a NUL-terminated `pName` valid for the call.
             let name = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) };
             let name = name
                 .to_str()

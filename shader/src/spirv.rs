@@ -262,9 +262,7 @@ impl Object {
                         return Err(Error::invalid_spirv(name, "OpConstant has no result type"));
                     };
                     match operands {
-                        // rspirv decodes 32-bit integer and floating-point
-                        // literals as raw bits, which is exactly the
-                        // representation the interpreter stores in memory.
+                        // rspirv stores 32-bit literals as raw bits, the interpreter's format.
                         [DrOperand::LiteralBit32(value)] => {
                             constants.insert(
                                 id,

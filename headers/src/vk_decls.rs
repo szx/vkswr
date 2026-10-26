@@ -1,4 +1,4 @@
-#![allow(clippy::use_self)] // Generated structs repeat their own name in field types.
+#![allow(clippy::use_self)]
 
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -15,16 +15,13 @@ pub struct VkDispatchableHandle(pub Option<NonNull<VkDispatchableHandleInner>>);
 
 impl Hash for VkDispatchableHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // Handles are opaque identities; the address is a stable, cheap key.
         self.0
             .map_or(0, |handle| handle.as_ptr() as usize)
             .hash(state);
     }
 }
 
-// SAFETY: A handle is an opaque identifier. The pointed-to inner value is
-// immutable for as long as the handle exists and is only used to return the
-// loader magic and a debug key.
+// SAFETY: The handle is an opaque identifier with an immutable inner value.
 unsafe impl Send for VkDispatchableHandle {}
 // SAFETY: See the `Send` implementation above.
 unsafe impl Sync for VkDispatchableHandle {}
@@ -352,8 +349,7 @@ impl From<VkFormat> for common::math::Format {
             VkFormat::VK_FORMAT_R8G8B8A8_SSCALED => unimplemented!(),
             VkFormat::VK_FORMAT_R8G8B8A8_UINT => unimplemented!(),
             VkFormat::VK_FORMAT_R8G8B8A8_SINT => unimplemented!(),
-            // The software renderer does not perform sRGB conversion yet; treat the
-            // format as its UNORM equivalent so uploads and rendering keep working.
+            // sRGB conversion is not implemented; treat the format as UNORM.
             VkFormat::VK_FORMAT_R8G8B8A8_SRGB => Self::R8G8B8A8Unorm,
             VkFormat::VK_FORMAT_B8G8R8A8_UNORM => unimplemented!(),
             VkFormat::VK_FORMAT_B8G8R8A8_SNORM => unimplemented!(),
@@ -547,8 +543,7 @@ impl From<VkFormat> for common::math::Format {
 
 impl From<VkClearValue> for common::math::Color {
     fn from(value: VkClearValue) -> Self {
-        // SAFETY: `color` is a union of 32-bit arrays and the `uint32` variant
-        // is valid for every clear value.
+        // SAFETY: The `uint32` variant is valid for every clear value.
         let color = unsafe { value.color.uint32 };
         Self::from_raw(
             u64::from(color[0]),

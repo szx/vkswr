@@ -304,7 +304,6 @@ mod tests {
 
         let outputs = shader.execute_vertex_shader(&vertex_input_state(), inputs);
 
-        // TODO: Use ULP (units in the last place) as defined in Vulkan spec?
         let eps = 0.000_01_f32;
         for (output, (reference, point_size)) in outputs.iter().zip(references) {
             // TODO: Refactor Vector4: operation overloading.

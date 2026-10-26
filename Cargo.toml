@@ -11,8 +11,7 @@ members = [
     "shader",
     "test_suite",
 ]
-# Test-only helper: kept out of the workspace so ordinary builds don't pull in
-# HTTP/archive dependencies.
+# Keep HTTP/archive dependencies out of ordinary builds.
 exclude = ["test_tools"]
 
 [workspace.package]

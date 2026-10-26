@@ -199,7 +199,6 @@ impl CommandBuffer {
         _dynamic_offsets: &[u32],
     ) {
         trace!("CommandBuffer::cmd_bind_descriptor_sets");
-        // TODO: Record descriptor set bindings.
     }
 
     pub fn cmd_push_constants(
@@ -210,7 +209,6 @@ impl CommandBuffer {
         _values: &[u8],
     ) {
         trace!("CommandBuffer::cmd_push_constants");
-        // TODO: Record push constant updates.
     }
 
     pub fn cmd_bind_vertex_buffer(
@@ -245,12 +243,10 @@ impl CommandBuffer {
 
     pub fn cmd_set_viewport(&mut self, _first_viewport: u32, _viewports: &[VkViewport]) {
         trace!("CommandBuffer::cmd_set_viewport");
-        // TODO: Record viewport dynamic state changes.
     }
 
     pub fn cmd_set_scissors(&mut self, _first_scissor: u32, _scissors: &[VkRect2D]) {
         trace!("CommandBuffer::cmd_set_scissors");
-        // TODO: Record scissor dynamic state changes.
     }
 
     pub fn cmd_draw(

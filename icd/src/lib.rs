@@ -5,11 +5,6 @@
 //! through the runtime object registry.
 
 #![allow(non_snake_case)]
-// Entry point names come from the Vulkan registry.
-// Every entry point is by definition an unsafe FFI boundary; keeping the
-// pointer operations visually explicit in each function would add noise
-// without adding safety. Individual non-obvious operations still carry
-// SAFETY comments.
 #![allow(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(wait_for_debugger, feature(core_intrinsics))]
 #![cfg_attr(wait_for_debugger, allow(internal_features))]
@@ -33,9 +28,7 @@ use headers::vk_decls::*;
 /// Converts a typed entry point to the loader's opaque function pointer type.
 macro_rules! entry_point {
     ($function:path) => {{
-        // SAFETY: Vulkan entry points are `extern "C"` functions. The loader
-        // only invokes the returned pointer using the signature declared for
-        // the same registry command.
+        // SAFETY: The loader invokes the pointer with the registry signature.
         unsafe { std::mem::transmute::<*const (), PFN_vkVoidFunction>($function as *const ()) }
     }};
 }
@@ -88,7 +81,6 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     if pName.is_null() {
         return None;
     }
-    // SAFETY: The loader passes a NUL-terminated command name.
     let Ok(pName) = (unsafe { CStr::from_ptr(pName) }).to_str() else {
         return None;
     };
@@ -109,13 +101,10 @@ pub unsafe extern "C" fn vk_icdNegotiateLoaderICDInterfaceVersion(
         return VkResult::VK_ERROR_INCOMPATIBLE_DRIVER;
     };
     const SUPPORTED_VERSION: u32 = 3;
-    // SAFETY: The loader provides a writable `u32` as documented by the ICD
-    // interface contract.
     let demanded_version = unsafe { *pSupportedVersion.as_ptr() };
     if demanded_version < SUPPORTED_VERSION {
         VkResult::VK_ERROR_INCOMPATIBLE_DRIVER
     } else {
-        // SAFETY: Same pointer and validity argument as the read above.
         unsafe {
             *pSupportedVersion.as_ptr() = demanded_version.min(SUPPORTED_VERSION);
         }

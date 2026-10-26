@@ -5,11 +5,7 @@
 //! Vulkan specification.
 
 #![allow(non_snake_case)]
-// Unimplemented commands keep their Vulkan-mandated signatures even though
-// they do not consume every parameter yet.
 #![allow(unused_variables)]
-// The ICD implements a superset of the commands it currently advertises
-// through its dispatch tables (for example Vulkan 1.1 additions).
 #![allow(dead_code)]
 
 use crate::buffer::*;
@@ -255,8 +251,6 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
     device: VkDevice,
     pName: Option<NonNull<std::ffi::c_char>>,
 ) -> PFN_vkVoidFunction {
-    // Validity of the device is required by the specification; the object
-    // itself is not needed to look up an entry point.
     let _device = LogicalDevice::from_handle(device).expect("device handle is live");
     let pName = pName?;
     // SAFETY: The loader passes a NUL-terminated command name.
@@ -264,9 +258,7 @@ pub unsafe extern "C" fn vkGetDeviceProcAddr(
         return None;
     };
 
-    // SPEC: The overhead of the internal dispatch for VkDevice objects can be
-    // avoided by obtaining device-specific function pointers for any commands
-    // that use a device or a device-child object as their dispatchable object.
+    // SPEC: Only device-level commands are valid here.
     device_command(pName)
 }
 

@@ -95,8 +95,7 @@ static IMAGE_OUTPUT_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 fn image_output_dir() -> &'static Path {
     IMAGE_OUTPUT_DIR.get_or_init(|| {
-        // Don't wipe the directory: it also contains the reference images used
-        // by the README. New results overwrite files with the same name.
+        // Keep the README reference images; new results overwrite by name.
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../assets/deqp-vk");
         std::fs::create_dir_all(&path).expect("create the image output directory");
         path
