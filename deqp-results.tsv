@@ -1,0 +1,17 @@
+dEQP-VK.api.device_init.create_device.basic	pass
+dEQP-VK.api.device_init.create_device_unsupported_features.core	pass
+dEQP-VK.api.info.*	pass
+dEQP-VK.api.object_management.single.buffer_view_uniform_r8g8b8a8_unorm	pass
+dEQP-VK.api.smoke.create_shader	pass
+dEQP-VK.api.smoke.triangle	pass
+dEQP-VK.api.version_check.entry_points	pass
+dEQP-VK.memory.mapping.suballocation.random.0	pass
+dEQP-VK.memory.mapping.suballocation.random.3	pass
+dEQP-VK.memory.pipeline_barrier.graphics.host_write_index_buffer.1024	pass
+dEQP-VK.memory.pipeline_barrier.graphics.host_write_transfer_src.1024	pass
+dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_2	pass
+dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.1024_vertex_buffer_stride_4	pass
+dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.8192_vertex_buffer_stride_2	pass
+dEQP-VK.memory.requirements.*	pass
+dEQP-VK.memory.requirements.core.buffer.regular	pass
+dEQP-VK.memory.requirements.core.image.regular_tiling_linear	pass

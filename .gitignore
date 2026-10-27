@@ -1,5 +1,7 @@
 /target
 /test_tools/target
+/deqp-results.lock
+/deqp-results.tsv.tmp
 /.idea
 /.cargo
 Cargo.lock

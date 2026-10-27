@@ -10,6 +10,7 @@ members = [
     "runtime",
     "shader",
     "test_suite",
+    "xtask",
 ]
 # Keep HTTP/archive dependencies out of ordinary builds.
 exclude = ["test_tools"]

@@ -47,7 +47,7 @@ fn run_executable(
     current_dir: Option<&Path>,
     args: &[OsString],
     callback: impl FnOnce(),
-) -> common::TestResult {
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
     let icd_json_path = common::get_icd_json_path();
     let mut command = Command::new(executable_path.as_ref());
     command
@@ -59,27 +59,35 @@ fn run_executable(
         command.current_dir(current_dir);
     }
     let out = command.args(args).output()?;
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    println!("stdout:\n{}", stdout);
+    println!("stdout:\n{}", String::from_utf8_lossy(&out.stdout));
     callback();
+    Ok(out)
+}
+
+fn passed(out: &std::process::Output) -> bool {
+    out.status.success() && !String::from_utf8_lossy(&out.stdout).contains("Passed:        0")
+}
+
+fn assert_passed(out: &std::process::Output) {
     assert!(
         out.status.success(),
         "Didn't pass: stderr:\n{}",
         String::from_utf8_lossy(&out.stderr),
     );
     assert!(
-        !stdout.contains("Passed:        0"),
+        !String::from_utf8_lossy(&out.stdout).contains("Passed:        0"),
         "Zero passed, stderr:\n{}",
         String::from_utf8_lossy(&out.stderr),
     );
-    Ok(())
 }
 
 #[test]
 fn run_vulkaninfo() -> common::TestResult {
     let vulkaninfo = test_tools::sdk_bin("vulkaninfo")
         .map_err(|error| std::io::Error::other(error.to_string()))?;
-    run_executable(vulkaninfo, None, &[], || {})
+    let out = run_executable(vulkaninfo, None, &[], || {})?;
+    assert_passed(&out);
+    Ok(())
 }
 
 #[ignore = "requires matrix shader support and texture sampling, not implemented yet"]
@@ -88,7 +96,9 @@ fn run_vkcube() -> common::TestResult {
     let vkcube =
         test_tools::sdk_bin("vkcube").map_err(|error| std::io::Error::other(error.to_string()))?;
     let args = [OsString::from("--c"), OsString::from("600")];
-    run_executable(vkcube, None, &args, || {})
+    let out = run_executable(vkcube, None, &args, || {})?;
+    assert_passed(&out);
+    Ok(())
 }
 
 static IMAGE_OUTPUT_DIR: OnceLock<PathBuf> = OnceLock::new();
@@ -126,7 +136,10 @@ fn run_deqp_vk(case_name: &'static str, log_images: bool) -> common::TestResult 
             save_deqp_vk_image(case_name, &results_path, image_output_dir());
         }
     };
-    run_executable(deqp_vk, Some(run_dir.path()), &args, print_deqp_vk_image)
+    let out = run_executable(deqp_vk, Some(run_dir.path()), &args, print_deqp_vk_image)?;
+    common::record_deqp_result(case_name, passed(&out))?;
+    assert_passed(&out);
+    Ok(())
 }
 
 #[ignore]
@@ -287,7 +300,7 @@ fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_1024_vertex_buff
 }
 
 #[test]
-fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buffer_stride_4()
+fn run_deqp_vk_memory_pipeline_barrier_host_write_vertex_buffer_8192_vertex_buffer_stride_2()
 -> common::TestResult {
     run_deqp_vk(
         "dEQP-VK.memory.pipeline_barrier.graphics.host_write_vertex_buffer.8192_vertex_buffer_stride_2",
